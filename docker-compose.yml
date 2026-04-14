@@ -1,0 +1,55 @@
+version: '3.9'
+services:
+  aura-bot:
+    build: .
+    container_name: aura-bot-v2
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      - DB_HOST=postgres
+      - REDIS_HOST=redis
+    volumes:
+      - ./logs:/app/logs
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis:    { condition: service_healthy }
+    networks: [aura]
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: aura-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB:       ${DB_NAME:-aura_bot}
+      POSTGRES_USER:     ${DB_USER:-aura}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-aura}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks: [aura]
+
+  redis:
+    image: redis:7-alpine
+    container_name: aura-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks: [aura]
+
+volumes:
+  postgres-data:
+  redis-data:
+
+networks:
+  aura:
+    driver: bridge

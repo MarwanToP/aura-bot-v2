@@ -1,0 +1,384 @@
+// ================================================================
+//  Commands: /ask /chat /imagine /translate /summarize /aimod
+// ================================================================
+
+import { SlashCommandBuilder, PermissionFlagsBits, AttachmentBuilder } from 'discord.js';
+import { buildEmbed } from '../../utils/embedBuilder.js';
+import config         from '../../../config/config.js';
+
+// ── /ask — Single AI question ──────────────────────────────
+export const ask = {
+  data: new SlashCommandBuilder()
+    .setName('ask')
+    .setNameLocalizations({ ar: 'اسأل' })
+    .setDescription('Ask the AI assistant anything')
+    .setDescriptionLocalizations({ ar: 'اسأل المساعد الذكي أي سؤال' })
+    .addStringOption(o => o
+      .setName('question')
+      .setDescription('Your question')
+      .setRequired(true)
+      .setMaxLength(1000)
+    )
+    .addBooleanOption(o => o.setName('ephemeral').setDescription('Only you can see the response')),
+
+  cooldown: 5000,
+
+  async execute(client, interaction) {
+    const ephemeral = interaction.options.getBoolean('ephemeral') ?? false;
+    await interaction.deferReply({ ephemeral });
+
+    if (!client.ai.isAvailable()) {
+      return interaction.editReply({ embeds: [buildEmbed({ type: 'error', description: '❌ AI is not configured on this bot.' })] });
+    }
+
+    const question = interaction.options.getString('question');
+    const lang     = await client.i18n.resolveLanguage(client, interaction.user.id, interaction.guildId);
+
+    // Check usage limits
+    const isPremium = await checkPremium(client, interaction.guildId);
+    const usage     = await client.ai.checkUsage(client.redis, interaction.user.id, isPremium);
+
+    if (usage.exceeded) {
+      return interaction.editReply({ embeds: [buildEmbed({ type: 'warning', description: `⚠️ Daily AI limit reached (${usage.limit} requests). ${!isPremium ? 'Upgrade to Premium for more!' : 'Resets at midnight.'}` })] });
+    }
+
+    try {
+      const langInstr = lang === 'ar' ? 'Please respond in Arabic.' : '';
+      const result    = await client.ai.prompt(question + (langInstr ? `\n\n${langInstr}` : ''));
+
+      await client.ai.incrementUsage(client.redis, interaction.user.id);
+
+      return interaction.editReply({
+        embeds: [buildEmbed({
+          type:        'ai',
+          author:      `🤖 Aura AI • ${result.provider === 'anthropic' ? 'Claude' : 'GPT-4o'}`,
+          description: result.content.slice(0, 4000),
+          footer:      `Asked by ${interaction.user.tag} • ${usage.usage + 1}/${usage.limit} requests today`,
+          timestamp:   true,
+        })],
+      });
+    } catch (err) {
+      client.logger.error('[AI] ask error:', err);
+      return interaction.editReply({ embeds: [buildEmbed({ type: 'error', description: '❌ AI request failed. Please try again.' })] });
+    }
+  },
+};
+
+// ── /chat — Persistent AI conversation ─────────────────────
+export const chat = {
+  data: new SlashCommandBuilder()
+    .setName('chat')
+    .setNameLocalizations({ ar: 'دردشة' })
+    .setDescription('Have a conversation with the AI (remembers context)')
+    .setDescriptionLocalizations({ ar: 'تحدث مع الذكاء الاصطناعي (يتذكر السياق)' })
+    .addSubcommand(s => s
+      .setName('message')
+      .setDescription('Send a message to the AI')
+      .addStringOption(o => o.setName('text').setDescription('Your message').setRequired(true).setMaxLength(1000))
+    )
+    .addSubcommand(s => s
+      .setName('clear')
+      .setDescription('Clear your conversation history with the AI')
+    )
+    .addSubcommand(s => s
+      .setName('history')
+      .setDescription('View your conversation history')
+    ),
+
+  cooldown: 3000,
+
+  async execute(client, interaction) {
+    await interaction.deferReply();
+    const sub  = interaction.options.getSubcommand();
+    const lang = await client.i18n.resolveLanguage(client, interaction.user.id, interaction.guildId);
+
+    if (!client.ai.isAvailable()) {
+      return interaction.editReply({ embeds: [buildEmbed({ type: 'error', description: '❌ AI not configured.' })] });
+    }
+
+    if (sub === 'clear') {
+      await client.ai.clearContext(client.redis, interaction.user.id, interaction.guildId);
+      return interaction.editReply({ embeds: [buildEmbed({ type: 'success', description: '🗑️ Conversation history cleared.' })] });
+    }
+
+    if (sub === 'history') {
+      const ctx = await client.ai.getContext(client.redis, interaction.user.id, interaction.guildId);
+      if (!ctx.length) return interaction.editReply({ embeds: [buildEmbed({ type: 'info', description: '📭 No conversation history.' })] });
+
+      const preview = ctx.slice(-6).map(m => `**${m.role === 'user' ? '👤 You' : '🤖 AI'}:** ${m.content.slice(0, 200)}`).join('\n\n');
+      return interaction.editReply({ embeds: [buildEmbed({ type: 'ai', title: '💬 Recent Conversation', description: preview })] });
+    }
+
+    if (sub === 'message') {
+      const isPremium = await checkPremium(client, interaction.guildId);
+      const usage     = await client.ai.checkUsage(client.redis, interaction.user.id, isPremium);
+
+      if (usage.exceeded) {
+        return interaction.editReply({ embeds: [buildEmbed({ type: 'warning', description: `⚠️ Daily AI limit (${usage.limit}) reached.` })] });
+      }
+
+      const text     = interaction.options.getString('text');
+      const history  = await client.ai.getContext(client.redis, interaction.user.id, interaction.guildId);
+      const langNote = lang === 'ar' ? '\n\nPlease respond in Arabic.' : '';
+
+      const messages = [...history, { role: 'user', content: text + langNote }];
+
+      try {
+        const result = await client.ai.chat({ messages });
+
+        const newHistory = [...messages, { role: 'assistant', content: result.content }];
+        await client.ai.saveContext(client.redis, interaction.user.id, interaction.guildId, newHistory);
+        await client.ai.incrementUsage(client.redis, interaction.user.id);
+
+        return interaction.editReply({
+          embeds: [buildEmbed({
+            type:        'ai',
+            author:      `🤖 Aura AI Chat`,
+            description: result.content.slice(0, 4000),
+            footer:      `${history.length / 2 + 1} exchanges • ${usage.usage + 1}/${usage.limit} today • /chat clear to reset`,
+            timestamp:   true,
+          })],
+        });
+      } catch (err) {
+        client.logger.error('[AI] chat error:', err);
+        return interaction.editReply({ embeds: [buildEmbed({ type: 'error', description: '❌ AI request failed.' })] });
+      }
+    }
+  },
+};
+
+// ── /imagine — AI Image Generation ─────────────────────────
+export const imagine = {
+  data: new SlashCommandBuilder()
+    .setName('imagine')
+    .setNameLocalizations({ ar: 'تخيل' })
+    .setDescription('Generate an image with AI (DALL-E 3)')
+    .setDescriptionLocalizations({ ar: 'إنشاء صورة بالذكاء الاصطناعي' })
+    .addStringOption(o => o.setName('prompt').setDescription('Describe the image').setRequired(true).setMaxLength(800))
+    .addStringOption(o => o
+      .setName('style')
+      .setDescription('Art style')
+      .addChoices(
+        { name: '🎨 Vivid',   value: 'vivid' },
+        { name: '🖼️ Natural', value: 'natural' },
+      )
+    )
+    .addStringOption(o => o
+      .setName('size')
+      .setDescription('Image size')
+      .addChoices(
+        { name: '1024×1024 (Square)',     value: '1024x1024' },
+        { name: '1792×1024 (Landscape)', value: '1792x1024' },
+        { name: '1024×1792 (Portrait)',  value: '1024x1792' },
+      )
+    ),
+
+  cooldown:    30000,
+  premiumTier: 0,    // Free but limited
+
+  async execute(client, interaction) {
+    await interaction.deferReply();
+
+    if (!client.ai.openai) {
+      return interaction.editReply({ embeds: [buildEmbed({ type: 'error', description: '❌ Image generation requires OpenAI configuration.' })] });
+    }
+
+    const isPremium = await checkPremium(client, interaction.guildId);
+    const usage     = await client.ai.checkUsage(client.redis, interaction.user.id, isPremium);
+
+    if (usage.exceeded) {
+      return interaction.editReply({ embeds: [buildEmbed({ type: 'warning', description: `⚠️ Daily AI limit reached.` })] });
+    }
+
+    const prompt = interaction.options.getString('prompt');
+    const style  = interaction.options.getString('style')  || 'vivid';
+    const size   = interaction.options.getString('size')   || '1024x1024';
+
+    try {
+      const result = await client.ai.generateImage(prompt, { size, style });
+      await client.ai.incrementUsage(client.redis, interaction.user.id);
+
+      return interaction.editReply({
+        embeds: [buildEmbed({
+          type:    'ai',
+          title:   '🎨 AI Generated Image',
+          description: `**Prompt:** ${prompt}\n**Revised:** ${result.revisedPrompt?.slice(0, 200) || 'N/A'}`,
+          image:   result.url,
+          footer:  `Requested by ${interaction.user.tag} • DALL-E 3`,
+          timestamp: true,
+        })],
+      });
+    } catch (err) {
+      client.logger.error('[AI] imagine error:', err);
+      return interaction.editReply({ embeds: [buildEmbed({ type: 'error', description: `❌ Image generation failed: ${err.message}` })] });
+    }
+  },
+};
+
+// ── /translate — AI Translation ─────────────────────────────
+export const translate = {
+  data: new SlashCommandBuilder()
+    .setName('translate')
+    .setNameLocalizations({ ar: 'ترجم' })
+    .setDescription('Translate text between languages using AI')
+    .setDescriptionLocalizations({ ar: 'ترجمة النصوص بين اللغات باستخدام الذكاء الاصطناعي' })
+    .addStringOption(o => o.setName('text').setDescription('Text to translate').setRequired(true).setMaxLength(1500))
+    .addStringOption(o => o
+      .setName('to')
+      .setDescription('Target language')
+      .setRequired(true)
+      .addChoices(
+        { name: '🇬🇧 English',            value: 'en' },
+        { name: '🇸🇦 Arabic (العربية)',   value: 'ar' },
+        { name: '🇫🇷 French',             value: 'fr' },
+        { name: '🇩🇪 German',             value: 'de' },
+        { name: '🇪🇸 Spanish',            value: 'es' },
+        { name: '🇯🇵 Japanese',           value: 'ja' },
+        { name: '🇨🇳 Chinese',            value: 'zh' },
+        { name: '🇷🇺 Russian',            value: 'ru' },
+        { name: '🇹🇷 Turkish',            value: 'tr' },
+        { name: '🇮🇩 Indonesian',         value: 'id' },
+      )
+    ),
+
+  cooldown: 5000,
+
+  async execute(client, interaction) {
+    await interaction.deferReply();
+    const text = interaction.options.getString('text');
+    const to   = interaction.options.getString('to');
+
+    if (!client.ai.isAvailable()) {
+      return interaction.editReply({ embeds: [buildEmbed({ type: 'error', description: '❌ AI not configured.' })] });
+    }
+
+    try {
+      const result = await client.ai.translate(text, to);
+      const langFlags = { en: '🇬🇧', ar: '🇸🇦', fr: '🇫🇷', de: '🇩🇪', es: '🇪🇸', ja: '🇯🇵', zh: '🇨🇳', ru: '🇷🇺', tr: '🇹🇷', id: '🇮🇩' };
+
+      return interaction.editReply({
+        embeds: [buildEmbed({
+          type:  'ai',
+          title: `🌐 Translation → ${langFlags[to] || ''} ${to.toUpperCase()}`,
+          fields: [
+            { name: '📝 Original', value: text.slice(0, 1000),           inline: false },
+            { name: '✅ Translated', value: result.content.slice(0, 1000), inline: false },
+          ],
+          footer:    `Powered by ${result.provider === 'anthropic' ? 'Claude' : 'GPT-4o'}`,
+          timestamp: true,
+        })],
+      });
+    } catch (err) {
+      return interaction.editReply({ embeds: [buildEmbed({ type: 'error', description: '❌ Translation failed.' })] });
+    }
+  },
+};
+
+// ── /summarize — AI Text Summarizer ─────────────────────────
+export const summarize = {
+  data: new SlashCommandBuilder()
+    .setName('summarize')
+    .setNameLocalizations({ ar: 'لخّص' })
+    .setDescription('Summarize long text with AI')
+    .setDescriptionLocalizations({ ar: 'تلخيص النصوص الطويلة بالذكاء الاصطناعي' })
+    .addStringOption(o => o.setName('text').setDescription('Text to summarize').setRequired(true).setMaxLength(4000))
+    .addIntegerOption(o => o.setName('words').setDescription('Max summary words (default: 100)').setMinValue(50).setMaxValue(300)),
+
+  cooldown: 5000,
+
+  async execute(client, interaction) {
+    await interaction.deferReply();
+    const text     = interaction.options.getString('text');
+    const maxWords = interaction.options.getInteger('words') || 100;
+    const lang     = await client.i18n.resolveLanguage(client, interaction.user.id, interaction.guildId);
+
+    if (!client.ai.isAvailable()) {
+      return interaction.editReply({ embeds: [buildEmbed({ type: 'error', description: '❌ AI not configured.' })] });
+    }
+
+    try {
+      const result = await client.ai.summarize(text, { language: lang, maxWords });
+
+      return interaction.editReply({
+        embeds: [buildEmbed({
+          type:        'ai',
+          title:       '📄 AI Summary',
+          description: result.content,
+          footer:      `Summarized from ${text.split(' ').length} words → ~${maxWords} words`,
+          timestamp:   true,
+        })],
+      });
+    } catch (err) {
+      return interaction.editReply({ embeds: [buildEmbed({ type: 'error', description: '❌ Summarization failed.' })] });
+    }
+  },
+};
+
+// ── /aimod — AI Moderation Analysis (Staff only) ───────────
+export const aimod = {
+  data: new SlashCommandBuilder()
+    .setName('aimod')
+    .setDescription('[Staff] Analyze a message with AI moderation')
+    .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
+    .addStringOption(o => o.setName('message').setDescription('Message content to analyze').setRequired(true).setMaxLength(2000))
+    .addStringOption(o => o
+      .setName('depth')
+      .setDescription('Analysis depth')
+      .addChoices(
+        { name: '⚡ Quick (OpenAI Moderation)', value: 'quick' },
+        { name: '🧠 Deep (GPT-4o Analysis)',    value: 'deep' },
+      )
+    ),
+
+  userPermissions: [PermissionFlagsBits.ModerateMembers],
+  guildOnly:       true,
+  cooldown:        5000,
+
+  async execute(client, interaction) {
+    await interaction.deferReply({ ephemeral: true });
+    const message = interaction.options.getString('message');
+    const depth   = interaction.options.getString('depth') || 'quick';
+
+    if (!client.ai.isAvailable()) {
+      return interaction.editReply({ embeds: [buildEmbed({ type: 'error', description: '❌ AI not configured.' })] });
+    }
+
+    try {
+      const result = await client.ai.moderateContent(message, { context: depth });
+
+      const severityColors = { low: 'success', medium: 'warning', high: 'error', critical: 'error' };
+      const severityEmoji  = { low: '🟢', medium: '🟡', high: '🔴', critical: '💀' };
+
+      return interaction.editReply({
+        embeds: [buildEmbed({
+          type:  result.violation ? (severityColors[result.severity] || 'error') : 'success',
+          title: `🤖 AI Moderation Analysis`,
+          fields: [
+            { name: '📝 Content',       value: message.slice(0, 500),                                    inline: false },
+            { name: '✅ Violation',     value: result.violation ? '⚠️ **YES**' : '✅ **No violation**', inline: true },
+            { name: '📂 Category',      value: result.category || 'N/A',                                 inline: true },
+            { name: '⚡ Severity',      value: `${severityEmoji[result.severity] || '⚪'} ${result.severity || 'N/A'}`, inline: true },
+            { name: '🎯 Confidence',    value: `${result.confidence || 0}%`,                             inline: true },
+            { name: '🔍 Analysis Source', value: result.source || 'N/A',                                inline: true },
+            { name: '📋 Reason',        value: result.reason || 'No issues found',                      inline: false },
+          ],
+          footer:    `Analyzed with ${depth} mode`,
+          timestamp: true,
+        })],
+      });
+    } catch (err) {
+      return interaction.editReply({ embeds: [buildEmbed({ type: 'error', description: `❌ Analysis failed: ${err.message}` })] });
+    }
+  },
+};
+
+// ── Utility ──────────────────────────────────────────────────
+async function checkPremium(client, guildId) {
+  try {
+    const { GuildSettings } = client.db.models;
+    const s = await GuildSettings.findOne({ where: { guildId } });
+    return (s?.premiumTier || 0) > 0;
+  } catch { return false; }
+}
+
+export default ask;

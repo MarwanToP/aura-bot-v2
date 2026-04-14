@@ -1,0 +1,53 @@
+{
+  "common": {
+    "success":"تمّ بنجاح","error":"خطأ","warning":"تحذير","loading":"جارٍ المعالجة...",
+    "confirm":"تأكيد","cancel":"إلغاء","yes":"نعم","no":"لا","close":"إغلاق",
+    "noPermission":"ليس لديك صلاحية استخدام هذا الأمر.",
+    "botNoPermission":"لا أملك الصلاحيات اللازمة.",
+    "onCooldown":"أنت في فترة تهدئة. انتظر **{{time}}** قبل الاستخدام مجدداً.",
+    "guildOnly":"لا يمكن استخدام هذا الأمر إلا داخل الخادم.",
+    "premiumRequired":"⭐ تتطلب هذه الميزة **Aura Premium**.",
+    "invalidUser":"لم أتمكن من إيجاد هذا المستخدم.",
+    "selfAction":"لا يمكنك تطبيق هذا على نفسك.",
+    "higherRole":"هذا العضو يمتلك رتبة مساوية أو أعلى منك.",
+    "botHigherRole":"رتبتي أدنى من رتبة هذا العضو.",
+    "footer":"بوت Aura v2.0 • {{time}}"
+  },
+  "moderation": {
+    "ban":     { "success":"تم **حظر** {{user}} من الخادم.", "dm":"لقد تم **حظرك** من **{{guild}}**.\n**السبب:** {{reason}}", "noReason":"لم يُذكر سبب", "alreadyBanned":"هذا المستخدم محظور بالفعل." },
+    "kick":    { "success":"تم **طرد** {{user}}.", "dm":"لقد تم **طردك** من **{{guild}}**.\n**السبب:** {{reason}}" },
+    "timeout": { "success":"تم **عزل** {{user}} لمدة **{{duration}}**.", "removed":"تم **إلغاء عزل** {{user}}.", "dm":"تم تطبيق **العزل** عليك في **{{guild}}** لمدة **{{duration}}**.\n**السبب:** {{reason}}" },
+    "warn":    { "success":"تم **تحذير** {{user}}. (التحذير رقم {{count}})", "dm":"تلقّيت **تحذيراً** في **{{guild}}**.\n**السبب:** {{reason}}\n**عدد التحذيرات:** {{count}}", "escalate":"⚠️ تم الوصول إلى حد التحذيرات — الإجراء التلقائي: **{{action}}**" },
+    "clear":   { "success":"تم حذف **{{count}}** رسالة.", "noneFound":"لا توجد رسائل مطابقة." },
+    "history": { "title":"السجل التأديبي — {{user}}", "empty":"لا يوجد سجل تأديبي." }
+  },
+  "leveling": {
+    "levelUp":"🎉 مبروك {{user}}! وصلت إلى **المستوى {{level}}**!",
+    "rankTitle":"الرتبة — {{user}}",
+    "leaderboardTitle":"🏆 لوحة الصدارة — {{guild}}",
+    "noData":"لا توجد بيانات خبرة بعد."
+  },
+  "economy": {
+    "insufficient":"❌ رصيد غير كافٍ.",
+    "dailyClaimed":"💰 حصلت على **{{amount}}** عملة!",
+    "transferred":"✅ تم تحويل **{{amount}}** عملة إلى <@{{user}}>."
+  },
+  "tickets": {
+    "created":"✅ تم إنشاء التذكرة: {{channel}}",
+    "closed":"تم إغلاق التذكرة **{{id}}**.",
+    "claimed":"استلم التذكرة **{{user}}**.",
+    "alreadyOpen":"لديك **{{count}}** تذكرة مفتوحة. أغلقها أولاً.",
+    "notTicket":"هذا الأمر يعمل داخل قناة التذكرة فقط.",
+    "survey":"كيف تُقيّم تجربة الدعم؟",
+    "categories": { "technical":"الدعم التقني","billing":"الفواتير","report":"الإبلاغ","partnership":"الشراكة","other":"أخرى" }
+  },
+  "security": {
+    "antiNuke": { "triggered":"🛡️ **تم تفعيل الحماية!**\n**المهدِّد:** {{user}}\n**الإجراء:** {{action}}", "enabled":"تم **تفعيل** الحماية من التدمير.", "disabled":"تم **تعطيل** الحماية من التدمير." },
+    "raidDetected":"🚨 **هجوم غارة** — {{count}} انضمام في {{window}} ثانية. تم تفعيل وضع الطوارئ.",
+    "lockdown": { "activated":"🔒 **وضع الطوارئ** بواسطة {{user}}. **السبب:** {{reason}}", "lifted":"🔓 **رُفع وضع الطوارئ** بواسطة {{user}}." }
+  },
+  "welcome": { "defaultMessage":"أهلاً بك في **{{guild}}**، {{user}}! 🎉 أنت العضو رقم **#{{count}}**.", "farewell":"**{{user}}** غادر الخادم." },
+  "settings": { "updated":"✅ تم تحديث **{{key}}**.", "language": { "changed":"تم تغيير اللغة إلى **العربية**." } },
+  "ai": { "limitReached":"⚠️ تم الوصول إلى حد الطلبات اليومي ({{limit}}). يُعاد ضبطه عند منتصف الليل.", "notConfigured":"❌ الذكاء الاصطناعي غير مُعدّ." },
+  "birthday": { "happy":"🎂 عيد ميلاد سعيد، **{{user}}**! 🎉{{age}}" }
+}
