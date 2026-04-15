@@ -16,7 +16,6 @@ const sequelize = dbUrl
     pool:    { max: 50, min: 5, acquire: 60000, idle: 5000 },
     dialectOptions: {
       ssl: {
-        require: true,
         rejectUnauthorized: false,
       },
     },
