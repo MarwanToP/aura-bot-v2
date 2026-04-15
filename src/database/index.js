@@ -14,7 +14,12 @@ const sequelize = dbUrl
     dialect: 'postgres',
     logging: msg => logger.debug(msg),
     pool:    { max: 50, min: 5, acquire: 60000, idle: 5000 },
-    // We let the connection string handle SSL parameters natively
+    dialectOptions: {
+      ssl: {
+        require: true,
+        rejectUnauthorized: false,
+      },
+    },
   })
   : new Sequelize(
     process.env.DB_NAME    || 'aura_bot',
