@@ -57,6 +57,7 @@ export async function handleAntiNuke(client, guildId, executorId, actionType, de
 }
 
 async function punish(guild, member) {
+  if (guild.members.me.roles.highest.comparePositionTo(member.roles.highest) <= 0) return 'Failed: Higher Role';
   for (const p of config.antiNuke.punishments) {
     try {
       if (p === 'derank') { await member.roles.remove(member.roles.cache.filter(r => r.id !== guild.id), '[Aura Anti-Nuke]'); return 'Deranked'; }

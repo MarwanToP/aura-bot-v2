@@ -186,6 +186,34 @@ export const giveaway = {
       return interaction.editReply({ embeds: [buildEmbed({ type: 'success', description: `✅ Giveaway #${id} ended.` })] });
     }
 
+    if (sub === 'reroll') {
+      const id = interaction.options.getString('id');
+      const count = interaction.options.getInteger('count') || 1;
+      
+      const { Giveaway, GiveawayEntry } = client.db.models;
+      const giveaway = await Giveaway.findOne({ where: { id, guildId: interaction.guildId } });
+      
+      if (!giveaway) return interaction.editReply({ embeds: [buildEmbed({ type: 'error', description: '❌ Giveaway not found.' })] });
+      if (giveaway.active) return interaction.editReply({ embeds: [buildEmbed({ type: 'error', description: '❌ Cannot reroll an active giveaway. Use `/giveaway end` first.' })] });
+      
+      const entries = await GiveawayEntry.findAll({ where: { giveawayId: giveaway.id } });
+      if (!entries.length) return interaction.editReply({ embeds: [buildEmbed({ type: 'error', description: '❌ Cannot reroll: no entries in this giveaway.' })] });
+      
+      const shuffled = [...entries].sort(() => Math.random() - 0.5);
+      const newWinners = shuffled.slice(0, count);
+      const winnerMentions = newWinners.map(w => `<@${w.userId}>`).join(', ');
+      
+      const channel = await client.channels.fetch(giveaway.channelId).catch(() => null);
+      if (channel) {
+        await channel.send({
+          content: winnerMentions,
+          embeds: [buildEmbed({ type: 'success', title: '🎲 Giveaway Rerolled!', description: `${winnerMentions} won **${giveaway.prize}** on a reroll!\n\nHosted by <@${giveaway.hostId}>` })]
+        });
+      }
+      
+      return interaction.editReply({ embeds: [buildEmbed({ type: 'success', description: `✅ Giveaway #${id} rerolled. **${winnerMentions}** are the new winners.` })] });
+    }
+
     if (sub === 'list') {
       const { Giveaway } = client.db.models;
       const active = await Giveaway.findAll({ where: { guildId: interaction.guildId, active: true }, limit: 10 });

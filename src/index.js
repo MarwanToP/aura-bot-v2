@@ -43,10 +43,4 @@ manager.on('shardCreate', shard => {
 process.on('unhandledRejection', r => logger.error('UnhandledRejection:', r));
 process.on('uncaughtException',  e => { logger.error('UncaughtException:', e); process.exit(1); });
 
-logger.info(`
-╔═══════════════════════════════════════════════╗
-║    ✨  AURA BOT v2.0  —  ENTERPRISE + AI  ✨  ║
-║   MEE6-class • Bilingual AR/EN • Google Gemini ║
-╚═══════════════════════════════════════════════╝`);
-
 manager.spawn({ timeout: 30_000 }).catch(err => { logger.error('Spawn failed:', err); process.exit(1); });

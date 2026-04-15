@@ -1,6 +1,6 @@
 // ================================================================
 //  AURA BOT v2.0 — Master Configuration
-//  MEE6-class + AI features, bilingual AR/EN
+//  MEE6-class + AI features
 // ================================================================
 
 export default {

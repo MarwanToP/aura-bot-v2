@@ -1,10 +1,11 @@
 // ================================================================
 //  Ticket System v2 — Create, Close, Claim, Transcripts
 // ================================================================
-import { ChannelType, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
+import { ChannelType, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle, AttachmentBuilder } from 'discord.js';
 import { buildEmbed } from '../../utils/embedBuilder.js';
 import config         from '../../../config/config.js';
 import logger         from '../../utils/logger.js';
+import discordTranscripts from 'discord-html-transcripts';
 
 export async function createTicket(client, guild, user, { category = 'Other', subject = '', priority = 'Medium' } = {}) {
   try {
@@ -57,7 +58,7 @@ export async function createTicket(client, guild, user, { category = 'Other', su
 
 export async function closeTicket(client, ticketId, guildId, closedBy) {
   try {
-    const { Ticket } = client.db.models;
+    const { Ticket, GuildSettings } = client.db.models;
     const ticket = await Ticket.findOne({ where: { ticketId, guildId } });
     if (!ticket || ticket.status === 'closed') return { error: 'Ticket not found or already closed.' };
 
@@ -65,6 +66,20 @@ export async function closeTicket(client, ticketId, guildId, closedBy) {
 
     const channel = await client.channels.fetch(ticket.channelId).catch(() => null);
     if (!channel) return { success: true };
+
+    const settings = await GuildSettings.findOne({ where: { guildId } });
+    if (settings?.premiumTier > 0) {
+      const attachment = await discordTranscripts.createTranscript(channel, {
+        limit: -1,
+        fileName: `${ticketId}-transcript.html`,
+        returnType: 'attachment',
+        poweredBy: false
+      });
+      if (settings.ticketLogChannelId) {
+        const logCh = await client.channels.fetch(settings.ticketLogChannelId).catch(() => null);
+        if (logCh?.isTextBased()) await logCh.send({ content: `📑 Transcript for **${ticketId}**`, files: [attachment] });
+      }
+    }
 
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder().setCustomId(`ticket:reopen:${ticketId}`).setLabel('Re-open').setStyle(ButtonStyle.Success).setEmoji('🔓'),

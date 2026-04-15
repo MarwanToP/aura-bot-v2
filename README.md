@@ -1,5 +1,5 @@
 s# ✨ Aura Bot v2.0 — Enterprise Discord Bot + AI
-### MEE6-class Features • OpenAI + Claude AI • Bilingual AR/EN
+### MEE6-class Features • Google Gemini AI
 
 ---
 

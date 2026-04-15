@@ -70,6 +70,7 @@ export const ban = {
 
     const member = await interaction.guild.members.fetch(target.id).catch(() => null);
     if (member) {
+      if (!member.bannable) return interaction.editReply({ embeds: [buildEmbed({ type: 'error', description: client.i18n.t('common.botHigherRole', {}, lang) })] });
       if (interaction.member.roles.highest.comparePositionTo(member.roles.highest) <= 0) return interaction.editReply({ embeds: [buildEmbed({ type: 'error', description: client.i18n.t('common.higherRole', {}, lang) })] });
       if (!silent) await target.send({ embeds: [buildEmbed({ type: 'error', title: `Banned from ${interaction.guild.name}`, description: `**Reason:** ${reason}` })] }).catch(() => {});
     }
@@ -203,6 +204,13 @@ export const softban = {
     const target     = interaction.options.getUser('user');
     const reason     = interaction.options.getString('reason') || 'Softban';
     const deleteDays = interaction.options.getInteger('delete_days') ?? 7;
+    
+    const member = await interaction.guild.members.fetch(target.id).catch(() => null);
+    if (member) {
+      if (!member.bannable) return interaction.editReply({ embeds: [buildEmbed({ type: 'error', description: client.i18n.t('common.botHigherRole', {}, lang) })] });
+      if (interaction.member.roles.highest.comparePositionTo(member.roles.highest) <= 0) return interaction.editReply({ embeds: [buildEmbed({ type: 'error', description: client.i18n.t('common.higherRole', {}, lang) })] });
+    }
+
     await interaction.guild.members.ban(target.id, { reason: `[Aura Softban] ${reason}`, deleteMessageDays: deleteDays });
     await interaction.guild.members.unban(target.id, '[Aura Softban] Auto-unban');
     const mc = await createCase(client, { guildId: interaction.guildId, userId: target.id, moderatorId: interaction.user.id, type: 'softban', reason });

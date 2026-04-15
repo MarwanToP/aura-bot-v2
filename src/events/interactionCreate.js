@@ -1,7 +1,7 @@
 // ================================================================
 //  Event: interactionCreate — Full Command + Component Router
 // ================================================================
-import { InteractionType } from 'discord.js';
+import { InteractionType, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import { buildEmbed }      from '../utils/embedBuilder.js';
 import config              from '../../config/config.js';
 import logger              from '../utils/logger.js';
@@ -63,7 +63,14 @@ async function handleSlash(client, interaction) {
       const { GuildSettings } = client.db.models;
       const s = await GuildSettings.findOne({ where: { guildId: interaction.guildId } });
       if ((s?.premiumTier || 0) < command.premiumTier) {
-        return interaction.reply({ embeds: [buildEmbed({ type: 'premium', description: `⭐ This requires **Aura Premium Tier ${command.premiumTier}**.` })], ephemeral: true });
+        const row = new ActionRowBuilder().addComponents(
+          new ButtonBuilder().setLabel('Unlock Premium').setStyle(ButtonStyle.Link).setURL(config.links?.premium || 'https://example.com/premium').setEmoji('⭐')
+        );
+        return interaction.reply({ 
+          embeds: [buildEmbed({ type: 'premium', description: `⭐ This feature requires **Aura Premium Tier ${command.premiumTier}**.\n\nUnlock unlimited potential for your server by upgrading today!`, footer: 'Support the continued development of Aura.' })], 
+          components: [row],
+          ephemeral: true 
+        });
       }
     } catch {}
   }

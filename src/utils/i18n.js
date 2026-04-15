@@ -1,5 +1,5 @@
 // ================================================================
-//  i18n — Bilingual AR/EN
+//  i18n — Multilingual Support
 // ================================================================
 import i18next          from 'i18next';
 import { readFileSync } from 'fs';
