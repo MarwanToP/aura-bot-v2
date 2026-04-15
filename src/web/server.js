@@ -33,6 +33,7 @@ app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors());
 app.use(express.json());
 app.use(express.static(join(__dirname, 'public')));
+
 // ── Session ──────────────────────────────────────────────────
 const redisStore = new RedisStore({ client: redis, prefix: 'aura:sess:' });
 
@@ -62,21 +63,14 @@ passport.use(new Strategy({
 
 // ── Authentication Routes ────────────────────────────────────
 app.get('/auth/discord', passport.authenticate('discord'));
-
-app.get('/auth/discord/callback', passport.authenticate('discord', {
-  failureRedirect: '/',
-}), (req, res) => res.redirect('/'));
-
-app.get('/auth/logout', (req, res) => {
-  req.logout(() => res.redirect('/'));
-});
+app.get('/auth/discord/callback', passport.authenticate('discord', { failureRedirect: '/' }), (req, res) => res.redirect('/'));
+app.get('/auth/logout', (req, res) => req.logout(() => res.redirect('/')));
 
 app.get('/api/me', (req, res) => {
   if (!req.user) return res.status(401).json({ error: 'Not authenticated' });
   res.json(req.user);
 });
 
-// Middleware to protect routes
 const ensureAuth = (req, res, next) => {
   if (req.isAuthenticated()) return next();
   res.status(401).json({ error: 'Unauthorized' });
@@ -103,279 +97,110 @@ subRedis.on('message', (channel, message) => {
 });
 
 // ── API Routes ──────────────────────────────────────────────
+app.get('/api/health', (req, res) => res.json({ status: 'ok', uptime: process.uptime() }));
 
-// Health check
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', uptime: process.uptime(), timestamp: new Date().toISOString() });
-});
-
-// Bot stats
+// Stats Overview
 app.get('/api/stats', async (req, res) => {
   try {
     const { GuildSettings, UserProfile, ModerationCase, Ticket } = database.models;
-
     const [guilds, users, cases, tickets] = await Promise.all([
       GuildSettings.count(),
       UserProfile.count(),
       ModerationCase.count(),
-      Ticket.count(),
+      Ticket.count()
     ]);
-
-    // Redis stats
-    let redisInfo = {};
-    try {
-      const info = await redis.info('memory');
-      const usedMem = info.match(/used_memory_human:(.+)/)?.[1]?.trim() || 'N/A';
-      redisInfo = { usedMemory: usedMem };
-    } catch { redisInfo = { usedMemory: 'N/A' }; }
-
-    res.json({
-      bot: {
-        name:    'Aura Bot v2.0',
-        version: '2.0.0',
-        uptime:  Math.floor(process.uptime()),
-        nodeVersion: process.version,
-        platform: process.platform,
-        memoryUsage: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
-      },
-      database: { guilds, users, moderationCases: cases, tickets },
-      redis: redisInfo,
-      ai: {
-        provider: process.env.AI_PROVIDER || 'gemini',
-        model:    process.env.AI_CHAT_MODEL || 'gemini-2.5-flash',
-        enabled:  process.env.AI_ENABLED !== 'false',
-      },
-    });
+    res.json({ guilds, users, cases, tickets, uptime: Math.floor(process.uptime()) });
   } catch (err) {
-    logger.error('[Dashboard] Stats error:', err.message);
-    res.status(500).json({ error: 'Failed to fetch stats' });
+    res.status(500).json({ error: 'Failed' });
   }
 });
 
-// Guild list
+// Guild Operations
 app.get('/api/guilds', async (req, res) => {
   try {
-    const { GuildSettings } = database.models;
-    const guilds = await GuildSettings.findAll({
-      attributes: ['guildId', 'language', 'premiumTier', 'welcomeEnabled', 'ticketEnabled', 'levelingEnabled', 'aiChatEnabled'],
-      order: [['createdAt', 'DESC']],
+    const guilds = await database.models.GuildSettings.findAll({
+      order: [['createdAt', 'DESC']]
     });
     res.json(guilds);
   } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch guilds' });
+    res.status(500).json({ error: 'Failed' });
   }
 });
 
-// Guild detail
 app.get('/api/guilds/:guildId', async (req, res) => {
   try {
-    const { GuildSettings, UserProfile, ModerationCase, Ticket } = database.models;
-    const guildId = req.params.guildId;
-
-    const [settings, userCount, caseCount, ticketCount] = await Promise.all([
-      GuildSettings.findByPk(guildId),
-      UserProfile.count({ where: { guildId } }),
-      ModerationCase.count({ where: { guildId } }),
-      Ticket.count({ where: { guildId } }),
-    ]);
-
-    if (!settings) return res.status(404).json({ error: 'Guild not found' });
-
-    res.json({ settings, stats: { users: userCount, cases: caseCount, tickets: ticketCount } });
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch guild' });
-  }
-});
-
-// Update Guild Settings
-app.patch('/api/guilds/:guildId/settings', ensureAuth, async (req, res) => {
-  try {
-    const { GuildSettings } = database.models;
-    const guildId = req.params.guildId;
-    const updates = req.body;
-
-    // Check if user has access to this guild
-    const userGuilds = req.user.guilds || [];
-    const isOwner = userGuilds.find(g => g.id === guildId && (g.permissions & 0x8)); // Administrator
-    const isManager = userGuilds.find(g => g.id === guildId && (g.permissions & 0x20)); // Manage Guild
-    
-    if (!isOwner && !isManager) return res.status(403).json({ error: 'Insufficient permissions' });
-
-    const [settings] = await GuildSettings.upsert({ ...updates, guildId });
-    res.json(settings);
-    
-    logger.info(`[Dashboard] Settings updated for guild ${guildId} by ${req.user.username}`);
-  } catch (err) {
-    logger.error('[Dashboard] Patch error:', err.message);
-    res.status(500).json({ error: 'Failed to update settings' });
-  }
-});
-
-// Staff Applications
-app.get('/api/guilds/:guildId/applications', ensureAuth, async (req, res) => {
-  try {
-    const { StaffApplication } = database.models;
-    const apps = await StaffApplication.findAll({
-      where: { guildId: req.params.guildId },
-      order: [['createdAt', 'DESC']],
-    });
-    res.json(apps);
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch applications' });
-  }
-});
-
-app.patch('/api/applications/:appId', ensureAuth, async (req, res) => {
-  try {
-    const { StaffApplication } = database.models;
-    const app = await StaffApplication.findByPk(req.params.appId);
-    if (!app) return res.status(404).json({ error: 'Application not found' });
-    
-    // Check permissions
-    const gId = app.guildId;
-    const userGuilds = req.user.guilds || [];
-    const isManager = userGuilds.find(g => g.id === gId && (g.permissions & 0x20));
-    if (!isManager) return res.status(403).json({ error: 'Forbidden' });
-
-    await app.update({ ...req.body, moderatorId: req.user.id });
-    res.json(app);
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to update application' });
-  }
-});
-
-// Recent moderation cases
-app.get('/api/moderation/recent', async (req, res) => {
-  try {
-    const { ModerationCase } = database.models;
-    const cases = await ModerationCase.findAll({
-      order: [['createdAt', 'DESC']],
-      limit: 20,
-    });
-    res.json(cases);
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch cases' });
-  }
-});
-
-// Leaderboard
-app.get('/api/guilds/:guildId/leaderboard', async (req, res) => {
-  try {
-    const { UserProfile } = database.models;
-    const users = await UserProfile.findAll({
-      where: { guildId: req.params.guildId },
-      order: [['xp', 'DESC']],
-      limit: 25,
-      attributes: ['userId', 'xp', 'level', 'totalMessages'],
-    });
-    res.json(users);
-// Get all guilds
-app.get('/api/guilds', async (req, res) => {
-  try {
-    const guilds = await database.models.GuildSettings.findAll();
-    res.json(guilds);
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch guilds' });
-  }
-});
-
-// Get specific guild settings
-app.get('/api/guilds/:guildId', async (req, res) => {
-  try {
-    const { guildId } = req.params;
-    const settings = await database.models.GuildSettings.findByPk(guildId);
-    if (!settings) return res.status(404).json({ error: 'Guild not found' });
+    const settings = await database.models.GuildSettings.findByPk(req.params.guildId);
+    if (!settings) return res.status(404).json({ error: 'Not found' });
     res.json({ settings });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch settings' });
+    res.status(500).json({ error: 'Failed' });
   }
 });
 
-// Update guild settings
 app.patch('/api/guilds/:guildId/settings', async (req, res) => {
   try {
-    const { guildId } = req.params;
-    const settings = await database.models.GuildSettings.findByPk(guildId);
-    if (!settings) return res.status(404).json({ error: 'Guild not found' });
-    
+    const settings = await database.models.GuildSettings.findByPk(req.params.guildId);
+    if (!settings) return res.status(404).json({ error: 'Not found' });
     await settings.update(req.body);
     res.json({ success: true, settings });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to update settings' });
+    res.status(500).json({ error: 'Failed' });
   }
 });
 
-// Get guild applications
+// Applications
 app.get('/api/guilds/:guildId/applications', async (req, res) => {
   try {
-    const { guildId } = req.params;
     const apps = await database.models.StaffApplication.findAll({
-      where: { guildId },
+      where: { guildId: req.params.guildId },
       order: [['createdAt', 'DESC']]
     });
     res.json(apps);
   } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch applications' });
+    res.status(500).json({ error: 'Failed' });
   }
 });
 
-// Respond to application
 app.patch('/api/applications/:id', async (req, res) => {
   try {
-    const { id } = req.params;
-    const { status, reason, moderatorId } = req.body;
-    const app = await database.models.StaffApplication.findByPk(id);
-    if (!app) return res.status(404).json({ error: 'Application not found' });
-
-    await app.update({ status, reason, moderatorId });
+    const app = await database.models.StaffApplication.findByPk(req.params.id);
+    if (!app) return res.status(404).json({ error: 'Not found' });
+    await app.update(req.body);
     res.json({ success: true, app });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to update application' });
+    res.status(500).json({ error: 'Failed' });
   }
 });
 
-// Command list
+// Command List (Automated Discovery)
 app.get('/api/commands', async (req, res) => {
   try {
     const commands = [];
     const scanDir = async (dirPath) => {
+      if (!readdirSync(dirPath)) return;
       for (const entry of readdirSync(dirPath)) {
         const full = join(dirPath, entry);
-        if (statSync(full).isDirectory()) {
-          await scanDir(full);
-          continue;
-        }
+        if (statSync(full).isDirectory()) { await scanDir(full); continue; }
         if (!entry.endsWith('.js')) continue;
         try {
           const mod = await import(pathToFileURL(full).href);
-          const processMod = (m) => {
-            if (m?.data && m?.execute) {
-              commands.push({
-                name: m.data.name,
-                description: m.data.description,
-                category: dirPath.split(/[\\/]/).pop(),
-                options: m.data.options?.length || 0
-              });
-            }
+          const process = (m) => {
+            if (m?.data) commands.push({ name: m.data.name, description: m.data.description, category: dirPath.split(/[\\/]/).pop() });
           };
-          if (mod.default) processMod(mod.default);
-          for (const val of Object.values(mod)) processMod(val);
+          if (mod.default) process(mod.default);
+          for (const v of Object.values(mod)) process(v);
         } catch {}
       }
     };
-
     await scanDir(join(__dirname, '../commands'));
-    await scanDir(join(__dirname, '../systems'));
-
-    // Remove duplicates by name
     const unique = Array.from(new Map(commands.map(c => [c.name, c])).values());
     res.json(unique);
   } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch commands' });
+    res.status(500).json({ error: 'Failed' });
   }
 });
 
-// Subscriptions info
+// Subscriptions
 app.get('/api/subscriptions', (req, res) => {
   res.json([
     { id: 'free', name: 'Free', price: '0', color: '#8b8b9e', features: ['AI Chat (Limited)', 'Basic Moderation', 'Economy', 'Leveling'] },
@@ -384,61 +209,27 @@ app.get('/api/subscriptions', (req, res) => {
   ]);
 });
 
-// ── Socket.IO Real-time ──────────────────────────────────────
+// ── Socket.IO ────────────────────────────────────────────────
 io.on('connection', (socket) => {
-  logger.info(`[Dashboard] Client connected: ${socket.id}`);
-
-  // Send initial stats
   const sendStats = async () => {
     try {
-      const { GuildSettings, UserProfile } = database.models;
-      const [guilds, users] = await Promise.all([GuildSettings.count(), UserProfile.count()]);
-      socket.emit('stats', {
-        guilds, users,
-        uptime:  Math.floor(process.uptime()),
-        memory:  Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
-        timestamp: new Date().toISOString(),
-      });
+      const g = await database.models.GuildSettings.count();
+      const u = await database.models.UserProfile.count();
+      socket.emit('stats', { guilds: g, users: u, uptime: Math.floor(process.uptime()) });
     } catch {}
   };
-
   sendStats();
-  const interval = setInterval(sendStats, 5000);
-
-  socket.on('disconnect', () => {
-    clearInterval(interval);
-    logger.info(`[Dashboard] Client disconnected: ${socket.id}`);
-  });
+  const iv = setInterval(sendStats, 5000);
+  socket.on('disconnect', () => clearInterval(iv));
 });
 
-// ── Serve frontend (SPA fallback) ─────────────────────────────
-app.get('*', (req, res) => {
-  res.sendFile(join(__dirname, 'public', 'index.html'));
-});
+// ── Boot ──────────────────────────────────────────────────────
+app.get('*', (req, res) => res.sendFile(join(__dirname, 'public', 'index.html')));
 
-// ── Boot ───────────────────────────────────────────────────────
 async function startDashboard() {
-  // ── 1. Bind to port IMMEDIATELY (Highest Priority) ──
-  // This must happen before any database or redis connections
-  httpServer.listen(PORT, '0.0.0.0', () => {
-    logger.info(`[Dashboard] ✨ System Ready — Listening on port ${PORT}`);
-  });
-
-  // ── 2. Background Heavy Connections (Non-blocking) ──
-  try {
-    // Database
-    database.authenticate()
-      .then(() => logger.info('[Dashboard] Database Link: Active ✓'))
-      .catch(err => logger.error('[Dashboard] Database Link: FAILED', err.message));
-
-    // Redis
-    redis.ping()
-      .then(() => logger.info('[Dashboard] Redis Link: Active ✓'))
-      .catch(err => logger.error('[Dashboard] Redis Link: FAILED', err.message));
-
-  } catch (err) {
-    logger.error('[Dashboard] Background connection error:', err.message);
-  }
+  httpServer.listen(PORT, '0.0.0.0', () => logger.info(`[Dashboard] ✨ Listening on port ${PORT}`));
+  database.authenticate().catch(e => logger.error('[DB] Failed:', e.message));
+  redis.ping().catch(e => logger.error('[Redis] Failed:', e.message));
 }
 
 startDashboard();
