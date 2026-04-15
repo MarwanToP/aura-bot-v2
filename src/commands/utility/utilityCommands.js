@@ -217,7 +217,7 @@ export const help = {
       const cat = cats[category];
       return interaction.reply({ embeds: [buildEmbed({ type: 'primary', title: `${cat.emoji} ${cat.title}`, description: cat.cmds.map(c => `\`${c}\``).join(' • '), footer: 'Aura Bot v2.0 • /help for overview' })], ephemeral: true });
     }
-    return interaction.reply({ embeds: [buildEmbed({ type: 'primary', title: '✨ Aura Bot v2.0 — Help', description: 'Enterprise Discord Bot with AI • Bilingual AR/EN\n\nUse `/help category:` for details.', thumbnail: client.user.displayAvatarURL({ size: 256 }), fields: Object.values(cats).map(c => ({ name: c.emoji+' '+c.title, value: `${c.cmds.length} commands`, inline: true })), footer: `Aura v${config.version} • ${client.guilds.cache.size} servers`, timestamp: true })], ephemeral: true });
+    return interaction.reply({ embeds: [buildEmbed({ type: 'primary', title: '✨ Aura Bot v2.0 — Help', description: 'Enterprise Discord Bot with AI\n\nUse `/help category:` for details.', thumbnail: client.user.displayAvatarURL({ size: 256 }), fields: Object.values(cats).map(c => ({ name: c.emoji+' '+c.title, value: `${c.cmds.length} commands`, inline: true })), footer: `Aura v${config.version} • ${client.guilds.cache.size} servers`, timestamp: true })], ephemeral: true });
   },
 };
 
