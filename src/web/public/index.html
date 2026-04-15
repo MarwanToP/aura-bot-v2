@@ -162,6 +162,14 @@
       height: 20px;
     }
 
+    .nav-item span {
+      transition: transform 300ms ease;
+    }
+
+    .nav-item:hover span {
+      transform: translateX(4px);
+    }
+
     /* ── Main Content ────────────────────────────────────── */
     .main {
       flex: 1;
@@ -371,6 +379,28 @@
     /* ── Utilities ──────────────────────────────────────── */
     .hidden { display: none !important; }
     
+    .card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 12px 40px rgba(202, 138, 4, 0.15);
+      border-color: rgba(202, 138, 4, 0.3);
+    }
+
+    .pulse {
+      animation: pulse-animation 2s infinite;
+    }
+
+    @keyframes pulse-animation {
+      0% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.1); opacity: 0.7; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    .pill.gold {
+      background: linear-gradient(135deg, #CA8A04, #FACC15);
+      color: white;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+    }
+    
     @media (max-width: 1100px) {
       .pricing-grid { grid-template-columns: 1fr; }
       .sidebar { width: 80px; padding: 24px 16px; }
@@ -410,7 +440,7 @@
       </a>
       <div id="leninNav" class="hidden">
         <a class="nav-item" onclick="showSection('devtools', this)" style="color: #00cec9;">
-          <i data-lucide="cpu"></i>
+          <i data-lucide="cpu" class="pulse"></i>
           <span>Developer Tools</span>
         </a>
       </div>
