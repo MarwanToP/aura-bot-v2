@@ -337,23 +337,26 @@ app.get('*', (req, res) => {
 
 // ── Boot ───────────────────────────────────────────────────────
 async function startDashboard() {
+  // ── 1. Bind to port IMMEDIATELY (Highest Priority) ──
+  // This must happen before any database or redis connections
+  httpServer.listen(PORT, '0.0.0.0', () => {
+    logger.info(`[Dashboard] ✨ System Ready — Listening on port ${PORT}`);
+  });
+
+  // ── 2. Background Heavy Connections (Non-blocking) ──
   try {
-    // ── 1. Bind to port immediately (Prevents Render Port Scan Timeout) ──
-    httpServer.listen(PORT, '0.0.0.0', () => {
-      logger.info(`[Dashboard] ✨ Dashboard listening on port ${PORT}`);
-    });
-
-    // ── 2. Background Connections ─────────────────────────────────────
+    // Database
     database.authenticate()
-      .then(() => logger.info('[Dashboard] Database connected ✓'))
-      .catch(err => logger.error('[Dashboard] Database connection failed:', err.message));
+      .then(() => logger.info('[Dashboard] Database Link: Active ✓'))
+      .catch(err => logger.error('[Dashboard] Database Link: FAILED', err.message));
 
+    // Redis
     redis.ping()
-      .then(() => logger.info('[Dashboard] Redis connected ✓'))
-      .catch(err => logger.error('[Dashboard] Redis connection failed:', err.message));
+      .then(() => logger.info('[Dashboard] Redis Link: Active ✓'))
+      .catch(err => logger.error('[Dashboard] Redis Link: FAILED', err.message));
 
   } catch (err) {
-    logger.error('[Dashboard] Boot failed:', err);
+    logger.error('[Dashboard] Background connection error:', err.message);
   }
 }
 
