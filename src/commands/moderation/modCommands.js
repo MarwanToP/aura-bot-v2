@@ -16,8 +16,25 @@ async function createCase(client, { guildId, userId, moderatorId, type, reason, 
     if (duration) expiresAt = new Date(Date.now() + Number(duration));
     const modCase   = await ModerationCase.create({ caseId, guildId, userId, moderatorId, type, reason: reason || 'No reason provided', duration: duration ? Number(duration) : null, expiresAt });
     if (type === 'warn') await Warning.create({ guildId, userId, moderatorId, reason: reason || 'No reason provided' });
+    
+    // Broadcast to Dashboard via Redis Pub/Sub
+    if (client.redis) {
+      const user = await client.users.fetch(userId).catch(() => ({ tag: userId }));
+      client.redis.publish('aura:modlogs', JSON.stringify({
+        guildId,
+        type,
+        user: user.tag || user.globalName || userId,
+        moderatorId,
+        reason: reason || 'No reason provided',
+        color: type === 'ban' ? '#ff7675' : type === 'warn' ? '#fdcb6e' : '#00cec9'
+      }));
+    }
+
     return modCase;
-  } catch { return null; }
+  } catch (err) { 
+    console.error('Error in createCase:', err);
+    return null; 
+  }
 }
 
 async function sendModLog(client, guildId, embed) {

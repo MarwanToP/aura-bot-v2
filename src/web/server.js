@@ -11,6 +11,7 @@ import { createServer } from 'http';
 import { Server as SocketIO } from 'socket.io';
 import passport      from 'passport';
 import { Strategy }  from 'passport-discord';
+import Redis         from 'ioredis';
 import { RedisStore } from 'connect-redis';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
@@ -81,7 +82,27 @@ const ensureAuth = (req, res, next) => {
   res.status(401).json({ error: 'Unauthorized' });
 };
 
-// ── API Routes ────────────────────────────────────────────────
+// ── Redis Pub/Sub for Live Dashboard ─────────────────────────
+const subRedis = process.env.REDIS_URL ? new Redis(process.env.REDIS_URL) : new Redis({
+  host: process.env.REDIS_HOST || 'localhost',
+  port: parseInt(process.env.REDIS_PORT) || 6379,
+  password: process.env.REDIS_PASSWORD || undefined,
+  db: parseInt(process.env.REDIS_DB) || 0,
+});
+
+subRedis.subscribe('aura:modlogs');
+subRedis.on('message', (channel, message) => {
+  if (channel === 'aura:modlogs') {
+    try {
+      const data = JSON.parse(message);
+      io.emit('modLog', data);
+    } catch (err) {
+      logger.error('Failed to parse modlog message:', err);
+    }
+  }
+});
+
+// ── API Routes ──────────────────────────────────────────────
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -248,8 +269,68 @@ app.get('/api/guilds/:guildId/leaderboard', async (req, res) => {
       attributes: ['userId', 'xp', 'level', 'totalMessages'],
     });
     res.json(users);
+// Get all guilds
+app.get('/api/guilds', async (req, res) => {
+  try {
+    const guilds = await database.models.GuildSettings.findAll();
+    res.json(guilds);
   } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch leaderboard' });
+    res.status(500).json({ error: 'Failed to fetch guilds' });
+  }
+});
+
+// Get specific guild settings
+app.get('/api/guilds/:guildId', async (req, res) => {
+  try {
+    const { guildId } = req.params;
+    const settings = await database.models.GuildSettings.findByPk(guildId);
+    if (!settings) return res.status(404).json({ error: 'Guild not found' });
+    res.json({ settings });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch settings' });
+  }
+});
+
+// Update guild settings
+app.patch('/api/guilds/:guildId/settings', async (req, res) => {
+  try {
+    const { guildId } = req.params;
+    const settings = await database.models.GuildSettings.findByPk(guildId);
+    if (!settings) return res.status(404).json({ error: 'Guild not found' });
+    
+    await settings.update(req.body);
+    res.json({ success: true, settings });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to update settings' });
+  }
+});
+
+// Get guild applications
+app.get('/api/guilds/:guildId/applications', async (req, res) => {
+  try {
+    const { guildId } = req.params;
+    const apps = await database.models.StaffApplication.findAll({
+      where: { guildId },
+      order: [['createdAt', 'DESC']]
+    });
+    res.json(apps);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch applications' });
+  }
+});
+
+// Respond to application
+app.patch('/api/applications/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, reason, moderatorId } = req.body;
+    const app = await database.models.StaffApplication.findByPk(id);
+    if (!app) return res.status(404).json({ error: 'Application not found' });
+
+    await app.update({ status, reason, moderatorId });
+    res.json({ success: true, app });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to update application' });
   }
 });
 

@@ -445,6 +445,45 @@
       text-shadow: 0 1px 2px rgba(0,0,0,0.2);
     }
     
+    /* Toggle Switch CSS (Probot Style) */
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 44px;
+      height: 24px;
+    }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-color: var(--secondary);
+      transition: .4s;
+      border-radius: 24px;
+    }
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 18px; width: 18px;
+      left: 3px; bottom: 3px;
+      background-color: white;
+      transition: .4s;
+      border-radius: 50%;
+    }
+    input:checked + .slider { background-color: var(--accent); }
+    input:checked + .slider:before { transform: translateX(20px); }
+
+    /* Live Activity Item */
+    .activity-item {
+      display: flex;
+      gap: 12px;
+      padding: 12px;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+      animation: slideIn 0.3s ease;
+    }
+    @keyframes slideIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
+
     @media (max-width: 1100px) {
       .pricing-grid { grid-template-columns: 1fr; }
       .sidebar { width: 80px; padding: 24px 16px; }
@@ -531,18 +570,27 @@
         </div>
       </div>
 
-      <div class="card" style="margin-bottom: 24px; padding: 40px; background: linear-gradient(135deg, rgba(202, 138, 4, 0.05), transparent);">
-        <h3 style="margin-bottom: 24px;">Global System Status</h3>
-        <div style="display: flex; gap: 40px; align-items: center;">
-          <div style="flex: 1;">
-            <p style="color: var(--secondary); margin-bottom: 8px;">Network Intelligence Connectivity</p>
-            <div style="height: 8px; background: var(--border); border-radius: 4px; overflow: hidden;">
-              <div style="width: 100%; height: 100%; background: #00cec9; box-shadow: 0 0 10px #00cec9;"></div>
+      <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 24px;">
+        <div class="card" style="padding: 40px; background: linear-gradient(135deg, rgba(202, 138, 4, 0.05), transparent);">
+          <h3 style="margin-bottom: 24px;">Global System Status</h3>
+          <div style="display: flex; gap: 40px; align-items: center;">
+            <div style="flex: 1;">
+              <p style="color: var(--secondary); margin-bottom: 8px;">Network Intelligence Connectivity</p>
+              <div style="height: 8px; background: var(--border); border-radius: 4px; overflow: hidden;">
+                <div style="width: 100%; height: 100%; background: #00cec9; box-shadow: 0 0 10px #00cec9;"></div>
+              </div>
+              <p style="font-size: 12px; margin-top: 8px; color: #00cec9; font-weight: 600;">Optimal 24/7 Deployment Active</p>
             </div>
-            <p style="font-size: 12px; margin-top: 8px; color: #00cec9; font-weight: 600;">Optimal 24/7 Deployment Active</p>
+            <div style="display: flex; gap: 12px;">
+              <button class="btn btn-primary" onclick="botAction('sync')">Refresh Neural Link</button>
+            </div>
           </div>
-          <div style="display: flex; gap: 12px;">
-            <button class="btn btn-primary" onclick="botAction('sync')">Refresh Neural Link</button>
+        </div>
+        
+        <div class="card" style="padding: 24px;">
+          <h4 style="margin-bottom: 16px; font-size: 14px; text-transform: uppercase; letter-spacing: 1px;">Intelligence Feed</h4>
+          <div id="globalModLogs" style="height: 180px; overflow-y: auto; font-size: 12px;">
+            <p style="color: var(--secondary);">Waiting for neural signals...</p>
           </div>
         </div>
       </div>
@@ -636,13 +684,21 @@
         </div>
       </div>
 
-      <div class="card" style="margin-top: 32px;">
-        <h3 style="margin-bottom: 24px;">Detailed Configuration</h3>
-        <div id="guildSettingsForm" class="settings-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 24px;">
-          <!-- Dynamically populated -->
+      <div class="card" style="margin-top: 32px; display: grid; grid-template-columns: 2fr 1fr; gap: 32px;">
+        <div>
+          <h3 style="margin-bottom: 24px;">Detailed Configuration</h3>
+          <div id="guildSettingsForm" class="settings-grid">
+            <!-- Dynamically populated -->
+          </div>
+          <div style="margin-top: 32px; display: flex; justify-content: flex-end;">
+            <button class="btn btn-primary" style="padding: 12px 48px;" onclick="saveSettings()">SAVE ALL CHANGES</button>
+          </div>
         </div>
-        <div style="margin-top: 32px; display: flex; justify-content: flex-end;">
-          <button class="btn btn-primary" style="padding: 12px 48px;" onclick="saveSettings()">SAVE ALL CHANGES</button>
+        <div style="border-left: 1px solid var(--border); padding-left: 32px;">
+          <h3 style="margin-bottom: 24px;">Real-time Mod Feed</h3>
+          <div id="modLogs" style="height: 400px; overflow-y: auto; display: flex; flex-direction: column;">
+            <p style="color: var(--secondary); font-size: 13px;">No recent moderation activity.</p>
+          </div>
         </div>
       </div>
     </section>
@@ -680,6 +736,31 @@
       document.getElementById('statUsers').innerText = data.users;
       document.getElementById('statUptime').innerText = formatUptime(data.uptime);
     });
+
+    socket.on('modLog', (data) => {
+      // Manage section feed
+      const container = document.getElementById('modLogs');
+      if (container) updateFeed(container, data);
+      
+      // Global dashboard feed
+      const globalContainer = document.getElementById('globalModLogs');
+      if (globalContainer) updateFeed(globalContainer, data);
+    });
+
+    function updateFeed(container, data) {
+      const item = document.createElement('div');
+      item.className = 'activity-item';
+      item.innerHTML = `
+        <div style="width: 8px; height: 8px; border-radius: 50%; background: ${data.color || 'var(--accent)'}; margin-top: 4px;"></div>
+        <div>
+          <div style="font-weight: 600;">${data.type.toUpperCase()}</div>
+          <div style="color: var(--secondary); font-size: 12px;">${data.user} • ${data.reason}</div>
+        </div>
+      `;
+      if (container.firstChild && container.firstChild.tagName === 'P') container.innerHTML = '';
+      container.prepend(item);
+      if (container.children.length > 20) container.lastChild.remove();
+    }
 
     // ── State ───────────────────────────────────────────
     let isLenin = false;
