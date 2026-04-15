@@ -15,9 +15,7 @@ const sequelize = dbUrl
     logging: msg => logger.debug(msg),
     pool:    { max: 50, min: 5, acquire: 60000, idle: 5000 },
     dialectOptions: {
-      ssl: {
-        rejectUnauthorized: false,
-      },
+      ssl: true, // Simple and effective for Neon strings
     },
   })
   : new Sequelize(
