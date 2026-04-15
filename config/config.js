@@ -74,8 +74,8 @@ export default {
   // ── AI Configuration ────────────────────────────────────────
   ai: {
     provider:        process.env.AI_PROVIDER || 'gemini',
-    chatModel:       process.env.AI_CHAT_MODEL || 'gemini-2.5-flash',
-    modModel:        process.env.AI_MOD_MODEL || 'gemini-2.5-flash',
+    chatModel:       process.env.AI_CHAT_MODEL || 'gemini-1.5-flash',
+    modModel:        process.env.AI_MOD_MODEL || 'gemini-1.5-flash',
     imageModel:      process.env.AI_IMAGE_MODEL || 'imagen-3.0-generate-001',
     enabled:         process.env.AI_ENABLED !== 'false',
     maxTokens:       1000,
@@ -148,7 +148,6 @@ Respond with JSON only:
     maxOpenPerUser: 3,
   },
 
-  // ── Birthday ─────────────────────────────────────────────────
   birthday: {
     defaultMessage: 'Happy Birthday {{user}}! 🎂🎉',
     checkHour:      9, // 9 AM guild timezone

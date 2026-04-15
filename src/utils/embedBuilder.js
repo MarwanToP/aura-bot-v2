@@ -6,27 +6,50 @@ import config           from '../../config/config.js';
 
 export function buildEmbed({
   type = 'primary', title, description, fields = [], footer,
-  thumbnail, image, timestamp = false, author, authorIcon, url, color,
+  thumbnail, image, timestamp = false, author, authorIcon, url, color, addPadding = true
 } = {}) {
   const colors = {
-    success: config.colors.success, error: config.colors.error,
-    warning: config.colors.warning, info:  config.colors.info,
-    primary: config.colors.primary, security: config.colors.security,
-    premium: config.colors.premium, neutral: config.colors.neutral,
-    ai:      config.colors.ai,      economy: config.colors.economy,
-    fun:     config.colors.fun,
+    success: config.colors.success || '#00FF7F', 
+    error: config.colors.error || '#FF4C4C',
+    warning: config.colors.warning || '#FFD700', 
+    info:  config.colors.info || '#00BFFF',
+    primary: config.colors.primary || '#5865F2', 
+    security: config.colors.security || '#2F3136',
+    premium: config.colors.premium || '#FF73FA', 
+    neutral: config.colors.neutral || '#95A5A6',
+    ai:      config.colors.ai || '#00FFEA',      
+    economy: config.colors.economy || '#F1C40F',
+    fun:     config.colors.fun || '#FF9999',
   };
 
   const embed = new EmbedBuilder().setColor(color ?? colors[type] ?? config.colors.primary);
+  
   if (title)       embed.setTitle(title);
   if (description) embed.setDescription(description);
+  
   if (thumbnail)   embed.setThumbnail(thumbnail);
   if (image)       embed.setImage(image);
   if (url)         embed.setURL(url);
   if (timestamp)   embed.setTimestamp();
+  
   if (author)      embed.setAuthor({ name: author, iconURL: authorIcon });
-  if (footer !== undefined) embed.setFooter({ text: footer ?? `Aura v${config.version}` });
-  if (fields.length) embed.addFields(fields.map(f => ({ name: f.name, value: f.value, inline: f.inline ?? false })));
+  else             embed.setAuthor({ name: '✨ Aura Bot v2.0', iconURL: 'https://cdn.discordapp.com/emojis/1109405021876542289.webp' }); // Example default
+
+  if (footer !== undefined) {
+    embed.setFooter({ text: footer ?? `Aura Core System v${config.version}` });
+  } else {
+    embed.setFooter({ text: `Aura Enterprise AI • v${config.version}` });
+  }
+
+  if (fields.length) {
+    const formattedFields = fields.map(f => ({
+      name: f.name,
+      value: addPadding ? `${f.value}\n\u200B` : f.value, // Adds blank padding underneath
+      inline: f.inline ?? false 
+    }));
+    embed.addFields(formattedFields);
+  }
+  
   return embed;
 }
 

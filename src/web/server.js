@@ -194,7 +194,7 @@ async function startDashboard() {
       logger.info(`[Dashboard] ✨ Dashboard running at http://localhost:${PORT}`);
     });
   } catch (err) {
-    logger.error('[Dashboard] Boot failed:', err.message);
+    logger.error('[Dashboard] Boot failed:', err);
     process.exit(1);
   }
 }

@@ -131,7 +131,10 @@ async function handleAIChatChannel(client, message) {
     });
 
   } catch (err) {
-    logger.debug('[AI Chat Channel]', err.message);
+    logger.error('[AI Chat Channel] Error:', err);
+    if (inAiChannel || isMentioned) {
+      await message.react('❌').catch(() => {});
+    }
   }
 }
 

@@ -2,7 +2,7 @@
 //  Commands: /settings /ticket /rank /leaderboard /help /lockdown
 //            /invites /search
 // ================================================================
-import { SlashCommandBuilder, PermissionFlagsBits } from 'discord.js';
+import { SlashCommandBuilder, PermissionFlagsBits, ChannelType } from 'discord.js';
 import { buildEmbed }  from '../../utils/embedBuilder.js';
 import { levelFromXp, getLeaderboard, getUserRank, generateRankCard } from '../../systems/leveling/levelingSystem.js';
 import { activateLockdown, liftLockdown, isInLockdown } from '../../systems/antinuke/antiRaid.js';
@@ -57,8 +57,9 @@ export const settings = {
       .addIntegerOption(o => o.setName('delay').setDescription('Delay in seconds').setMinValue(0).setMaxValue(86400))
     )
     .addSubcommand(s => s
-      .setName('tickets').setDescription('Configure ticket system')
       .addBooleanOption(o => o.setName('enabled').setDescription('Enable/disable'))
+      .addChannelOption(o => o.setName('category').setDescription('Category for new tickets').addChannelTypes(ChannelType.GuildCategory))
+      .addRoleOption(o => o.setName('support_role').setDescription('Support role for tickets'))
       .addChannelOption(o => o.setName('log_channel').setDescription('Ticket log channel'))
     )
     .addSubcommand(s => s
@@ -81,13 +82,14 @@ export const settings = {
           { name: '📥 Welcome',     value: settings.welcomeEnabled ? `✅ <#${settings.welcomeChannelId}>` : '❌', inline: true },
           { name: '📈 Leveling',    value: settings.levelingEnabled ? '✅' : '❌',                     inline: true },
           { name: '🛡️ Anti-Nuke',  value: settings.antiNukeEnabled ? '✅' : '❌',                     inline: true },
-          { name: '🎫 Tickets',     value: settings.ticketEnabled   ? '✅' : '❌',                     inline: true },
+          { name: '🎫 Tickets',     value: settings.ticketEnabled   ? `✅ Cat: ${settings.ticketCategoryId ? `<#${settings.ticketCategoryId}>` : '❌'}` : '❌', inline: true },
           { name: '🤖 AI AutoMod',  value: settings.aiModEnabled    ? '✅' : '❌',                     inline: true },
           { name: '💬 AI Chat',     value: settings.aiChatChannelId ? `✅ <#${settings.aiChatChannelId}>` : '❌', inline: true },
           { name: '📋 Mod Log',     value: settings.modLogChannelId ? `<#${settings.modLogChannelId}>` : 'Not set', inline: true },
           { name: '📋 Audit Log',   value: settings.auditLogChannelId ? `<#${settings.auditLogChannelId}>` : 'Not set', inline: true },
           { name: '🎭 Auto Role',   value: settings.autoRoleId ? `<@&${settings.autoRoleId}>` : 'Not set', inline: true },
           { name: '📨 Inv. Track',  value: settings.inviteTrackEnabled ? '✅' : '❌', inline: true },
+          { name: '🔧 Tkt Support', value: (settings.ticketSupportRoles || []).length ? (settings.ticketSupportRoles || []).map(r => `<@&${r}>`).join(', ') : 'Not set', inline: false },
         ], footer: `Guild: ${interaction.guildId}`, timestamp: true,
       })] });
     }
@@ -102,7 +104,21 @@ export const settings = {
     if (sub === 'aimod')       { updates.aiModEnabled = interaction.options.getBoolean('enabled'); await client.redis.del(`settings:aimod:${interaction.guildId}`); }
     if (sub === 'aichat')      { const ch = interaction.options.getChannel('channel'), en = interaction.options.getBoolean('enabled'); if (ch !== null) updates.aiChatChannelId = ch.id; if (en !== null) updates.aiChatEnabled = en; }
     if (sub === 'autorole')    { updates.autoRoleId = interaction.options.getRole('role').id; updates.autoRoleDelay = interaction.options.getInteger('delay') ?? 0; }
-    if (sub === 'tickets')     { const en = interaction.options.getBoolean('enabled'), ch = interaction.options.getChannel('log_channel'); if (en !== null) updates.ticketEnabled = en; if (ch !== null) updates.ticketLogChannelId = ch.id; }
+    if (sub === 'tickets')     { 
+      const en = interaction.options.getBoolean('enabled'), 
+            ch = interaction.options.getChannel('log_channel'),
+            cat = interaction.options.getChannel('category'),
+            role = interaction.options.getRole('support_role');
+      if (en !== null) updates.ticketEnabled = en; 
+      if (ch !== null) updates.ticketLogChannelId = ch.id; 
+      if (cat !== null) updates.ticketCategoryId = cat.id;
+      if (role !== null) {
+        let current = settings.ticketSupportRoles || [];
+        if (!current.includes(role.id)) {
+          updates.ticketSupportRoles = [...current, role.id];
+        }
+      }
+    }
     if (sub === 'invitetrack') { updates.inviteTrackEnabled = interaction.options.getBoolean('enabled'); }
 
     await settings.update(updates);
