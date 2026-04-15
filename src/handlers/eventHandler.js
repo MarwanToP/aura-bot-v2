@@ -3,7 +3,7 @@
 // ================================================================
 import { readdirSync } from 'fs';
 import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
+import { fileURLToPath, pathToFileURL } from 'url';
 import logger from '../utils/logger.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -14,7 +14,7 @@ export async function loadEvents(client) {
 
   for (const file of files) {
     try {
-      const mod = await import(join(eventsPath, file));
+      const mod = await import(pathToFileURL(join(eventsPath, file)).href);
 
       // Default export
       if (mod.default?.name && mod.default?.execute) {

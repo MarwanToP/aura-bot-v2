@@ -10,9 +10,7 @@ import config         from '../../../config/config.js';
 export const customcmd = {
   data: new SlashCommandBuilder()
     .setName('customcmd')
-    .setNameLocalizations({ ar: 'أمر_مخصص' })
     .setDescription('Manage custom commands')
-    .setDescriptionLocalizations({ ar: 'إدارة الأوامر المخصصة' })
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
     .addSubcommand(s => s
       .setName('add')

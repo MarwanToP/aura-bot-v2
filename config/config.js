@@ -73,10 +73,10 @@ export default {
 
   // ── AI Configuration ────────────────────────────────────────
   ai: {
-    provider:        process.env.AI_PROVIDER || 'openai',
-    chatModel:       process.env.AI_CHAT_MODEL || 'gpt-4o-mini',
-    modModel:        process.env.AI_MOD_MODEL || 'gpt-4o',
-    imageModel:      process.env.AI_IMAGE_MODEL || 'dall-e-3',
+    provider:        process.env.AI_PROVIDER || 'gemini',
+    chatModel:       process.env.AI_CHAT_MODEL || 'gemini-2.5-flash',
+    modModel:        process.env.AI_MOD_MODEL || 'gemini-2.5-flash',
+    imageModel:      process.env.AI_IMAGE_MODEL || 'imagen-3.0-generate-001',
     enabled:         process.env.AI_ENABLED !== 'false',
     maxTokens:       1000,
     maxHistory:      20,       // messages to keep in memory

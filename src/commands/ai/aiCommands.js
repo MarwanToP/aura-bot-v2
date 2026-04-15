@@ -10,9 +10,7 @@ import config         from '../../../config/config.js';
 export const ask = {
   data: new SlashCommandBuilder()
     .setName('ask')
-    .setNameLocalizations({ ar: 'اسأل' })
     .setDescription('Ask the AI assistant anything')
-    .setDescriptionLocalizations({ ar: 'اسأل المساعد الذكي أي سؤال' })
     .addStringOption(o => o
       .setName('question')
       .setDescription('Your question')
@@ -51,7 +49,7 @@ export const ask = {
       return interaction.editReply({
         embeds: [buildEmbed({
           type:        'ai',
-          author:      `🤖 Aura AI • ${result.provider === 'anthropic' ? 'Claude' : 'GPT-4o'}`,
+          author:      `🤖 Aura AI • Gemini 2.5`,
           description: result.content.slice(0, 4000),
           footer:      `Asked by ${interaction.user.tag} • ${usage.usage + 1}/${usage.limit} requests today`,
           timestamp:   true,
@@ -68,9 +66,7 @@ export const ask = {
 export const chat = {
   data: new SlashCommandBuilder()
     .setName('chat')
-    .setNameLocalizations({ ar: 'دردشة' })
     .setDescription('Have a conversation with the AI (remembers context)')
-    .setDescriptionLocalizations({ ar: 'تحدث مع الذكاء الاصطناعي (يتذكر السياق)' })
     .addSubcommand(s => s
       .setName('message')
       .setDescription('Send a message to the AI')
@@ -151,9 +147,7 @@ export const chat = {
 export const imagine = {
   data: new SlashCommandBuilder()
     .setName('imagine')
-    .setNameLocalizations({ ar: 'تخيل' })
     .setDescription('Generate an image with AI (DALL-E 3)')
-    .setDescriptionLocalizations({ ar: 'إنشاء صورة بالذكاء الاصطناعي' })
     .addStringOption(o => o.setName('prompt').setDescription('Describe the image').setRequired(true).setMaxLength(800))
     .addStringOption(o => o
       .setName('style')
@@ -179,8 +173,8 @@ export const imagine = {
   async execute(client, interaction) {
     await interaction.deferReply();
 
-    if (!client.ai.openai) {
-      return interaction.editReply({ embeds: [buildEmbed({ type: 'error', description: '❌ Image generation requires OpenAI configuration.' })] });
+    if (!client.ai.isAvailable()) {
+      return interaction.editReply({ embeds: [buildEmbed({ type: 'error', description: '❌ AI not configured.' })] });
     }
 
     const isPremium = await checkPremium(client, interaction.guildId);
@@ -219,9 +213,7 @@ export const imagine = {
 export const translate = {
   data: new SlashCommandBuilder()
     .setName('translate')
-    .setNameLocalizations({ ar: 'ترجم' })
     .setDescription('Translate text between languages using AI')
-    .setDescriptionLocalizations({ ar: 'ترجمة النصوص بين اللغات باستخدام الذكاء الاصطناعي' })
     .addStringOption(o => o.setName('text').setDescription('Text to translate').setRequired(true).setMaxLength(1500))
     .addStringOption(o => o
       .setName('to')
@@ -264,7 +256,7 @@ export const translate = {
             { name: '📝 Original', value: text.slice(0, 1000),           inline: false },
             { name: '✅ Translated', value: result.content.slice(0, 1000), inline: false },
           ],
-          footer:    `Powered by ${result.provider === 'anthropic' ? 'Claude' : 'GPT-4o'}`,
+          footer:    `Powered by Gemini 2.5 Flash`,
           timestamp: true,
         })],
       });
@@ -278,9 +270,7 @@ export const translate = {
 export const summarize = {
   data: new SlashCommandBuilder()
     .setName('summarize')
-    .setNameLocalizations({ ar: 'لخّص' })
     .setDescription('Summarize long text with AI')
-    .setDescriptionLocalizations({ ar: 'تلخيص النصوص الطويلة بالذكاء الاصطناعي' })
     .addStringOption(o => o.setName('text').setDescription('Text to summarize').setRequired(true).setMaxLength(4000))
     .addIntegerOption(o => o.setName('words').setDescription('Max summary words (default: 100)').setMinValue(50).setMaxValue(300)),
 
@@ -325,8 +315,8 @@ export const aimod = {
       .setName('depth')
       .setDescription('Analysis depth')
       .addChoices(
-        { name: '⚡ Quick (OpenAI Moderation)', value: 'quick' },
-        { name: '🧠 Deep (GPT-4o Analysis)',    value: 'deep' },
+        { name: '⚡ Quick (Gemini Moderation)', value: 'quick' },
+        { name: '🧠 Deep (Gemini Analysis)',    value: 'deep' },
       )
     ),
 

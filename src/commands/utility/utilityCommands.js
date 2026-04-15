@@ -113,8 +113,8 @@ export const settings = {
 // ─── /rank ────────────────────────────────────────────────────
 export const rank = {
   data: new SlashCommandBuilder()
-    .setName('rank').setNameLocalizations({ ar: 'رتبة' })
-    .setDescription('View your rank card').setDescriptionLocalizations({ ar: 'عرض بطاقة رتبتك' })
+    .setName('rank')
+    .setDescription('View your rank card')
     .addUserOption(o => o.setName('user').setDescription('User to check')),
   guildOnly: true, cooldown: 8000,
   async execute(client, interaction) {
@@ -146,8 +146,8 @@ export const rank = {
 // ─── /leaderboard ─────────────────────────────────────────────
 export const leaderboard = {
   data: new SlashCommandBuilder()
-    .setName('leaderboard').setNameLocalizations({ ar: 'لوحة_الصدارة' })
-    .setDescription('Server XP leaderboard').setDescriptionLocalizations({ ar: 'لوحة الصدارة' })
+    .setName('leaderboard')
+    .setDescription('Server XP leaderboard')
     .addIntegerOption(o => o.setName('page').setDescription('Page').setMinValue(1)),
   guildOnly: true, cooldown: 10000,
   async execute(client, interaction) {
@@ -188,8 +188,8 @@ export const lockdown = {
 // ─── /help ────────────────────────────────────────────────────
 export const help = {
   data: new SlashCommandBuilder()
-    .setName('help').setNameLocalizations({ ar: 'مساعدة' })
-    .setDescription('View all commands').setDescriptionLocalizations({ ar: 'عرض جميع الأوامر' })
+    .setName('help')
+    .setDescription('View all commands')
     .addStringOption(o => o.setName('category').setDescription('Category')
       .addChoices(
         { name: '🤖 AI',          value: 'ai' },
@@ -224,8 +224,8 @@ export const help = {
 // ─── /search ──────────────────────────────────────────────────
 export const search = {
   data: new SlashCommandBuilder()
-    .setName('search').setNameLocalizations({ ar: 'بحث' })
-    .setDescription('Search anything with AI summary').setDescriptionLocalizations({ ar: 'ابحث عن أي شيء مع ملخص ذكي' })
+    .setName('search')
+    .setDescription('Search anything with AI summary')
     .addStringOption(o => o.setName('query').setDescription('What to search for').setRequired(true)),
   cooldown: 10000,
   async execute(client, interaction) {
@@ -241,7 +241,7 @@ export const search = {
         `Provide a comprehensive, accurate answer to this search query: "${query}"\n\nInclude key facts, current information if relevant, and any important context. ${langNote}\nKeep response under 800 characters.`,
         { maxTokens: 500 }
       );
-      return interaction.editReply({ embeds: [buildEmbed({ type: 'ai', title: `🔍 ${query}`, description: result.content, footer: `Powered by ${result.provider === 'anthropic' ? 'Claude' : 'GPT-4o'}`, timestamp: true })] });
+      return interaction.editReply({ embeds: [buildEmbed({ type: 'ai', title: `🔍 ${query}`, description: result.content, footer: `Powered by Gemini 2.5 Flash`, timestamp: true })] });
     } catch (err) {
       return interaction.editReply({ embeds: [buildEmbed({ type: 'error', description: '❌ Search failed.' })] });
     }
@@ -251,8 +251,8 @@ export const search = {
 // ─── /ticket ──────────────────────────────────────────────────
 export const ticket = {
   data: new SlashCommandBuilder()
-    .setName('ticket').setNameLocalizations({ ar: 'تذكرة' })
-    .setDescription('Support ticket system').setDescriptionLocalizations({ ar: 'نظام تذاكر الدعم' })
+    .setName('ticket')
+    .setDescription('Support ticket system')
     .addSubcommand(s => s
       .setName('open').setDescription('Open a ticket')
       .addStringOption(o => o.setName('category').setDescription('Category').setRequired(true).addChoices(

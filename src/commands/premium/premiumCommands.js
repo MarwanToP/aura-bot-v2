@@ -11,7 +11,6 @@ import config         from '../../../config/config.js';
 export const reactionrole = {
   data: new SlashCommandBuilder()
     .setName('reactionrole')
-    .setNameLocalizations({ ar: 'دور_تفاعلي' })
     .setDescription('Configure reaction roles (Premium: up to 40)')
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles)
     .addSubcommand(s => s
@@ -91,7 +90,6 @@ export const reactionrole = {
 export const timedmsg = {
   data: new SlashCommandBuilder()
     .setName('timedmsg')
-    .setNameLocalizations({ ar: 'رسالة_مجدولة' })
     .setDescription('Schedule recurring messages (Premium: 100)')
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
     .addSubcommand(s => s
@@ -150,7 +148,6 @@ export const timedmsg = {
 export const tempchannel = {
   data: new SlashCommandBuilder()
     .setName('tempchannel')
-    .setNameLocalizations({ ar: 'قناة_مؤقتة' })
     .setDescription('Create a temporary channel (Premium: 100)')
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels)
     .addSubcommand(s => s
@@ -208,7 +205,6 @@ export const tempchannel = {
 export const automation = {
   data: new SlashCommandBuilder()
     .setName('automation')
-    .setNameLocalizations({ ar: 'أتمتة' })
     .setDescription('Manage server automations (Premium: unlimited, Free: 50)')
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
     .addSubcommand(s => s

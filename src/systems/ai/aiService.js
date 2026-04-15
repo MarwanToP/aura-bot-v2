@@ -1,70 +1,87 @@
 // ================================================================
-//  AURA BOT v2.0 — AI Service
-//  Supports: OpenAI (GPT-4o) + Anthropic (Claude)
-//  Features: Chat, Moderation, Image Gen, Search Summaries
+//  AURA BOT v2.0 — AI Service (Google Gemini)
+//  All AI features powered by Gemini 2.5 Flash
 // ================================================================
 
-import OpenAI    from 'openai';
-import Anthropic from '@anthropic-ai/sdk';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import config    from '../../../config/config.js';
 import logger    from '../../utils/logger.js';
 
 class AIService {
   constructor() {
-    this.openai    = null;
-    this.anthropic = null;
-    this.provider  = process.env.AI_PROVIDER || 'openai';
-    this.enabled   = process.env.AI_ENABLED !== 'false';
+    this.gemini   = null;
+    this.model    = null;
+    this.enabled  = process.env.AI_ENABLED !== 'false';
   }
 
   async init() {
     if (!this.enabled) { logger.info('[AI] Disabled via env'); return; }
 
-    if (process.env.OPENAI_API_KEY) {
-      this.openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-      logger.info('[AI] OpenAI initialized ✓');
+    if (!process.env.GEMINI_API_KEY) {
+      logger.warn('[AI] No GEMINI_API_KEY set — AI features disabled');
+      this.enabled = false;
+      return;
     }
 
-    if (process.env.ANTHROPIC_API_KEY) {
-      this.anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-      logger.info('[AI] Anthropic Claude initialized ✓');
-    }
-
-    if (!this.openai && !this.anthropic) {
-      logger.warn('[AI] No AI provider configured — AI features disabled');
+    try {
+      this.gemini  = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+      this.model   = process.env.AI_CHAT_MODEL || 'gemini-2.5-flash';
+      this.modModel = process.env.AI_MOD_MODEL || 'gemini-2.5-flash';
+      logger.info(`[AI] Gemini initialized ✓ (model: ${this.model})`);
+    } catch (err) {
+      logger.error('[AI] Gemini init failed:', err.message);
       this.enabled = false;
     }
   }
 
   // ── Check if AI is available ────────────────────────────────
-  isAvailable() { return this.enabled && (!!this.openai || !!this.anthropic); }
+  isAvailable() { return this.enabled && !!this.gemini; }
 
-  // ── Chat Completion ─────────────────────────────────────────
-  async chat({ messages, system, model, maxTokens = 1000, userId, guildId }) {
+  // ── Internal helper: call Gemini ────────────────────────────
+  async _generate(prompt, { system, modelName, maxTokens = 1000 } = {}) {
     if (!this.isAvailable()) throw new Error('AI not configured');
 
+    const mdl = modelName || this.model;
     const sysPrompt = system || config.ai.systemPrompt;
-    const mdl       = model  || config.ai.chatModel;
+
+    const genModel = this.gemini.getGenerativeModel({
+      model: mdl,
+      systemInstruction: sysPrompt,
+      generationConfig: { maxOutputTokens: maxTokens },
+    });
+
+    const result = await genModel.generateContent(prompt);
+    return result.response.text();
+  }
+
+  // ── Chat Completion (multi-turn) ────────────────────────────
+  async chat({ messages, system, model, maxTokens = 1000 }) {
+    if (!this.isAvailable()) throw new Error('AI not configured');
+
+    const sysPrompt  = system || config.ai.systemPrompt;
+    const modelName  = model  || this.model;
 
     try {
-      if (this.provider === 'anthropic' && this.anthropic) {
-        const res = await this.anthropic.messages.create({
-          model:      'claude-sonnet-4-20250514',
-          max_tokens: maxTokens,
-          system:     sysPrompt,
-          messages:   messages.map(m => ({ role: m.role, content: m.content })),
-        });
-        return { content: res.content[0].text, provider: 'anthropic', tokens: res.usage };
+      const genModel = this.gemini.getGenerativeModel({
+        model: modelName,
+        systemInstruction: sysPrompt,
+        generationConfig: { maxOutputTokens: maxTokens },
+      });
+
+      if (messages.length === 1) {
+        const result = await genModel.generateContent(messages[0].content);
+        return { content: result.response.text(), provider: 'gemini' };
       }
 
-      if (this.openai) {
-        const res = await this.openai.chat.completions.create({
-          model:      mdl,
-          max_tokens: maxTokens,
-          messages:   [{ role: 'system', content: sysPrompt }, ...messages],
-        });
-        return { content: res.choices[0].message.content, provider: 'openai', tokens: res.usage };
-      }
+      // Multi-turn: map history (all but last message)
+      const history = messages.slice(0, -1).map(m => ({
+        role:  m.role === 'assistant' ? 'model' : 'user',
+        parts: [{ text: m.content }],
+      }));
+
+      const chat   = genModel.startChat({ history });
+      const result = await chat.sendMessage(messages[messages.length - 1].content);
+      return { content: result.response.text(), provider: 'gemini' };
 
     } catch (err) {
       logger.error('[AI] chat error:', err.message);
@@ -77,54 +94,64 @@ class AIService {
     return this.chat({ messages: [{ role: 'user', content: text }], system, model, maxTokens });
   }
 
-  // ── AI Moderation ────────────────────────────────────────────
-  async moderateContent(content, { context = '' } = {}) {
-    if (!this.isAvailable()) return { violation: false, confidence: 0 };
+  // ── AI Moderation (Gemini-based) ─────────────────────────────
+  async moderateContent(content, options = {}) {
+    if (!this.isAvailable()) return { violation: false, confidence: 0, source: 'disabled' };
+
+    const depth = options?.context || 'quick';
+    const isDeep = depth === 'deep';
+
+    const moderationPrompt = isDeep
+      ? `You are an expert content moderation AI. Perform a DEEP analysis of this Discord message for ALL of the following violations:
+1. Hate speech, racism, or discrimination
+2. Harassment, bullying, or personal attacks
+3. Spam, scams, or excessive self-promotion
+4. NSFW, sexual, or explicit content
+5. Threats, violence, or dangerous behavior
+6. Doxxing or privacy violations
+7. Phishing links or malware
+8. Misinformation or manipulation
+
+Analyze the tone, intent, and context carefully.
+Respond ONLY with valid JSON:
+{"violation": true/false, "category": "hate|harassment|spam|nsfw|threats|doxxing|phishing|clean", "severity": "low|medium|high|critical", "confidence": 0-100, "reason": "detailed explanation"}
+
+Message: "${content.replace(/"/g, "'")}"`
+      : `You are a content moderation AI. Quickly check this message for obvious violations.
+Respond ONLY with valid JSON:
+{"violation": true/false, "category": "hate|spam|nsfw|threats|clean", "severity": "low|medium|high|critical", "confidence": 0-100, "reason": "brief reason"}
+
+Message: "${content.replace(/"/g, "'")}"`;
 
     try {
-      // First use OpenAI's built-in moderation (free & fast)
-      if (this.openai) {
-        const modRes = await this.openai.moderations.create({ input: content });
-        const result = modRes.results[0];
+      const genModel = this.gemini.getGenerativeModel({
+        model: this.modModel,
+        systemInstruction: 'You are a content moderation system. Always respond with valid JSON only. No markdown, no explanation, just the JSON object.',
+        generationConfig: { maxOutputTokens: isDeep ? 300 : 150 },
+      });
 
-        if (result.flagged) {
-          const categories = Object.entries(result.categories)
-            .filter(([, v]) => v)
-            .map(([k]) => k);
+      const result = await genModel.generateContent(moderationPrompt);
+      const raw = result.response.text();
 
-          return {
-            violation: true,
-            category:  categories[0] || 'policy_violation',
-            severity:  result.category_scores ? this._scoreToSeverity(Math.max(...Object.values(result.category_scores))) : 'medium',
-            reason:    `Flagged by content policy: ${categories.join(', ')}`,
-            confidence: Math.round(Math.max(...Object.values(result.category_scores || {})) * 100),
-            source:    'openai_moderation',
-          };
-        }
-      }
+      // Robust JSON extraction — handle markdown code blocks and extra text
+      let jsonStr = raw.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+      
+      // Try to extract JSON object if there's extra text around it
+      const jsonMatch = jsonStr.match(/\{[\s\S]*\}/);
+      if (jsonMatch) jsonStr = jsonMatch[0];
 
-      // Deep analysis with GPT for edge cases
-      if (context === 'deep' && this.openai) {
-        const res = await this.openai.chat.completions.create({
-          model:       config.ai.modModel,
-          max_tokens:  200,
-          temperature: 0,
-          messages: [
-            { role: 'system', content: config.ai.moderationPrompt },
-            { role: 'user',   content: `Message: "${content}"` },
-          ],
-          response_format: { type: 'json_object' },
-        });
-
-        const parsed = JSON.parse(res.choices[0].message.content);
-        return { ...parsed, source: 'gpt_analysis' };
-      }
-
-      return { violation: false, confidence: 0, source: 'clean' };
-
+      const parsed = JSON.parse(jsonStr);
+      return {
+        violation:  Boolean(parsed.violation),
+        category:   parsed.category || 'clean',
+        severity:   parsed.severity || 'low',
+        confidence: parseInt(parsed.confidence) || 0,
+        reason:     parsed.reason || 'No details provided',
+        source:     `gemini_${depth}`,
+      };
     } catch (err) {
       logger.warn('[AI] moderateContent error:', err.message);
-      return { violation: false, confidence: 0, source: 'error' };
+      return { violation: false, confidence: 0, category: 'error', severity: 'low', reason: err.message, source: 'error' };
     }
   }
 
@@ -135,38 +162,26 @@ class AIService {
     return 'low';
   }
 
-  // ── Generate Image ───────────────────────────────────────────
-  async generateImage(prompt, { size = '1024x1024', quality = 'standard', style = 'vivid' } = {}) {
-    if (!this.openai) throw new Error('OpenAI not configured for image generation');
-
-    const res = await this.openai.images.generate({
-      model:   config.ai.imageModel,
-      prompt:  `${prompt}\n\nSafe for work, appropriate for all ages, Discord server artwork.`,
-      n:       1,
-      size,
-      quality,
-      style,
-    });
-
-    return { url: res.data[0].url, revisedPrompt: res.data[0].revised_prompt };
+  // ── Generate Image (not available on free Gemini key) ────────
+  async generateImage(prompt) {
+    throw new Error('Image generation requires a paid Gemini API plan.');
   }
 
   // ── Conversation Context Manager ────────────────────────────
   async getContext(redis, userId, guildId) {
-    const key = `ai:ctx:${guildId}:${userId}`;
+    const key  = `ai:ctx:${guildId}:${userId}`;
     const data = await redis.getJSON(key);
     return data?.messages || [];
   }
 
   async saveContext(redis, userId, guildId, messages) {
-    const key = `ai:ctx:${guildId}:${userId}`;
-    const trimmed = messages.slice(-config.ai.maxHistory); // keep last N
+    const key     = `ai:ctx:${guildId}:${userId}`;
+    const trimmed = messages.slice(-config.ai.maxHistory);
     await redis.setJSON(key, { messages: trimmed }, config.cache.aiContextTTL);
   }
 
   async clearContext(redis, userId, guildId) {
-    const key = `ai:ctx:${guildId}:${userId}`;
-    await redis.del(key);
+    await redis.del(`ai:ctx:${guildId}:${userId}`);
   }
 
   // ── Check daily AI usage ─────────────────────────────────────
@@ -180,7 +195,7 @@ class AIService {
   async incrementUsage(redis, userId) {
     const key = `ai:usage:${userId}:${new Date().toDateString()}`;
     await redis.incr(key);
-    await redis.expire(key, 86400); // 24h TTL
+    await redis.expire(key, 86400);
   }
 
   // ── Summarize Text ───────────────────────────────────────────
@@ -194,7 +209,11 @@ class AIService {
 
   // ── Translate ────────────────────────────────────────────────
   async translate(text, targetLang = 'ar') {
-    const langNames = { ar: 'Arabic (Modern Standard)', en: 'English' };
+    const langNames = {
+      ar: 'Arabic (Modern Standard)', en: 'English', fr: 'French',
+      de: 'German', es: 'Spanish', ja: 'Japanese', zh: 'Chinese',
+      ru: 'Russian', tr: 'Turkish', id: 'Indonesian',
+    };
     return this.prompt(
       `Translate the following text to ${langNames[targetLang] || targetLang}. Provide only the translation, no explanations.\n\n${text}`,
       { maxTokens: 500 }
@@ -219,7 +238,7 @@ class AIService {
     catch { return []; }
   }
 
-  // ── Generate Welcome Message ────────────────────────────────
+  // ── Generate Welcome Message ─────────────────────────────────
   async generateWelcomeMessage(username, guildName, lang = 'en') {
     const langInstr = lang === 'ar' ? 'Write in Arabic.' : 'Write in English.';
     const res = await this.prompt(

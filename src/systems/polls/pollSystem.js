@@ -14,9 +14,7 @@ const POLL_EMOJIS = ['1️⃣','2️⃣','3️⃣','4️⃣','5️⃣','6️⃣'
 export const poll = {
   data: new SlashCommandBuilder()
     .setName('poll')
-    .setNameLocalizations({ ar: 'استطلاع' })
     .setDescription('Create an interactive poll')
-    .setDescriptionLocalizations({ ar: 'إنشاء استطلاع تفاعلي' })
     .addSubcommand(s => s
       .setName('create')
       .setDescription('Create a poll')

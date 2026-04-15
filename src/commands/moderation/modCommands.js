@@ -50,8 +50,8 @@ async function checkEscalation(client, guildId, member, count) {
 // ─── /ban ─────────────────────────────────────────────────────
 export const ban = {
   data: new SlashCommandBuilder()
-    .setName('ban').setNameLocalizations({ ar: 'حظر' })
-    .setDescription('Ban a member').setDescriptionLocalizations({ ar: 'حظر عضو' })
+    .setName('ban')
+    .setDescription('Ban a member')
     .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers)
     .addUserOption(o => o.setName('user').setDescription('User to ban').setRequired(true))
     .addStringOption(o => o.setName('reason').setDescription('Reason').setMaxLength(512))
@@ -84,8 +84,8 @@ export const ban = {
 // ─── /kick ────────────────────────────────────────────────────
 export const kick = {
   data: new SlashCommandBuilder()
-    .setName('kick').setNameLocalizations({ ar: 'طرد' })
-    .setDescription('Kick a member').setDescriptionLocalizations({ ar: 'طرد عضو' })
+    .setName('kick')
+    .setDescription('Kick a member')
     .setDefaultMemberPermissions(PermissionFlagsBits.KickMembers)
     .addUserOption(o => o.setName('user').setDescription('Member to kick').setRequired(true))
     .addStringOption(o => o.setName('reason').setDescription('Reason').setMaxLength(512)),
@@ -109,8 +109,8 @@ export const kick = {
 // ─── /timeout ─────────────────────────────────────────────────
 export const timeout = {
   data: new SlashCommandBuilder()
-    .setName('timeout').setNameLocalizations({ ar: 'عزل' })
-    .setDescription('Timeout a member').setDescriptionLocalizations({ ar: 'عزل عضو مؤقتاً' })
+    .setName('timeout')
+    .setDescription('Timeout a member')
     .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
     .addUserOption(o => o.setName('user').setDescription('Member').setRequired(true))
     .addStringOption(o => o.setName('duration').setDescription('Duration (10m, 1h, 7d — max 28d)').setRequired(true))
@@ -139,8 +139,8 @@ export const timeout = {
 // ─── /warn ────────────────────────────────────────────────────
 export const warn = {
   data: new SlashCommandBuilder()
-    .setName('warn').setNameLocalizations({ ar: 'تحذير' })
-    .setDescription('Warn a member').setDescriptionLocalizations({ ar: 'تحذير عضو' })
+    .setName('warn')
+    .setDescription('Warn a member')
     .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
     .addUserOption(o => o.setName('user').setDescription('Member').setRequired(true))
     .addStringOption(o => o.setName('reason').setDescription('Reason').setRequired(true).setMaxLength(512)),
@@ -214,8 +214,8 @@ export const softban = {
 // ─── /history ─────────────────────────────────────────────────
 export const history = {
   data: new SlashCommandBuilder()
-    .setName('history').setNameLocalizations({ ar: 'سجل' })
-    .setDescription('View moderation history').setDescriptionLocalizations({ ar: 'عرض السجل التأديبي' })
+    .setName('history')
+    .setDescription('View moderation history')
     .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
     .addUserOption(o => o.setName('user').setDescription('User to check').setRequired(true))
     .addIntegerOption(o => o.setName('page').setDescription('Page').setMinValue(1)),

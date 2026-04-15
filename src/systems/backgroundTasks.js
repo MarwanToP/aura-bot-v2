@@ -122,7 +122,7 @@ async function processTimedMessages(client) {
   try {
     const { TimedMessage } = client.db.models;
     const now  = new Date();
-    const due  = await TimedMessage.findAll({ where: { enabled: true, nextSendAt: { [client.db.Sequelize.Op.lte]: now } } });
+    const due  = await TimedMessage.findAll({ where: { enabled: true, nextSendAt: { [client.db.Op.lte]: now } } });
 
     for (const msg of due) {
       try {
@@ -144,7 +144,7 @@ async function checkExpiredGiveaways(client) {
   try {
     const { Giveaway } = client.db.models;
     const expired = await Giveaway.findAll({
-      where: { active: true, endsAt: { [client.db.Sequelize.Op.lte]: new Date() } }
+      where: { active: true, endsAt: { [client.db.Op.lte]: new Date() } }
     });
     for (const gw of expired) {
       await endGiveaway(client, gw.id).catch(() => {});
@@ -157,7 +157,7 @@ async function checkTicketSLA(client) {
   try {
     const { Ticket, GuildSettings } = client.db.models;
     const twoHrsAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
-    const idle = await Ticket.findAll({ where: { status: ['open','claimed'], updatedAt: { [client.db.Sequelize.Op.lt]: twoHrsAgo } } });
+    const idle = await Ticket.findAll({ where: { status: ['open','claimed'], updatedAt: { [client.db.Op.lt]: twoHrsAgo } } });
 
     for (const ticket of idle) {
       try {
@@ -166,7 +166,7 @@ async function checkTicketSLA(client) {
         const channel = await client.channels.fetch(settings.ticketLogChannelId).catch(() => null);
         if (!channel?.isTextBased()) continue;
 
-        const { buildEmbed } = await import('./utils/embedBuilder.js').catch(() => ({ buildEmbed: null }));
+        const { buildEmbed } = await import('../utils/embedBuilder.js').catch(() => ({ buildEmbed: null }));
         if (!buildEmbed) continue;
 
         await channel.send({ embeds: [buildEmbed({ type: 'warning', title: '⚠️ SLA Warning', description: `Ticket **${ticket.ticketId}** idle >2hrs | Priority: ${ticket.priority} | <#${ticket.channelId}>` })] });
@@ -180,7 +180,7 @@ async function checkTicketSLA(client) {
 async function cleanupTempChannels(client) {
   try {
     const { TempChannel } = client.db.models;
-    const expired = await TempChannel.findAll({ where: { expiresAt: { [client.db.Sequelize.Op.lte]: new Date() } } });
+    const expired = await TempChannel.findAll({ where: { expiresAt: { [client.db.Op.lte]: new Date() } } });
 
     for (const tc of expired) {
       try {
@@ -197,7 +197,7 @@ async function cleanupOldLogs(client) {
   try {
     const { ModerationCase } = client.db.models;
     const cutoff = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000);
-    const deleted = await ModerationCase.destroy({ where: { createdAt: { [client.db.Sequelize.Op.lt]: cutoff }, active: false } });
+    const deleted = await ModerationCase.destroy({ where: { createdAt: { [client.db.Op.lt]: cutoff }, active: false } });
     if (deleted > 0) logger.info(`[Tasks] Cleaned ${deleted} old cases`);
   } catch {}
 }

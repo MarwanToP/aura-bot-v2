@@ -122,9 +122,7 @@ export async function endGiveaway(client, giveawayId) {
 export const giveaway = {
   data: new SlashCommandBuilder()
     .setName('giveaway')
-    .setNameLocalizations({ ar: 'هبة' })
     .setDescription('Giveaway management [Premium]')
-    .setDescriptionLocalizations({ ar: 'إدارة الهبات [مميز]' })
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
     .addSubcommand(s => s
       .setName('start')

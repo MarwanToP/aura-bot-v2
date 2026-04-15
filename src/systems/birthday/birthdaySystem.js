@@ -11,9 +11,7 @@ import logger                  from '../../utils/logger.js';
 export const birthday = {
   data: new SlashCommandBuilder()
     .setName('birthday')
-    .setNameLocalizations({ ar: 'عيد_ميلاد' })
     .setDescription('Birthday management')
-    .setDescriptionLocalizations({ ar: 'إدارة أعياد الميلاد' })
     .addSubcommand(s => s
       .setName('set')
       .setDescription('Set your birthday')

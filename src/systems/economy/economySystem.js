@@ -34,9 +34,7 @@ async function removeCoins(client, userId, guildId, amount) {
 export const balance = {
   data: new SlashCommandBuilder()
     .setName('balance')
-    .setNameLocalizations({ ar: 'رصيد' })
     .setDescription('Check your coin balance')
-    .setDescriptionLocalizations({ ar: 'تحقق من رصيد العملات' })
     .addUserOption(o => o.setName('user').setDescription('User to check')),
 
   guildOnly: true,
@@ -68,9 +66,7 @@ export const balance = {
 export const daily = {
   data: new SlashCommandBuilder()
     .setName('daily')
-    .setNameLocalizations({ ar: 'يومي' })
-    .setDescription('Claim your daily coin reward')
-    .setDescriptionLocalizations({ ar: 'احصل على مكافأتك اليومية' }),
+    .setDescription('Claim your daily coin reward'),
 
   guildOnly: true,
   cooldown:  1000,
@@ -107,9 +103,7 @@ export const daily = {
 export const work = {
   data: new SlashCommandBuilder()
     .setName('work')
-    .setNameLocalizations({ ar: 'عمل' })
-    .setDescription('Work to earn coins (4hr cooldown)')
-    .setDescriptionLocalizations({ ar: 'اعمل لكسب العملات' }),
+    .setDescription('Work to earn coins (4hr cooldown)'),
 
   guildOnly: true,
   cooldown:  1000,
@@ -153,9 +147,7 @@ export const work = {
 export const gamble = {
   data: new SlashCommandBuilder()
     .setName('gamble')
-    .setNameLocalizations({ ar: 'مقامرة' })
     .setDescription('Gamble your coins (50% chance)')
-    .setDescriptionLocalizations({ ar: 'راهن بعملاتك (فرصة 50%)' })
     .addIntegerOption(o => o
       .setName('amount')
       .setDescription('Amount to gamble (or "all")')
@@ -204,9 +196,7 @@ export const gamble = {
 export const shop = {
   data: new SlashCommandBuilder()
     .setName('shop')
-    .setNameLocalizations({ ar: 'متجر' })
     .setDescription('Browse the server shop')
-    .setDescriptionLocalizations({ ar: 'تصفح متجر الخادم' })
     .addSubcommand(s => s.setName('browse').setDescription('Browse available items'))
     .addSubcommand(s => s
       .setName('buy')
@@ -326,9 +316,7 @@ export const shop = {
 export const transfer = {
   data: new SlashCommandBuilder()
     .setName('transfer')
-    .setNameLocalizations({ ar: 'تحويل' })
     .setDescription('Transfer coins to another user')
-    .setDescriptionLocalizations({ ar: 'تحويل العملات لمستخدم آخر' })
     .addUserOption(o => o.setName('user').setDescription('Recipient').setRequired(true))
     .addIntegerOption(o => o.setName('amount').setDescription('Amount').setRequired(true).setMinValue(1)),
 
@@ -357,9 +345,7 @@ export const transfer = {
 export const richlist = {
   data: new SlashCommandBuilder()
     .setName('richlist')
-    .setNameLocalizations({ ar: 'قائمة_الأثرياء' })
-    .setDescription('View the richest members in the server')
-    .setDescriptionLocalizations({ ar: 'عرض أثرى أعضاء الخادم' }),
+    .setDescription('View the richest members in the server'),
 
   guildOnly: true,
   cooldown:  10000,

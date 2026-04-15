@@ -6,7 +6,7 @@ import 'dotenv/config';
 import { REST, Routes }           from 'discord.js';
 import { readdirSync, statSync }  from 'fs';
 import { join, dirname }          from 'path';
-import { fileURLToPath }          from 'url';
+import { fileURLToPath, pathToFileURL } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const commands  = [];
@@ -21,7 +21,7 @@ async function loadCommands(dir) {
     if (isDir) { await loadCommands(full); continue; }
     if (!entry.endsWith('.js')) continue;
     try {
-      const mod = await import(full);
+      const mod = await import(pathToFileURL(full).href);
       if (mod.default?.data) commands.push(mod.default.data.toJSON());
       for (const [k, v] of Object.entries(mod)) {
         if (k !== 'default' && v?.data) commands.push(v.data.toJSON());
