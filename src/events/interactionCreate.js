@@ -96,6 +96,7 @@ async function handleButton(client, interaction) {
     ticket:   '../systems/tickets/ticketSystem.js',
     giveaway: '../systems/giveaway/giveawaySystem.js',
     poll:     '../systems/polls/pollSystem.js',
+    apply:    '../systems/applications/applicationSystem.js',
   };
 
   const modulePath = handlers[prefix];
@@ -128,10 +129,19 @@ async function handleSelect(client, interaction) {
 // ── Modals ────────────────────────────────────────────────────
 async function handleModal(client, interaction) {
   const [prefix, ...rest] = interaction.customId.split(':');
+  
+  const handlers = {
+    apply: '../systems/applications/applicationSystem.js',
+  };
+
+  const modulePath = handlers[prefix] || `../systems/interactions/${prefix}.js`;
+
   try {
-    const mod = await import(`../systems/interactions/${prefix}.js`).catch(() => null);
+    const mod = await import(modulePath).catch(() => null);
     if (mod?.handleModal) await mod.handleModal(client, interaction, rest.join(':'));
-  } catch {}
+  } catch (err) {
+    logger.warn(`[Modal] ${interaction.customId}: ${err.message}`);
+  }
 }
 
 // ── Context Menus ─────────────────────────────────────────────

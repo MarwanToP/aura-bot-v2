@@ -19,7 +19,10 @@ const sequelize = dbUrl
         require: true,
         rejectUnauthorized: false,
       },
+      keepAlive: true,
     },
+    // Addition for Neon/SSL robustness
+    ssl: true
   })
   : new Sequelize(
     process.env.DB_NAME    || 'aura_bot',
@@ -393,6 +396,30 @@ const TempChannel = sequelize.define('TempChannel', {
   expiresAt: { type: DataTypes.DATE, allowNull: true },
 }, { tableName: 'temp_channels', timestamps: true });
 
+// ── 24. Application Form ───────────────────────────────────────
+const ApplicationForm = sequelize.define('ApplicationForm', {
+  guildId:      { type: DataTypes.STRING, primaryKey: true },
+  questions:    { type: DataTypes.JSONB, defaultValue: [] },
+  logChannelId: { type: DataTypes.STRING, allowNull: true },
+  roleRewardId: { type: DataTypes.STRING, allowNull: true },
+  enabled:      { type: DataTypes.BOOLEAN, defaultValue: false },
+  cooldown:     { type: DataTypes.INTEGER, defaultValue: 86400 }, // 24h default
+}, { tableName: 'application_forms', timestamps: true });
+
+// ── 25. Staff Application ─────────────────────────────────────
+const StaffApplication = sequelize.define('StaffApplication', {
+  id:           { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
+  guildId:      { type: DataTypes.STRING, allowNull: false },
+  userId:       { type: DataTypes.STRING, allowNull: false },
+  answers:      { type: DataTypes.JSONB, allowNull: false },
+  status:       { type: DataTypes.ENUM('pending', 'approved', 'rejected'), defaultValue: 'pending' },
+  moderatorId:  { type: DataTypes.STRING, allowNull: true },
+  reason:       { type: DataTypes.TEXT, allowNull: true },
+}, { 
+  tableName: 'staff_applications', timestamps: true,
+  indexes: [{ fields: ['guildId', 'userId'] }, { fields: ['status'] }],
+});
+
 // ── Register all models ───────────────────────────────────────
 const models = {
   GuildSettings, UserProfile, ModerationCase, Warning, Ticket,
@@ -400,6 +427,7 @@ const models = {
   Birthday, LevelReward, AutoResponder, CustomCommand,
   ReactionRole, StarboardEntry, InviteTrack, GuildCounter,
   Automation, TimedMessage, Achievement, UserAchievement, TempChannel,
+  ApplicationForm, StaffApplication,
 };
 
 Object.entries(models).forEach(([name, model]) => {

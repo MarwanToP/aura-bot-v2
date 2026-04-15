@@ -5,18 +5,24 @@ import Redis  from 'ioredis';
 import logger from '../utils/logger.js';
 
 // TLS is required for Upstash and Railway Redis — set REDIS_TLS=true in prod
-const tlsEnabled = process.env.REDIS_TLS === 'true';
+const tlsEnabled = process.env.REDIS_TLS === 'true' || (process.env.REDIS_URL && process.env.REDIS_URL.includes('rediss://'));
 
-const redis = new Redis({
-  host:          process.env.REDIS_HOST     || 'localhost',
-  port:          parseInt(process.env.REDIS_PORT) || 6379,
-  password:      process.env.REDIS_PASSWORD || undefined,
-  db:            parseInt(process.env.REDIS_DB)   || 0,
+const redisOptions = {
   retryStrategy: (t) => Math.min(t * 200, 5000),
   lazyConnect:   true,
   keyPrefix:     'aura2:',
   ...(tlsEnabled && { tls: { rejectUnauthorized: false } }),
-});
+};
+
+const redis = process.env.REDIS_URL
+  ? new Redis(process.env.REDIS_URL, redisOptions)
+  : new Redis({
+    host:          process.env.REDIS_HOST     || 'localhost',
+    port:          parseInt(process.env.REDIS_PORT) || 6379,
+    password:      process.env.REDIS_PASSWORD || undefined,
+    db:            parseInt(process.env.REDIS_DB)   || 0,
+    ...redisOptions
+  });
 
 redis.on('connect',      () => logger.info('Redis: Connected'));
 redis.on('ready',        () => logger.info('Redis: Ready'));
