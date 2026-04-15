@@ -320,4 +320,29 @@ export const ticket = {
   },
 };
 
+// ─── /ping ────────────────────────────────────────────────────
+export const ping = {
+  data: new SlashCommandBuilder()
+    .setName('ping')
+    .setDescription('Check bot latency and uptime'),
+  cooldown: 5000,
+  async execute(client, interaction) {
+    const sent = await interaction.deferReply({ fetchReply: true });
+    const delay = sent.createdTimestamp - interaction.createdTimestamp;
+    
+    return interaction.editReply({ 
+      embeds: [buildEmbed({ 
+        type: 'primary', 
+        title: '🏓 Pong!', 
+        fields: [
+          { name: 'Bot Latency', value: `\`${delay}ms\``, inline: true },
+          { name: 'API Latency', value: `\`${Math.round(client.ws.ping)}ms\``, inline: true },
+          { name: 'Uptime', value: `<t:${Math.floor(client.readyTimestamp / 1000)}:R>`, inline: false }
+        ],
+        timestamp: true 
+      })] 
+    });
+  },
+};
+
 export default settings;
