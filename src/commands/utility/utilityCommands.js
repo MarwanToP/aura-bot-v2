@@ -57,6 +57,7 @@ export const settings = {
       .addIntegerOption(o => o.setName('delay').setDescription('Delay in seconds').setMinValue(0).setMaxValue(86400))
     )
     .addSubcommand(s => s
+      .setName('tickets').setDescription('Configure ticket system')
       .addBooleanOption(o => o.setName('enabled').setDescription('Enable/disable'))
       .addChannelOption(o => o.setName('category').setDescription('Category for new tickets').addChannelTypes(ChannelType.GuildCategory))
       .addRoleOption(o => o.setName('support_role').setDescription('Support role for tickets'))
@@ -284,7 +285,12 @@ export const ticket = {
     .addSubcommand(s => s.setName('claim').setDescription('Claim this ticket'))
     .addSubcommand(s => s.setName('add').setDescription('Add user').addUserOption(o => o.setName('user').setDescription('User').setRequired(true)))
     .addSubcommand(s => s.setName('remove').setDescription('Remove user').addUserOption(o => o.setName('user').setDescription('User').setRequired(true)))
-    .addSubcommand(s => s.setName('list').setDescription('List open tickets').addUserOption(o => o.setName('user').setDescription('Filter by user'))),
+    .addSubcommand(s => s.setName('list').setDescription('List open tickets').addUserOption(o => o.setName('user').setDescription('Filter by user')))
+    .addSubcommand(s => s
+      .setName('panel').setDescription('Send a premium ticket panel')
+      .addChannelOption(o => o.setName('channel').setDescription('Channel to send the panel to').addChannelTypes(ChannelType.GuildText).setRequired(true))
+      .addStringOption(o => o.setName('image').setDescription('URL for the banner image'))
+    ),
   guildOnly: true, cooldown: 5000,
   async execute(client, interaction) {
     await interaction.deferReply({ ephemeral: true });
@@ -300,6 +306,14 @@ export const ticket = {
       });
       if (result.error) return interaction.editReply({ embeds: [buildEmbed({ type: 'error', description: result.error })] });
       return interaction.editReply({ embeds: [buildEmbed({ type: 'success', description: client.i18n.t('tickets.created', { channel: `<#${result.channel.id}>` }, lang) })] });
+    }
+
+    if (sub === 'panel') {
+      const channel = interaction.options.getChannel('channel');
+      const image = interaction.options.getString('image');
+      const { sendTicketPanel } = await import('../../systems/tickets/ticketSystem.js');
+      await sendTicketPanel(client, channel, image);
+      return interaction.editReply({ embeds: [buildEmbed({ type: 'success', description: `✅ Ticket panel sent to <#${channel.id}>` })] });
     }
 
     if (sub === 'close') {

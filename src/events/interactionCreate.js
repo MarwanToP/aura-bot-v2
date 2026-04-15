@@ -112,8 +112,15 @@ async function handleButton(client, interaction) {
 // ── Select Menus ──────────────────────────────────────────────
 async function handleSelect(client, interaction) {
   const [prefix, ...rest] = interaction.customId.split(':');
+  
+  const handlers = {
+    ticket: '../systems/tickets/ticketSystem.js',
+  };
+
+  const modulePath = handlers[prefix] || `../systems/interactions/${prefix}.js`;
+
   try {
-    const mod = await import(`../systems/interactions/${prefix}.js`).catch(() => null);
+    const mod = await import(modulePath).catch(() => null);
     if (mod?.handleSelectMenu) await mod.handleSelectMenu(client, interaction, rest.join(':'));
   } catch {}
 }

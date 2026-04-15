@@ -1,7 +1,10 @@
 // ================================================================
 //  Ticket System v2 — Create, Close, Claim, Transcripts
 // ================================================================
-import { ChannelType, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle, AttachmentBuilder } from 'discord.js';
+import { 
+  ChannelType, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle, 
+  AttachmentBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder 
+} from 'discord.js';
 import { buildEmbed } from '../../utils/embedBuilder.js';
 import config         from '../../../config/config.js';
 import logger         from '../../utils/logger.js';
@@ -130,4 +133,74 @@ export async function handleButton(client, interaction, args) {
     await Ticket.update({ satisfaction: parseInt(extra) }, { where: { ticketId, guildId: interaction.guildId } });
     return interaction.reply({ embeds: [buildEmbed({ type: 'success', description: `Thank you for your **${extra}⭐** rating!` })], ephemeral: true });
   }
+
+  // Language Selection
+  if (action === 'setlang') {
+    const [category, language] = extra.split('|'); // e.g., "Technical|ar"
+    await interaction.deferUpdate();
+    const result = await createTicket(client, interaction.guild, interaction.user, { category });
+    
+    if (result.error) return interaction.followUp({ embeds: [buildEmbed({ type: 'error', description: result.error })], ephemeral: true });
+    
+    // Set ticket language context (optional, can be inferred from 'language' param)
+    return interaction.followUp({ 
+      embeds: [buildEmbed({ type: 'success', description: language === 'ar' ? `✅ تم إنشاء التذكرة: <#${result.channel.id}>` : `✅ Ticket created: <#${result.channel.id}>` })], 
+      ephemeral: true 
+    });
+  }
+}
+
+/**
+ * Sends a premium ticket panel to a specific channel
+ */
+export async function sendTicketPanel(client, channel, imageUrl) {
+  const embed = buildEmbed({
+    type: 'primary',
+    title: `أهلاً وسهلاً بك في نظام التذاكر لسيرفر ${channel.guild.name}`,
+    description: 'يمكنك إختيار التذكرة الذي تود فتحها من خلال لوحة الإختيار بالأسفل',
+    fields: [
+      { name: '● الدعم الفني', value: 'للتواصل مع الدعم الفني.', inline: true },
+      { name: '● شكوى على عضو', value: 'لفتح تذكرة شكوى على عضو بالسيرفر.', inline: true },
+      { name: '● شكوى على إداري', value: 'لفتح تذكرة شكوى على إداري بالسيرفر.', inline: true },
+      { name: '● الإدارة العليا', value: 'لفتح تذكرة تواصل مع الإدارة العليا.', inline: true },
+      { name: '● بعض الملاحظات', value: '1 ● يُمنع إزعاج الإداره مُنْعًا باتًا .\n2 ● يُمنع نشر المحتوى في التذكرة وعقوبته الباند .\n3 ● يُمنع ترك التذكرة وعدم الرد عليها .', inline: false }
+    ],
+    image: imageUrl || null,
+    timestamp: true
+  });
+
+  const select = new StringSelectMenuBuilder()
+    .setCustomId('ticket:select')
+    .setPlaceholder('اختر خيار التذكرة | Choose Ticket Category')
+    .addOptions(
+      new StringSelectMenuOptionBuilder().setLabel('الدعم الفني | Technical Support').setValue('Technical').setEmoji('🔧'),
+      new StringSelectMenuOptionBuilder().setLabel('شكوى على عضو | Member Complaint').setValue('Member Complaint').setEmoji('👤'),
+      new StringSelectMenuOptionBuilder().setLabel('شكوى على إداري | Admin Complaint').setValue('Admin Complaint').setEmoji('🛡️'),
+      new StringSelectMenuOptionBuilder().setLabel('الإدارة العليا | Management').setValue('Management').setEmoji('👑'),
+    );
+
+  const row = new ActionRowBuilder().addComponents(select);
+  return channel.send({ embeds: [embed], components: [row] });
+}
+
+/**
+ * Handles Select Menu interaction for the ticket panel
+ */
+export async function handleSelectMenu(client, interaction, args) {
+  const category = interaction.values[0];
+  
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId(`ticket:setlang:dummy:${category}|ar`).setLabel('🇸🇦 Arabic / عربى').setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId(`ticket:setlang:dummy:${category}|en`).setLabel('🇬🇧 English').setStyle(ButtonStyle.Secondary),
+  );
+
+  return interaction.reply({
+    embeds: [buildEmbed({ 
+      type: 'info', 
+      title: 'Select Language | اختر لغتك', 
+      description: `Please select the language for your **${category}** ticket.\nيرجى اختيار لغة تذكرة **${category}**.` 
+    })],
+    components: [row],
+    ephemeral: true
+  });
 }

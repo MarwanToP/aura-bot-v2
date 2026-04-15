@@ -7,20 +7,34 @@
 import { Sequelize, DataTypes, Op } from 'sequelize';
 import logger from '../utils/logger.js';
 
-const sequelize = new Sequelize(
-  process.env.DB_NAME    || 'aura_bot',
-  process.env.DB_USER    || 'aura',
-  process.env.DB_PASSWORD || '',
-  {
-    host:    process.env.DB_HOST || 'localhost',
-    port:    parseInt(process.env.DB_PORT) || 5432,
+const dbUrl = process.env.DATABASE_URL;
+
+const sequelize = dbUrl
+  ? new Sequelize(dbUrl, {
     dialect: 'postgres',
     logging: msg => logger.debug(msg),
     pool:    { max: 50, min: 5, acquire: 60000, idle: 5000 },
-    dialectOptions: process.env.DB_SSL === 'true'
-      ? { ssl: { require: true, rejectUnauthorized: false } } : {},
-  }
-);
+    dialectOptions: {
+      ssl: {
+        require: true,
+        rejectUnauthorized: false,
+      },
+    },
+  })
+  : new Sequelize(
+    process.env.DB_NAME    || 'aura_bot',
+    process.env.DB_USER    || 'aura',
+    process.env.DB_PASSWORD || '',
+    {
+      host:    process.env.DB_HOST || 'localhost',
+      port:    parseInt(process.env.DB_PORT) || 5432,
+      dialect: 'postgres',
+      logging: msg => logger.debug(msg),
+      pool:    { max: 50, min: 5, acquire: 60000, idle: 5000 },
+      dialectOptions: process.env.DB_SSL === 'true'
+        ? { ssl: { require: true, rejectUnauthorized: false } } : {},
+    }
+  );
 
 sequelize.Op = Op;
 
