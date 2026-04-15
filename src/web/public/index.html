@@ -487,19 +487,18 @@
         </div>
       </div>
 
-      <div class="card" style="margin-bottom: 24px; padding: 40px;">
-        <h3 style="margin-bottom: 24px;">Bot Status & Controls</h3>
+      <div class="card" style="margin-bottom: 24px; padding: 40px; background: linear-gradient(135deg, rgba(202, 138, 4, 0.05), transparent);">
+        <h3 style="margin-bottom: 24px;">Global System Status</h3>
         <div style="display: flex; gap: 40px; align-items: center;">
           <div style="flex: 1;">
-            <p style="color: var(--secondary); margin-bottom: 8px;">AI Service Health</p>
+            <p style="color: var(--secondary); margin-bottom: 8px;">Network Intelligence Connectivity</p>
             <div style="height: 8px; background: var(--border); border-radius: 4px; overflow: hidden;">
-              <div style="width: 98%; height: 100%; background: #00cec9;"></div>
+              <div style="width: 100%; height: 100%; background: #00cec9; box-shadow: 0 0 10px #00cec9;"></div>
             </div>
-            <p style="font-size: 12px; margin-top: 8px; color: #00cec9; font-weight: 600;">98.4% Operational</p>
+            <p style="font-size: 12px; margin-top: 8px; color: #00cec9; font-weight: 600;">Optimal 24/7 Deployment Active</p>
           </div>
           <div style="display: flex; gap: 12px;">
-            <button class="btn btn-primary" onclick="botAction('restart')">Sync Global</button>
-            <button class="btn btn-outline" onclick="botAction('flush')">Clear Cache</button>
+            <button class="btn btn-primary" onclick="botAction('sync')">Refresh Neural Link</button>
           </div>
         </div>
       </div>
@@ -541,20 +540,24 @@
         <button class="btn btn-outline" style="padding: 8px 16px;" onclick="showSection('guilds', document.querySelector('[data-lucide=shield]').parentElement)">
           <i data-lucide="arrow-left" style="width:16px;"></i> Back to Servers
         </button>
-        <div class="pill gold" id="manageGuildName">Guild Name</div>
+        <div class="brand-name" id="manageGuildName">Aura Intelligence Unit</div>
+        <div class="pill gold" style="font-size: 12px;">Connected</div>
       </div>
       
-      <div class="grid">
-        <div class="card" style="grid-column: span 2;">
-          <h3 style="margin-bottom: 24px;">Guild Intelligence Settings</h3>
-          <div id="guildSettingsForm" class="settings-grid">
+      <div class="grid" style="grid-template-columns: 2fr 1fr;">
+        <!-- ProBot Style Toggles -->
+        <div class="card">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px;">
+            <h3 style="font-size: 1.5rem;">System Modules</h3>
+            <button class="btn btn-primary" style="padding: 8px 24px; font-size: 14px;" onclick="saveSettings()">Save Configuration</button>
+          </div>
+          <div id="guildSettingsForm" class="settings-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
             <!-- Dynamically populated -->
           </div>
-          <button class="btn btn-primary" style="margin-top: 24px; width: 100%;" onclick="saveSettings()">Apply Modifications</button>
         </div>
         
         <div class="card">
-          <h3 style="margin-bottom: 24px;">Staff Applications</h3>
+          <h3 style="margin-bottom: 24px;">Mod Action History</h3>
           <div id="appList" style="max-height: 400px; overflow-y: auto;">
             <!-- Dynamically populated -->
           </div>

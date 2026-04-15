@@ -11,25 +11,29 @@ import { loadEvents   } from './handlers/eventHandler.js';
 import i18n             from './utils/i18n.js';
 import aiService        from './systems/ai/aiService.js';
 
+// ── 1. Create the Client ──────────────────────────────────────
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMembers,
-    GatewayIntentBits.GuildModeration,
-    GatewayIntentBits.GuildEmojisAndStickers,
-    GatewayIntentBits.GuildIntegrations,
-    GatewayIntentBits.GuildWebhooks,
-    GatewayIntentBits.GuildInvites,
-    GatewayIntentBits.GuildVoiceStates,
     GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.GuildMessageReactions,
-    GatewayIntentBits.GuildScheduledEvents,
     GatewayIntentBits.MessageContent,
+    GatewayIntentBits.GuildMembers,
+    GatewayIntentBits.GuildVoiceStates,
+    GatewayIntentBits.GuildPresences,
     GatewayIntentBits.DirectMessages,
   ],
-  partials: [Partials.Message, Partials.Channel, Partials.Reaction, Partials.GuildMember, Partials.User],
-  makeCache: Options.cacheWithLimits({ MessageManager: 500, UserManager: 200, GuildMemberManager: 500 }),
-  failIfNotExists: false,
+  partials: [Partials.Channel, Partials.Message, Partials.User, Partials.GuildMember],
+  
+  // ── Memory Optimization (Critical for Discloud 100MB) ──
+  makeCache: Options.cacheWithLimits({
+    MessageManager: 0,      // Total disabled (saves ~50-100MB)
+    ThreadManager: 0,
+    UserManager: 10,        // Minimal cache
+    GuildMemberManager: 10,
+    PresenceManager: 0,
+    ReactionManager: 0,
+    StageInstanceManager: 0,
+  }),
 });
 
 // ── Collections ──────────────────────────────────────────────
