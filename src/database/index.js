@@ -21,8 +21,6 @@ const sequelize = dbUrl
       },
       keepAlive: true,
     },
-    // Addition for Neon/SSL robustness
-    ssl: true
   })
   : new Sequelize(
     process.env.DB_NAME    || 'aura_bot',

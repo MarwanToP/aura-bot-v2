@@ -62,14 +62,27 @@ export async function handleModal(client, interaction, data) {
   const form = await ApplicationForm.findOne({ where: { guildId } });
   if (!form) return interaction.editReply('❌ Configuration error.');
 
-  // Check pending
-  const existing = await StaffApplication.findOne({ 
-    where: { guildId, userId, status: 'pending' } 
+  // Check cooldown & pending
+  const lastApp = await StaffApplication.findOne({ 
+    where: { guildId, userId }, 
+    order: [['createdAt', 'DESC']] 
   });
-  if (existing) {
-    return interaction.editReply({ 
-      embeds: [buildEmbed({ type: 'warning', description: '⏳ You already have a pending application!' })] 
-    });
+
+  if (lastApp) {
+    if (lastApp.status === 'pending') {
+      return interaction.editReply({ 
+        embeds: [buildEmbed({ type: 'warning', description: '⏳ You already have a pending application!' })] 
+      });
+    }
+
+    const elapsed = Date.now() - lastApp.createdAt.getTime();
+    if (elapsed < (form.cooldown * 1000)) {
+      const remainingSeconds = Math.ceil((form.cooldown * 1000 - elapsed) / 1000);
+      const remainingHours = (remainingSeconds / 3600).toFixed(1);
+      return interaction.editReply({ 
+        embeds: [buildEmbed({ type: 'warning', description: `⏳ You are on cooldown! Please wait **${remainingHours}** hours before applying again.` })] 
+      });
+    }
   }
 
   // Collect answers
@@ -109,7 +122,12 @@ export async function handleModal(client, interaction, data) {
       new ButtonBuilder().setCustomId(`apply:reject:${app.id}`).setLabel('Reject').setStyle(ButtonStyle.Danger),
     );
 
-    await logCh.send({ embeds: [embed], components: [row] });
+    const perms = logCh.permissionsFor(interaction.guild.members.me);
+    if (perms.has(['ViewChannel', 'SendMessages', 'EmbedLinks'])) {
+      await logCh.send({ embeds: [embed], components: [row] }).catch(err => logger.error(`[Apply] Send failed: ${err.message}`));
+    } else {
+      logger.warn(`[Apply] Missing permissions in log channel ${logCh.id} for guild ${guildId}`);
+    }
   }
 
   return interaction.editReply({ 
@@ -136,7 +154,16 @@ export async function handleButton(client, interaction, data) {
     // Role reward
     if (form?.roleRewardId) {
       const member = await interaction.guild.members.fetch(app.userId).catch(() => null);
-      if (member) await member.roles.add(form.roleRewardId).catch(err => logger.debug(`[Apply] Role add failed: ${err.message}`));
+      const role = interaction.guild.roles.cache.get(form.roleRewardId);
+      const me = interaction.guild.members.me;
+
+      if (member && role) {
+        if (me.permissions.has('ManageRoles') && me.roles.highest.position > role.position) {
+          await member.roles.add(role).catch(err => logger.debug(`[Apply] Role add failed: ${err.message}`));
+        } else {
+          logger.warn(`[Apply] Cannot add role ${role.name}: Hierarchy or Permission issue.`);
+        }
+      }
     }
 
     // Notify User
