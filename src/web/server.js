@@ -190,8 +190,8 @@ async function startDashboard() {
     await redis.ping();
     logger.info('[Dashboard] Redis connected ✓');
 
-    httpServer.listen(PORT, () => {
-      logger.info(`[Dashboard] ✨ Dashboard running at http://localhost:${PORT}`);
+    httpServer.listen(PORT, '0.0.0.0', () => {
+      logger.info(`[Dashboard] ✨ Dashboard running at http://0.0.0.0:${PORT}`);
     });
   } catch (err) {
     logger.error('[Dashboard] Boot failed:', err);
