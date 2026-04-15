@@ -20,7 +20,7 @@ const app       = express();
 const httpServer = createServer(app);
 const io        = new SocketIO(httpServer, { cors: { origin: '*' } });
 
-const PORT = parseInt(process.env.DASHBOARD_PORT || '3000');
+const PORT = parseInt(process.env.PORT || '3000');
 
 // ── Middleware ────────────────────────────────────────────────
 app.use(helmet({ contentSecurityPolicy: false }));
