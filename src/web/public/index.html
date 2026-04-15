@@ -396,6 +396,10 @@
         <i data-lucide="layout-dashboard"></i>
         <span>Dashboard</span>
       </a>
+      <a class="nav-item" onclick="showSection('guilds', this)">
+        <i data-lucide="shield"></i>
+        <span>Manage Servers</span>
+      </a>
       <a class="nav-item" onclick="showSection('commands', this)">
         <i data-lucide="terminal"></i>
         <span>Commands</span>
@@ -404,6 +408,12 @@
         <i data-lucide="credit-card"></i>
         <span>Pro Plans</span>
       </a>
+      <div id="leninNav" class="hidden">
+        <a class="nav-item" onclick="showSection('devtools', this)" style="color: #00cec9;">
+          <i data-lucide="cpu"></i>
+          <span>Developer Tools</span>
+        </a>
+      </div>
     </nav>
 
     <div class="nav-footer">
@@ -488,10 +498,58 @@
       </div>
     </section>
 
+    <!-- Guilds List Section -->
+    <section id="guilds" class="section">
+      <div class="grid" id="guildList">
+        <!-- Dynamically populated -->
+      </div>
+    </section>
+
+    <!-- Guild Management Section -->
+    <section id="manage" class="section">
+      <div style="margin-bottom: 32px; display: flex; align-items: center; justify-content: space-between;">
+        <button class="btn btn-outline" style="padding: 8px 16px;" onclick="showSection('guilds', document.querySelector('[data-lucide=shield]').parentElement)">
+          <i data-lucide="arrow-left" style="width:16px;"></i> Back to Servers
+        </button>
+        <div class="pill gold" id="manageGuildName">Guild Name</div>
+      </div>
+      
+      <div class="grid">
+        <div class="card" style="grid-column: span 2;">
+          <h3 style="margin-bottom: 24px;">Guild Intelligence Settings</h3>
+          <div id="guildSettingsForm" class="settings-grid">
+            <!-- Dynamically populated -->
+          </div>
+          <button class="btn btn-primary" style="margin-top: 24px; width: 100%;" onclick="saveSettings()">Apply Modifications</button>
+        </div>
+        
+        <div class="card">
+          <h3 style="margin-bottom: 24px;">Staff Applications</h3>
+          <div id="appList" style="max-height: 400px; overflow-y: auto;">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- Subscriptions Section -->
     <section id="subscriptions" class="section">
       <div class="pricing-grid" id="planGrid">
         <!-- Dynamically populated -->
+      </div>
+    </section>
+
+    <!-- Developer Tools Section -->
+    <section id="devtools" class="section">
+      <div class="card" style="background: rgba(0,0,0,0.2);">
+        <h3 style="color: #00cec9; margin-bottom: 24px;">Advanced Intelligence Shell</h3>
+        <div style="background: #000; color: #00ff00; padding: 20px; font-family: 'Fira Code', monospace; border-radius: 8px; font-size: 13px;">
+          <div style="margin-bottom: 10px;">> aura-system-core --status</div>
+          <div style="color: #888;">[OK] WebSocket Synchronized</div>
+          <div style="color: #888;">[OK] Database Handshake Verified</div>
+          <div style="color: #888;">[OK] AI Neural Mesh Active</div>
+          <div style="margin-top: 10px;">> _</div>
+        </div>
       </div>
     </section>
   </main>
@@ -516,15 +574,18 @@
     // ── Navigation ──────────────────────────────────────
     function showSection(id, el) {
       document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-      document.getElementById(id).classList.add('active');
+      const target = document.getElementById(id);
+      if (target) target.classList.add('active');
       
-      document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-      el.classList.add('active');
-      
-      document.getElementById('pageTitle').innerText = el.innerText.trim();
+      if (el) {
+        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+        el.classList.add('active');
+        document.getElementById('pageTitle').innerText = el.innerText.trim();
+      }
       
       if (id === 'commands' && commands.length === 0) fetchCommands();
       if (id === 'subscriptions' && plans.length === 0) fetchPlans();
+      if (id === 'guilds') fetchGuilds();
     }
 
     // ── Data Fetching ───────────────────────────────────
@@ -538,6 +599,108 @@
       const res = await fetch('/api/subscriptions');
       plans = await res.json();
       renderPlans();
+    }
+
+    async function fetchGuilds() {
+      const gList = document.getElementById('guildList');
+      gList.innerHTML = '<div class="card">Scanning neural network for guilds...</div>';
+      
+      try {
+        const res = await fetch('/api/guilds');
+        const guilds = await res.json();
+        gList.innerHTML = guilds.map(g => `
+          <div class="card" style="cursor: pointer; transition: var(--transition);" onclick="manageGuild('${g.guildId}')">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
+              <div class="card-icon"><i data-lucide="shield"></i></div>
+              <div class="pill ${g.premiumTier > 0 ? 'gold' : ''}">${g.premiumTier > 0 ? 'PREMIUM' : 'FREE'}</div>
+            </div>
+            <div style="font-weight: 700; margin-bottom: 4px;">Server ID</div>
+            <div class="tech-font" style="font-size: 14px; color: var(--secondary);">${g.guildId}</div>
+            <div class="btn btn-outline" style="width: 100%; margin-top: 20px; padding: 10px;">Interconnect</div>
+          </div>
+        `).join('');
+        lucide.createIcons();
+      } catch (err) {
+        gList.innerHTML = '<div class="card" style="color: #FF4444;">Access Denied: Guild neural connection failed.</div>';
+      }
+    }
+
+    let currentGuildId = null;
+    async function manageGuild(id) {
+      currentGuildId = id;
+      showSection('manage');
+      document.getElementById('manageGuildName').innerText = `Syncing: ${id}`;
+      
+      // Load Settings
+      document.getElementById('guildSettingsForm').innerHTML = 'Initializing interfaces...';
+      const res = await fetch(`/api/guilds/${id}`);
+      const data = await res.json();
+      
+      const settings = data.settings;
+      const keys = ['aiChatEnabled', 'levelingEnabled', 'welcomeEnabled', 'ticketEnabled'];
+      document.getElementById('guildSettingsForm').innerHTML = keys.map(k => `
+        <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px; background: rgba(255,255,255,0.02); border-radius: 8px;">
+          <span style="font-weight: 600;">${k.replace('Enabled', '').toUpperCase()} SYSTEM</span>
+          <label class="switch">
+            <input type="checkbox" id="set_${k}" ${settings[k] ? 'checked' : ''}>
+            <span class="slider round"></span>
+          </label>
+        </div>
+      `).join('');
+      
+      // Load Apps
+      loadApplications(id);
+    }
+
+    async function saveSettings() {
+      const updates = {};
+      const keys = ['aiChatEnabled', 'levelingEnabled', 'welcomeEnabled', 'ticketEnabled'];
+      keys.forEach(k => updates[k] = document.getElementById(`set_${k}`).checked);
+      
+      const res = await fetch(`/api/guilds/${currentGuildId}/settings`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates)
+      });
+      
+      if (res.ok) alert('Neural core updated successfully.');
+      else alert('Synchronization failed.');
+    }
+
+    async function loadApplications(guildId) {
+      const container = document.getElementById('appList');
+      container.innerHTML = 'Retrieving records...';
+      const res = await fetch(`/api/guilds/${guildId}/applications`);
+      const apps = await res.json();
+
+      if (apps.length === 0) {
+        container.innerHTML = '<p style="color: var(--secondary);">Zero applications in history.</p>';
+        return;
+      }
+
+      container.innerHTML = apps.map(app => `
+        <div class="card" style="margin-bottom: 12px; padding: 16px; border: 1px solid var(--border);">
+          <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+            <span class="tech-font" style="font-size: 12px;">${app.userId}</span>
+            <span class="badge">${app.status}</span>
+          </div>
+          ${app.status === 'pending' ? `
+            <div style="display: flex; gap: 8px; margin-top: 12px;">
+              <button class="btn btn-primary" style="padding: 4px 12px; font-size: 10px; background: #00C851;" onclick="respondToApp('${app.id}', 'approved')">Approve</button>
+              <button class="btn btn-outline" style="padding: 4px 12px; font-size: 10px; color: #FF4444;" onclick="respondToApp('${app.id}', 'rejected')">Reject</button>
+            </div>
+          ` : ''}
+        </div>
+      `).join('');
+    }
+
+    async function respondToApp(id, status) {
+      await fetch(`/api/applications/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status })
+      });
+      loadApplications(currentGuildId);
     }
 
     function renderCommands(list) {
@@ -584,6 +747,7 @@
     function toggleLenin() {
       isLenin = !isLenin;
       document.getElementById('userName').innerText = isLenin ? 'Lenin' : 'User';
+      document.getElementById('leninNav').classList.toggle('hidden', !isLenin);
       renderPlans();
     }
 

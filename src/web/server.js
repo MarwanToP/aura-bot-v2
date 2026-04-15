@@ -14,6 +14,7 @@ import { Strategy }  from 'passport-discord';
 import { RedisStore } from 'connect-redis';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import logger       from '../utils/logger.js';
 import redis        from '../database/redis.js';
 import database     from '../database/index.js';
 import { readdirSync, statSync } from 'fs';
