@@ -227,10 +227,16 @@ io.on('connection', (socket) => {
 app.get('*', (req, res) => res.sendFile(join(__dirname, 'public', 'index.html')));
 
 async function startDashboard() {
-  httpServer.listen(PORT, '0.0.0.0', () => logger.info(`[Dashboard] ✨ Listening on port ${PORT}`));
-  database.authenticate().catch(e => logger.error('[DB] Failed:', e.message));
-  redis.ping().catch(e => logger.error('[Redis] Failed:', e.message));
-}
+  app.listen(PORT, '0.0.0.0', () => {
+    logger.info(`[Dashboard] ✨ Listening on port ${PORT} (0.0.0.0)`);
+    logger.info(`[Dashboard] 🚀 View at: http://localhost:${PORT}`);
+    
+    // Non-blocking initialization
+    initializeServices().catch(err => {
+      logger.error('[Dashboard] Critical failure during background init:', err);
+    });
+  });
+};
 
 startDashboard();
 export { io };
