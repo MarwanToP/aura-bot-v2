@@ -126,10 +126,10 @@ Respond with JSON only:
     levelFormula: (level) => 5 * (level ** 2) + (50 * level) + 100,
   },
 
-  // ── Economy ─────────────────────────────────────────────────
+  // ── Economy (Aura Credits) ──────────────────────────────────
   economy: {
-    currencyName:    'coins',
-    currencyEmoji:   '🪙',
+    currencyName:    'Aura Credits',
+    currencyEmoji:   '💰',
     dailyReward:     { min: 100, max: 500 },
     weeklyReward:    { min: 1000, max: 3000 },
     workReward:      { min: 50, max: 200 },
@@ -137,6 +137,9 @@ Respond with JSON only:
     dailyCooldown:   24 * 60 * 60 * 1000,
     weeklyCooldown:  7 * 24 * 60 * 60 * 1000,
     gamblingMax:     10000,
+    transferFee:     0.05,                   // 5% fee
+    repCooldown:     24 * 60 * 60 * 1000,    // 24 hours
+    streakBonus:     50,                     // +50 credits per day in streak
   },
 
   // ── Tickets ─────────────────────────────────────────────────

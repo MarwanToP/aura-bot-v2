@@ -99,6 +99,12 @@ const GuildSettings = sequelize.define('GuildSettings', {
   antiRaidEnabled:      { type: DataTypes.BOOLEAN, defaultValue: false },
   verificationEnabled:  { type: DataTypes.BOOLEAN, defaultValue: false },
 
+  // TempVoice (Dynamic Channels)
+  tempVoiceEnabled:      { type: DataTypes.BOOLEAN, defaultValue: false },
+  tempVoiceCreatorId:    { type: DataTypes.STRING, allowNull: true },
+  tempVoiceCategoryId:   { type: DataTypes.STRING, allowNull: true },
+  tempVoiceNameTemplate: { type: DataTypes.STRING, defaultValue: '{user}\'s Room' },
+
   // Starboard
   starboardEnabled:     { type: DataTypes.BOOLEAN, defaultValue: false },
   starboardThreshold:   { type: DataTypes.INTEGER, defaultValue: 3 },
@@ -201,6 +207,9 @@ const Economy = sequelize.define('Economy', {
   balance:     { type: DataTypes.BIGINT, defaultValue: 0 },
   bank:        { type: DataTypes.BIGINT, defaultValue: 0 },
   totalEarned: { type: DataTypes.BIGINT, defaultValue: 0 },
+  reputation:  { type: DataTypes.BIGINT, defaultValue: 0 },
+  lastRepAt:   { type: DataTypes.DATE, allowNull: true },
+  dailyStreak: { type: DataTypes.INTEGER, defaultValue: 0 },
 }, {
   tableName: 'economy', timestamps: true,
   indexes: [{ unique: true, fields: ['userId', 'guildId'] }, { fields: ['guildId', 'balance'] }],

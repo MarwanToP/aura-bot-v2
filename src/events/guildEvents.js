@@ -65,7 +65,10 @@ export const messageUpdate = {
 export const voiceStateUpdate = {
   name: 'voiceStateUpdate',
   async execute(client, oldState, newState) {
-    await importAndRun('../systems/logging/loggingSystem.js', 'logVoiceUpdate', client, oldState, newState);
+    await Promise.allSettled([
+      importAndRun('../systems/logging/loggingSystem.js', 'logVoiceUpdate', client, oldState, newState),
+      importAndRun('../systems/voice/voiceSystem.js', 'handleVoiceUpdate', client, oldState, newState),
+    ]);
   },
 };
 

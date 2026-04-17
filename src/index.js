@@ -6,6 +6,7 @@ import { ShardingManager } from 'discord.js';
 import { fileURLToPath }   from 'url';
 import { dirname, join }   from 'path';
 import logger              from './utils/logger.js';
+import monitor             from './systems/monitor/monitorService.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -21,6 +22,10 @@ logger.info(`[System] Initializing Aura Core in mode: ${MODE}`);
 // ── 1. DASHBOARD MODE ──────────────────────────────────────────
 if (MODE === 'DASHBOARD' || MODE === 'BOTH') {
   logger.info('[System] Starting Dashboard Intelligence Engine...');
+  monitor.startHeartbeat('dashboard');
+  if (MODE === 'BOTH' || MODE === 'DASHBOARD') {
+    monitor.startAlertLoop(); // Only one process needs to monitor others
+  }
   import('./web/server.js').catch(err => {
     logger.error('[Dashboard] Failed to start:', err.message);
   });
@@ -29,6 +34,20 @@ if (MODE === 'DASHBOARD' || MODE === 'BOTH') {
 // ── 2. BOT MODE ───────────────────────────────────────────────
 if (MODE === 'BOT' || MODE === 'BOTH') {
   logger.info('[System] Starting Bot Logic Core...');
+  monitor.startHeartbeat('bot');
+  
+  // If running as a Render Web Service in BOT mode, bind to PORT to pass healthchecks
+  if (MODE === 'BOT' && process.env.PORT) {
+    import('http').then(({ createServer }) => {
+      createServer((req, res) => {
+        res.writeHead(200);
+        res.end('Aura Bot is online.');
+      }).listen(process.env.PORT, '0.0.0.0', () => {
+        logger.info(`[HealthCheck] Dummy server listening on port ${process.env.PORT}`);
+      });
+    });
+  }
+
   
   // If we are on a memory-constrained host like Discloud, skip ShardingManager
   const isDiscloud = !!process.env.DISCLOUD || !!process.env.ID;

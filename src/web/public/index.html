@@ -513,6 +513,10 @@
         <i data-lucide="shield"></i>
         <span>Manage Servers</span>
       </a>
+      <a class="nav-item" onclick="showSection('ecosystem', this)">
+        <i data-lucide="blocks"></i>
+        <span>Ecosystem</span>
+      </a>
       <a class="nav-item" onclick="showSection('commands', this)">
         <i data-lucide="terminal"></i>
         <span>Commands</span>
@@ -540,13 +544,18 @@
   <main class="main">
     <header>
       <div class="welcome">
-        <h2 id="pageTitle">Intelligence System</h2>
-        <p style="color: var(--secondary); font-size: 0.875rem;">Real-time metrics & control</p>
+        <h2 id="pageTitle" style="display: flex; align-items: center; gap: 12px;">
+          Intelligence System
+          <span style="display: flex; gap: 4px; align-items: center; background: rgba(0, 206, 201, 0.1); padding: 4px 12px; border-radius: 20px; font-size: 10px; color: #00cec9; border: 1px solid rgba(0, 206, 201, 0.2);">
+            <span class="pulse" style="width: 6px; height: 6px; background: #00cec9; border-radius: 50%;"></span>
+            HEARTBEAT ACTIVE
+          </span>
+        </h2>
+        <p style="color: var(--secondary); font-size: 0.875rem;" id="pageSubtitle">Real-time metrics & control</p>
       </div>
-      <div class="user-profile">
-        <span style="font-size: 14px; font-weight: 600;" id="userName">User</span>
-        <div class="avatar"></div>
-        <button class="btn btn-outline" style="padding: 6px 12px; font-size: 12px;" onclick="toggleLenin()">Dev Mode</button>
+      <div class="user-profile" id="userProfile">
+        <!-- Loading state -->
+        <span style="font-size: 12px; color: var(--secondary);">Syncing Neural Link...</span>
       </div>
     </header>
 
@@ -594,6 +603,31 @@
           </div>
         </div>
       </div>
+
+      <!-- Quick Actions Grid -->
+      <div class="grid" style="margin-top: 24px;">
+        <div class="card" style="padding: 20px; display: flex; align-items: center; gap: 20px; cursor: pointer; border-color: rgba(255, 118, 117, 0.1);" onclick="botAction('emergency')">
+          <div style="background: rgba(255, 118, 117, 0.1); padding: 12px; border-radius: 12px; color: #ff7675;"><i data-lucide="shield-alert"></i></div>
+          <div>
+            <h5 style="font-size: 14px;">Panic Protocol</h5>
+            <p style="font-size: 11px; color: var(--secondary);">Lockdown all guild modules instantly.</p>
+          </div>
+        </div>
+        <div class="card" style="padding: 20px; display: flex; align-items: center; gap: 20px; cursor: pointer; border-color: rgba(0, 206, 201, 0.1);" onclick="botAction('ai_tune')">
+          <div style="background: rgba(0, 206, 201, 0.1); padding: 12px; border-radius: 12px; color: #00cec9;"><i data-lucide="sparkles"></i></div>
+          <div>
+            <h5 style="font-size: 14px;">AI Fine-Tuning</h5>
+            <p style="font-size: 11px; color: var(--secondary);">Optimize intent analysis accuracy.</p>
+          </div>
+        </div>
+        <div class="card" style="padding: 20px; display: flex; align-items: center; gap: 20px; cursor: pointer; border-color: rgba(253, 203, 110, 0.1);" onclick="botAction('cache_clear')">
+          <div style="background: rgba(253, 203, 110, 0.1); padding: 12px; border-radius: 12px; color: #fdcb6e;"><i data-lucide="database-zap"></i></div>
+          <div>
+            <h5 style="font-size: 14px;">Cache Purge</h5>
+            <p style="font-size: 11px; color: var(--secondary);">Refresh all global Redis buffers.</p>
+          </div>
+        </div>
+      </div>
     </section>
 
     <!-- Commands Section -->
@@ -616,6 +650,106 @@
             <!-- Dynamically populated -->
           </tbody>
         </table>
+      </div>
+    </section>
+    
+    <!-- Ecosystem Section -->
+    <section id="ecosystem" class="section">
+      <div class="card" style="margin-bottom: 32px; background: linear-gradient(135deg, rgba(CA, 8A, 04, 0.05), transparent);">
+        <h3 style="margin-bottom: 24px;">Core Intelligence Stack</h3>
+        <p style="color: var(--secondary); margin-bottom: 32px;">The underlying neural architecture that powers Aura Bot's decision-making and real-time processing.</p>
+        
+        <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+          <div class="card" style="padding: 20px; text-align: center; border-color: rgba(0, 206, 201, 0.2);">
+            <i data-lucide="code-2" style="color: #00cec9; margin-bottom: 12px;"></i>
+            <h5 style="margin-bottom: 4px;">TypeScript</h5>
+            <p style="font-size: 11px; color: var(--secondary);">Type-safe logic and scalable architecture.</p>
+          </div>
+          <div class="card" style="padding: 20px; text-align: center; border-color: rgba(255, 118, 117, 0.2);">
+            <i data-lucide="layout" style="color: #ff7675; margin-bottom: 12px;"></i>
+            <h5 style="margin-bottom: 4px;">React & Next.js</h5>
+            <p style="font-size: 11px; color: var(--secondary);">Premium, high-performance user interfaces.</p>
+          </div>
+          <div class="card" style="padding: 20px; text-align: center; border-color: rgba(253, 203, 110, 0.2);">
+            <i data-lucide="server" style="color: #fdcb6e; margin-bottom: 12px;"></i>
+            <h5 style="margin-bottom: 4px;">Node.js</h5>
+            <p style="font-size: 11px; color: var(--secondary);">High-concurrency event-driven processing.</p>
+          </div>
+          <div class="card" style="padding: 20px; text-align: center; border-color: rgba(108, 92, 231, 0.2);">
+            <i data-lucide="database" style="color: #6c5ce7; margin-bottom: 12px;"></i>
+            <h5 style="margin-bottom: 4px;">PostgreSQL</h5>
+            <p style="font-size: 11px; color: var(--secondary);">Reliable relational data storage with Neon.</p>
+          </div>
+          <div class="card" style="padding: 20px; text-align: center; border-color: rgba(0, 184, 148, 0.2);">
+            <i data-lucide="brain" style="color: #00b894; margin-bottom: 12px;"></i>
+            <h5 style="margin-bottom: 4px;">Gemini AI</h5>
+            <p style="font-size: 11px; color: var(--secondary);">Neural intent analysis and content generation.</p>
+          </div>
+          <div class="card" style="padding: 20px; text-align: center; border-color: rgba(9, 132, 227, 0.2);">
+            <i data-lucide="boxes" style="color: #0984e3; margin-bottom: 12px;"></i>
+            <h5 style="margin-bottom: 4px;">Docker & Cloud</h5>
+            <p style="font-size: 11px; color: var(--secondary);">Containerized 24/7 production deployment.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="background: rgba(0,0,0,0.1);">
+        <h3 style="margin-bottom: 24px;">Project Roadmap</h3>
+        <div style="display: flex; flex-direction: column; gap: 16px;">
+          <div style="display: flex; align-items: center; gap: 16px; padding: 16px; background: rgba(0,206,201,0.05); border-radius: 12px;">
+            <div style="width: 24px; height: 24px; border-radius: 50%; background: #00cec9; display: flex; align-items: center; justify-content: center; color: #000; font-weight: 800; font-size: 10px;">✓</div>
+            <div style="flex: 1;">
+              <h5 style="font-size: 14px;">Phase 1: Neural Core Deployment</h5>
+              <p style="font-size: 12px; color: var(--secondary);">Initial bot logic and basic moderation systems active.</p>
+            </div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 16px; padding: 16px; background: rgba(0,206,201,0.05); border-radius: 12px;">
+            <div style="width: 24px; height: 24px; border-radius: 50%; background: #00cec9; display: flex; align-items: center; justify-content: center; color: #000; font-weight: 800; font-size: 10px;">✓</div>
+            <div style="flex: 1;">
+              <h5 style="font-size: 14px;">Phase 2: Master Intelligence Dashboard</h5>
+              <p style="font-size: 12px; color: var(--secondary);">Web-based control panel with OAuth2 and real-time sockets.</p>
+            </div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 16px; padding: 16px; background: rgba(202,138,4,0.1); border-radius: 12px; border: 1px dashed var(--accent);">
+            <div style="width: 24px; height: 24px; border-radius: 50%; background: var(--accent); display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 800; font-size: 10px;">•</div>
+            <div style="flex: 1;">
+              <h5 style="font-size: 14px;">Phase 3: Ecosystem Expansion</h5>
+              <p style="font-size: 12px; color: var(--secondary);">Public API access and global leveling integration.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Architecture Visualization -->
+      <div class="card" style="margin-top: 32px; padding: 48px; border-radius: 32px; background: rgba(0,0,0,0.2);">
+        <h3 style="margin-bottom: 32px; text-align: center;">Neural System Architecture</h3>
+        <div style="display: flex; justify-content: space-around; align-items: center; position: relative;">
+          <!-- Node 1 -->
+          <div style="text-align: center; z-index: 10;">
+            <div style="width: 80px; height: 80px; border-radius: 24px; background: var(--glass); border: 1px solid #00cec9; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; box-shadow: 0 0 20px rgba(0,206,201,0.2);">
+              <i data-lucide="glob"></i>
+            </div>
+            <p class="tech-font" style="font-size: 11px;">EXTERNAL API</p>
+          </div>
+          <!-- Line -->
+          <div style="flex: 1; height: 1px; background: linear-gradient(90deg, #00cec9, var(--accent)); margin: 0 20px; opacity: 0.3;"></div>
+          <!-- Node 2 (Center) -->
+          <div style="text-align: center; z-index: 10;">
+            <div class="pulse" style="width: 100px; height: 100px; border-radius: 50%; background: var(--accent); display: flex; align-items: center; justify-content: center; margin-bottom: 16px; box-shadow: 0 0 40px rgba(202,138,4,0.4);">
+              <i data-lucide="zap" style="color: white; width: 40px; height: 40px;"></i>
+            </div>
+            <p class="tech-font" style="font-size: 13px; font-weight: 800; color: var(--accent);">AURA CORE</p>
+          </div>
+          <!-- Line -->
+          <div style="flex: 1; height: 1px; background: linear-gradient(90deg, var(--accent), #ff7675); margin: 0 20px; opacity: 0.3;"></div>
+          <!-- Node 3 -->
+          <div style="text-align: center; z-index: 10;">
+            <div style="width: 80px; height: 80px; border-radius: 24px; background: var(--glass); border: 1px solid #ff7675; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; box-shadow: 0 0 20px rgba(255,118,117,0.2);">
+              <i data-lucide="database"></i>
+            </div>
+            <p class="tech-font" style="font-size: 11px;">NEURAL MESH</p>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -712,14 +846,60 @@
 
     <!-- Developer Tools Section -->
     <section id="devtools" class="section">
-      <div class="card" style="background: rgba(0,0,0,0.2);">
-        <h3 style="color: #00cec9; margin-bottom: 24px;">Advanced Intelligence Shell</h3>
-        <div style="background: #000; color: #00ff00; padding: 20px; font-family: 'Fira Code', monospace; border-radius: 8px; font-size: 13px;">
-          <div style="margin-bottom: 10px;">> aura-system-core --status</div>
-          <div style="color: #888;">[OK] WebSocket Synchronized</div>
-          <div style="color: #888;">[OK] Database Handshake Verified</div>
-          <div style="color: #888;">[OK] AI Neural Mesh Active</div>
-          <div style="margin-top: 10px;">> _</div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px;">
+        <div class="card" style="background: rgba(0,0,0,0.2);">
+          <h3 style="color: #00cec9; margin-bottom: 24px;">Intelligence Console</h3>
+          <div style="background: #000; color: #00ff00; padding: 20px; font-family: 'Fira Code', monospace; border-radius: 8px; font-size: 12px; height: 260px; overflow-y: auto;" id="devConsole">
+            <div style="margin-bottom: 10px;">> aura-system-core --status</div>
+            <div style="color: #666;">[OK] WebSocket Synchronized</div>
+            <div style="color: #666;">[OK] Database Handshake Verified</div>
+            <div style="color: #666;">[OK] AI Neural Mesh Active</div>
+            <div style="color: #00ff00; margin-top: 10px;">> Application successfully linked to neural unit.</div>
+            <div style="margin-top: 10px;">> _</div>
+          </div>
+        </div>
+        
+        <div class="card">
+          <h3 style="margin-bottom: 24px;">Neural Pulse Monitoring</h3>
+          <div style="display: flex; flex-direction: column; gap: 20px;">
+            <div>
+              <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 12px;">
+                <span>CPU Utilization</span>
+                <span class="tech-font">12%</span>
+              </div>
+              <div style="height: 6px; background: var(--border); border-radius: 3px; overflow: hidden;">
+                <div style="width: 12%; height: 100%; background: #00cec9;"></div>
+              </div>
+            </div>
+            <div>
+              <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 12px;">
+                <span>Memory Allocation</span>
+                <span class="tech-font">245MB / 512MB</span>
+              </div>
+              <div style="height: 6px; background: var(--border); border-radius: 3px; overflow: hidden;">
+                <div style="width: 48%; height: 100%; background: #fdcb6e;"></div>
+              </div>
+            </div>
+            <div>
+              <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 12px;">
+                <span>API Latency</span>
+                <span class="tech-font">42ms</span>
+              </div>
+              <div style="height: 6px; background: var(--border); border-radius: 3px; overflow: hidden;">
+                <div style="width: 8%; height: 100%; background: #ff7675;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-bottom: 24px;">Action Protocol</h3>
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;">
+          <button class="btn btn-outline" style="border-color: #ff7675; color: #ff7675;" onclick="botAction('restart')">FORCED REBOOT</button>
+          <button class="btn btn-outline" style="border-color: #fdcb6e; color: #fdcb6e;" onclick="botAction('flush')">CLEAR BUFFER</button>
+          <button class="btn btn-outline" style="border-color: #00cec9; color: #00cec9;" onclick="botAction('update')">DASHBOARD SYNC</button>
+          <button class="btn btn-primary" onclick="botAction('benchmark')">RUN PERFORMANCE TEST</button>
         </div>
       </div>
     </section>
@@ -763,9 +943,79 @@
     }
 
     // ── State ───────────────────────────────────────────
+    // ── Authentication & Identity ──────────────────────
+    let currentUser = null;
     let isLenin = false;
     let commands = [];
     let plans = [];
+
+    async function checkAuth() {
+      const container = document.getElementById('userProfile');
+      try {
+        const res = await fetch('/api/me');
+        if (res.ok) {
+          currentUser = await res.json();
+          renderProfile(currentUser);
+          document.getElementById('pageSubtitle').innerText = `Welcome back, ${currentUser.username}`;
+        } else {
+          renderLoginButton();
+        }
+      } catch (err) {
+        renderLoginButton();
+      }
+    }
+
+    function renderProfile(user) {
+      const container = document.getElementById('userProfile');
+      const avatarUrl = user.avatar 
+        ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png`
+        : 'https://cdn.discordapp.com/embed/avatars/0.png';
+      
+      container.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <img src="${avatarUrl}" class="avatar" alt="PF" style="border: 2px solid var(--accent); width: 32px; height: 32px; border-radius: 50%;">
+          <div style="display: flex; flex-direction: column;">
+            <span style="font-size: 13px; font-weight: 700;">${user.username}</span>
+            <span style="font-size: 9px; color: var(--secondary); letter-spacing: 1px;">AUTHORIZED UNIT</span>
+          </div>
+          <button class="btn btn-outline" style="padding: 4px 8px; font-size: 10px; margin-left: 8px;" onclick="location.href='/auth/logout'">
+            <i data-lucide="log-out" style="width:12px; height:12px;"></i>
+          </button>
+          <button class="btn btn-outline" style="padding: 4px 8px; font-size: 10px; ${isLenin ? 'border-color: #00cec9; color: #00cec9;' : ''}" onclick="toggleLenin()">
+            ${isLenin ? 'PRO' : 'DEV'}
+          </button>
+        </div>
+      `;
+      lucide.createIcons();
+    }
+
+    function renderLoginButton() {
+      const container = document.getElementById('userProfile');
+      container.innerHTML = `
+        <button class="btn btn-primary" style="display: flex; align-items: center; gap: 8px; font-size: 12px; padding: 8px 16px;" onclick="location.href='/auth/discord'">
+          <i data-lucide="log-in" style="width:14px;"></i>
+          Sign in with Discord
+        </button>
+      `;
+      lucide.createIcons();
+    }
+
+    // ── Data Optimization (Caching) ────────────────────
+    const cache = {
+      get: (key) => {
+        const item = localStorage.getItem(`aura_cache_${key}`);
+        if (!item) return null;
+        const parsed = JSON.parse(item);
+        if (Date.now() > parsed.expiry) {
+          localStorage.removeItem(`aura_cache_${key}`);
+          return null;
+        }
+        return parsed.data;
+      },
+      set: (key, data, ttl = 300000) => { // 5 mins
+        localStorage.setItem(`aura_cache_${key}`, JSON.stringify({ data, expiry: Date.now() + ttl }));
+      }
+    };
 
     // ── Navigation ──────────────────────────────────────
     function showSection(id, el) {
@@ -779,21 +1029,28 @@
         document.getElementById('pageTitle').innerText = el.innerText.trim();
       }
       
-      if (id === 'commands' && commands.length === 0) fetchCommands();
-      if (id === 'subscriptions' && plans.length === 0) fetchPlans();
+      if (id === 'ecosystem') { /* Ecosystem is static for now */ }
+      if (id === 'commands') fetchCommands();
+      if (id === 'subscriptions') fetchPlans();
       if (id === 'guilds') fetchGuilds();
     }
 
     // ── Data Fetching ───────────────────────────────────
     async function fetchCommands() {
+      const cached = cache.get('commands');
+      if (cached) { renderCommands(cached); return; }
       const res = await fetch('/api/commands');
-      commands = await res.json();
-      renderCommands(commands);
+      const data = await res.json();
+      cache.set('commands', data);
+      renderCommands(data);
     }
 
     async function fetchPlans() {
+      const cached = cache.get('plans');
+      if (cached) { plans = cached; renderPlans(); return; }
       const res = await fetch('/api/subscriptions');
       plans = await res.json();
+      cache.set('plans', plans);
       renderPlans();
     }
 
@@ -942,7 +1199,7 @@
 
     function toggleLenin() {
       isLenin = !isLenin;
-      document.getElementById('userName').innerText = isLenin ? 'Lenin' : 'User';
+      if (currentUser) renderProfile(currentUser);
       document.getElementById('leninNav').classList.toggle('hidden', !isLenin);
       renderPlans();
     }
@@ -962,7 +1219,8 @@
       alert(`${action} signal sent to intelligence core.`);
     }
 
-    // Fetch initial data
+    // Initial check
+    checkAuth();
     fetchCommands();
   </script>
 </body>

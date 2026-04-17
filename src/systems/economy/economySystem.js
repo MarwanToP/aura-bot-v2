@@ -12,7 +12,7 @@ async function getWallet(client, userId, guildId) {
   const { Economy } = client.db.models;
   const [wallet] = await Economy.findOrCreate({
     where:    { userId, guildId },
-    defaults: { balance: 0, bank: 0, totalEarned: 0 },
+    defaults: { balance: 0, bank: 0, totalEarned: 0, reputation: 0, dailyStreak: 0 },
   });
   return wallet;
 }
@@ -30,11 +30,11 @@ async function removeCoins(client, userId, guildId, amount) {
   return { success: true, balance: Number(wallet.balance) - amount };
 }
 
-// ─── /economy balance ────────────────────────────────────────
-export const balance = {
+// ─── /credits (Balance) ──────────────────────────────────────
+export const credits = {
   data: new SlashCommandBuilder()
-    .setName('balance')
-    .setDescription('Check your coin balance')
+    .setName('credits')
+    .setDescription('Check your Aura Credits and Reputation')
     .addUserOption(o => o.setName('user').setDescription('User to check')),
 
   guildOnly: true,
@@ -44,36 +44,42 @@ export const balance = {
     await interaction.deferReply();
     const target = interaction.options.getUser('user') || interaction.user;
     const wallet = await getWallet(client, target.id, interaction.guildId);
-    const { currencyEmoji } = config.economy;
+    const { currencyEmoji, currencyName } = config.economy;
 
     return interaction.editReply({
       embeds: [buildEmbed({
-        type:      'economy',
-        title:     `${currencyEmoji} Wallet — ${target.username}`,
+        type:      'premium',
+        title:     `${currencyEmoji} ${currencyName} — ${target.username}`,
         thumbnail: target.displayAvatarURL({ size: 128 }),
         fields: [
-          { name: `${currencyEmoji} Wallet`,      value: Number(wallet.balance).toLocaleString(),    inline: true },
-          { name: `🏦 Bank`,                       value: Number(wallet.bank).toLocaleString(),       inline: true },
-          { name: `💎 Total Earned`,               value: Number(wallet.totalEarned).toLocaleString(), inline: true },
+          { name: `💰 Credits`,   value: `**${Number(wallet.balance).toLocaleString()}**`, inline: true },
+          { name: `🏦 Bank`,      value: `**${Number(wallet.bank).toLocaleString()}**`,    inline: true },
+          { name: `✨ Reputation`, value: `**${Number(wallet.reputation).toLocaleString()}**`, inline: true },
+          { name: `🔥 Streak`,    value: `**${wallet.dailyStreak} days**`, inline: true },
+          { name: `💎 Total`,     value: `**${Number(wallet.totalEarned).toLocaleString()}**`, inline: true },
         ],
+        footer: `Rank cards and badges coming soon!`,
         timestamp: true,
       })],
     });
   },
 };
 
+export const balance = { ...credits, data: new SlashCommandBuilder().setName('balance').setDescription('Alias for /credits').addUserOption(o => o.setName('user').setDescription('User to check')) };
+export const money   = { ...credits, data: new SlashCommandBuilder().setName('money').setDescription('Alias for /credits').addUserOption(o => o.setName('user').setDescription('User to check')) };
+
 // ─── /daily ──────────────────────────────────────────────────
 export const daily = {
   data: new SlashCommandBuilder()
     .setName('daily')
-    .setDescription('Claim your daily coin reward'),
+    .setDescription('Claim your daily Aura Credits reward'),
 
   guildOnly: true,
   cooldown:  1000,
 
   async execute(client, interaction) {
     await interaction.deferReply();
-    const { dailyReward, dailyCooldown, currencyEmoji } = config.economy;
+    const { dailyReward, dailyCooldown, currencyEmoji, streakBonus } = config.economy;
     const key = `daily:${interaction.user.id}:${interaction.guildId}`;
     const ttl = await client.redis.pttl(key);
 
@@ -83,16 +89,42 @@ export const daily = {
       return interaction.editReply({ embeds: [buildEmbed({ type: 'warning', description: `⏳ Daily reward resets in **${hours}h ${minutes}m**.` })] });
     }
 
-    const amount = Math.floor(Math.random() * (dailyReward.max - dailyReward.min + 1)) + dailyReward.min;
-    await addCoins(client, interaction.user.id, interaction.guildId, amount);
-    await client.redis.setex(key, Math.ceil(dailyCooldown / 1000), '1');
-
     const wallet = await getWallet(client, interaction.user.id, interaction.guildId);
+    
+    // Streak logic
+    const lastDaily = await client.redis.get(`last_daily:${interaction.user.id}`);
+    const now = Date.now();
+    let currentStreak = wallet.dailyStreak;
+
+    if (lastDaily) {
+      const diff = now - parseInt(lastDaily);
+      if (diff < 48 * 60 * 60 * 1000) { // Within 48 hours
+        currentStreak += 1;
+      } else {
+        currentStreak = 1;
+      }
+    } else {
+      currentStreak = 1;
+    }
+
+    const baseAmount = Math.floor(Math.random() * (dailyReward.max - dailyReward.min + 1)) + dailyReward.min;
+    const bonus      = (currentStreak - 1) * streakBonus;
+    const total      = baseAmount + bonus;
+
+    await wallet.update({ 
+      balance: Number(wallet.balance) + total, 
+      dailyStreak: currentStreak,
+      totalEarned: Number(wallet.totalEarned) + total 
+    });
+    
+    await client.redis.setex(key, Math.ceil(dailyCooldown / 1000), '1');
+    await client.redis.set(`last_daily:${interaction.user.id}`, now.toString());
+
     return interaction.editReply({
       embeds: [buildEmbed({
         type:        'economy',
-        title:       `${currencyEmoji} Daily Reward Claimed!`,
-        description: `You received **${amount.toLocaleString()} ${currencyEmoji} coins**!\n**New Balance:** ${Number(wallet.balance).toLocaleString()} coins`,
+        title:       `${currencyEmoji} Daily Credits Claimed!`,
+        description: `You received **${total.toLocaleString()} ${currencyEmoji}**!\n🔥 **Streak:** ${currentStreak} days (+${bonus} bonus)\n**New Balance:** ${Number(wallet.balance).toLocaleString()}`,
         timestamp:   true,
       })],
     });
@@ -332,12 +364,57 @@ export const transfer = {
     if (target.id === interaction.user.id) return interaction.editReply({ embeds: [buildEmbed({ type: 'error', description: '❌ Cannot transfer to yourself.' })] });
     if (target.bot) return interaction.editReply({ embeds: [buildEmbed({ type: 'error', description: '❌ Cannot transfer to bots.' })] });
 
+    const fee    = Math.floor(amount * config.economy.transferFee);
+    const net    = amount - fee;
+
     const result = await removeCoins(client, interaction.user.id, interaction.guildId, amount);
     if (!result.success) return interaction.editReply({ embeds: [buildEmbed({ type: 'error', description: `❌ Insufficient funds.` })] });
 
-    await addCoins(client, target.id, interaction.guildId, amount);
+    await addCoins(client, target.id, interaction.guildId, net);
 
-    return interaction.editReply({ embeds: [buildEmbed({ type: 'success', description: `✅ Transferred **${amount.toLocaleString()} ${currencyEmoji}** to <@${target.id}>.\n**Your Balance:** ${result.balance.toLocaleString()} coins` })] });
+    return interaction.editReply({ embeds: [buildEmbed({ type: 'success', description: `✅ Transferred **${net.toLocaleString()} ${currencyEmoji}** to <@${target.id}> (Fee: ${fee})\n**Your Balance:** ${result.balance.toLocaleString()} credits` })] });
+  },
+};
+
+// ─── /rep (Reputation) ───────────────────────────────────────
+export const rep = {
+  data: new SlashCommandBuilder()
+    .setName('rep')
+    .setDescription('Give a reputation point to another user')
+    .addUserOption(o => o.setName('user').setDescription('User to give rep to').setRequired(true)),
+
+  guildOnly: true,
+  cooldown:  3000,
+
+  async execute(client, interaction) {
+    await interaction.deferReply();
+    const target = interaction.options.getUser('user');
+    const sender = interaction.user;
+
+    if (target.id === sender.id) return interaction.editReply({ embeds: [buildEmbed({ type: 'error', description: '❌ You cannot give reputation to yourself.' })] });
+    if (target.bot) return interaction.editReply({ embeds: [buildEmbed({ type: 'error', description: '❌ Bots do not need reputation.' })] });
+
+    const { repCooldown } = config.economy;
+    const walletSender = await getWallet(client, sender.id, interaction.guildId);
+    
+    if (walletSender.lastRepAt) {
+      const elapsed = Date.now() - new Date(walletSender.lastRepAt).getTime();
+      if (elapsed < repCooldown) {
+        const remaining = Math.ceil((repCooldown - elapsed) / 3600000);
+        return interaction.editReply({ embeds: [buildEmbed({ type: 'warning', description: `⌛ You can give another reputation point in **${remaining} hours**.` })] });
+      }
+    }
+
+    const walletTarget = await getWallet(client, target.id, interaction.guildId);
+    await walletTarget.increment('reputation');
+    await walletSender.update({ lastRepAt: new Date() });
+
+    return interaction.editReply({
+      embeds: [buildEmbed({
+        type: 'success',
+        description: `✨ You gave a reputation point to <@${target.id}>!\nThey now have **${Number(walletTarget.reputation) + 1}** reputation.`
+      })]
+    });
   },
 };
 
