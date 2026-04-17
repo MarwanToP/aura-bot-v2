@@ -55,7 +55,11 @@ passport.deserializeUser((obj, done) => done(null, obj));
 passport.use(new Strategy({
   clientID:     process.env.DISCORD_CLIENT_ID,
   clientSecret: process.env.DISCORD_CLIENT_SECRET,
-  callbackURL:  (process.env.DASHBOARD_URL || `http://localhost:${PORT}`) + '/auth/discord/callback',
+  callbackURL:  (() => {
+    let url = process.env.DASHBOARD_URL || `http://localhost:${PORT}`;
+    if (!url.startsWith('http')) url = `https://${url}`;
+    return url.replace(/\/$/, '') + '/auth/discord/callback';
+  })(),
   scope:        ['identify', 'guilds'],
 }, (accessToken, refreshToken, profile, done) => {
   return done(null, profile);
@@ -111,6 +115,7 @@ app.get('/api/stats', async (req, res) => {
     ]);
     res.json({ guilds, users, cases, tickets, uptime: Math.floor(process.uptime()) });
   } catch (err) {
+    logger.error('[Dashboard API] Stats failure:', err.message);
     res.status(500).json({ error: 'Failed' });
   }
 });
@@ -123,6 +128,7 @@ app.get('/api/guilds', async (req, res) => {
     });
     res.json(guilds);
   } catch (err) {
+    logger.error('[Dashboard API] Guilds failure:', err.message);
     res.status(500).json({ error: 'Failed' });
   }
 });
@@ -250,7 +256,7 @@ async function initializeServices() {
 }
 
 async function startDashboard() {
-  app.listen(PORT, '0.0.0.0', () => {
+  httpServer.listen(PORT, '0.0.0.0', () => {
     logger.info(`[Dashboard] ✨ Listening on port ${PORT} (0.0.0.0)`);
     logger.info(`[Dashboard] 🚀 View at: http://localhost:${PORT}`);
     

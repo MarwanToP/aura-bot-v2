@@ -175,54 +175,6 @@ export const work = {
   },
 };
 
-// ─── /gamble ─────────────────────────────────────────────────
-export const gamble = {
-  data: new SlashCommandBuilder()
-    .setName('gamble')
-    .setDescription('Gamble your coins (50% chance)')
-    .addIntegerOption(o => o
-      .setName('amount')
-      .setDescription('Amount to gamble (or "all")')
-      .setRequired(true)
-      .setMinValue(1)
-    ),
-
-  guildOnly: true,
-  cooldown:  10000,
-
-  async execute(client, interaction) {
-    await interaction.deferReply();
-    const { currencyEmoji, gamblingMax } = config.economy;
-    const amount = Math.min(interaction.options.getInteger('amount'), gamblingMax);
-    const wallet = await getWallet(client, interaction.user.id, interaction.guildId);
-
-    if (Number(wallet.balance) < amount) {
-      return interaction.editReply({ embeds: [buildEmbed({ type: 'error', description: `❌ Insufficient funds. You have **${Number(wallet.balance).toLocaleString()} ${currencyEmoji}**.` })] });
-    }
-
-    const won     = Math.random() < 0.5;
-    const net     = won ? amount : -amount;
-
-    if (won) {
-      await addCoins(client, interaction.user.id, interaction.guildId, amount);
-    } else {
-      await removeCoins(client, interaction.user.id, interaction.guildId, amount);
-    }
-
-    const newBal = Number(wallet.balance) + net;
-
-    return interaction.editReply({
-      embeds: [buildEmbed({
-        type:        won ? 'success' : 'error',
-        title:       won ? '🎲 You Won!' : '🎲 You Lost!',
-        description: won
-          ? `🎉 **+${amount.toLocaleString()} ${currencyEmoji}** — You doubled your bet!\n**New Balance:** ${newBal.toLocaleString()}`
-          : `😢 **-${amount.toLocaleString()} ${currencyEmoji}** — Better luck next time!\n**New Balance:** ${newBal.toLocaleString()}`,
-        timestamp: true,
-      })],
-    });
-  },
-};
 
 // ─── /shop ───────────────────────────────────────────────────
 export const shop = {

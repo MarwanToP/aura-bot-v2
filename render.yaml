@@ -1,94 +1,61 @@
-# render.yaml — Render.com free deployment config
-# https://docs.render.com/infrastructure-as-code
-#
-# Services deployed:
-#   1. aura-bot  — Node.js (bot + dashboard, always-on via keep-alive)
-#   2. aura-db   — PostgreSQL (free 90-day, then $7/mo — use Neon instead)
-#   3. aura-redis — Redis (free 25MB — use Upstash instead)
-
+# Aura Bot v2.0 — Render Unified Infrastructure
 services:
-  # ── Bot + Dashboard (one dyno) ─────────────────────────────────
-  - type: web                   # "web" keeps port open → never sleeps w/ keep-alive
+  - type: web
     name: aura-bot
     runtime: docker
     dockerfilePath: ./Dockerfile
-    plan: free                  # Render Free — 512 MB RAM, shared CPU
+    plan: free
     branch: main
-    autoDeploy: true            # Auto-deploy on every git push
-
+    autoDeploy: true
+    
+    # Critical for Render Free tier stability
+    healthCheckPath: /api/health
+    
     envVars:
       - key: NODE_ENV
         value: production
 
-      # ── Discord ───────────────────────────────────────────────
+      # ── Core Identity ─────────────────────────────────────────
       - key: DISCORD_TOKEN
-        sync: false             # Set manually in Render dashboard (secret)
+        sync: false
       - key: DISCORD_CLIENT_ID
         sync: false
       - key: DISCORD_CLIENT_SECRET
         sync: false
 
-      # ── Database (use Neon free tier — see guide) ─────────────
+      # ── Database & Cache ──────────────────────────────────────
+      # Note: Neon (Postgres) and Upstash (Redis) are recommended for Free Tier
       - key: DATABASE_URL
-        sync: false             # Paste your full Neon connection string here
-      - key: DB_HOST
-        sync: false
-      - key: DB_PORT
-        value: "5432"
-      - key: DB_NAME
-        value: aura_bot
-      - key: DB_USER
-        sync: false
-      - key: DB_PASSWORD
         sync: false
       - key: DB_SSL
-        value: "true"           # Neon requires SSL
-
-      # ── Redis (use Upstash free tier — see guide) ─────────────
-      - key: REDIS_HOST
-        sync: false
-      - key: REDIS_PORT
-        value: "6379"
-      - key: REDIS_PASSWORD
+        value: "true"
+      - key: REDIS_URL
         sync: false
       - key: REDIS_TLS
-        value: "true"           # Upstash requires TLS
+        value: "true"
 
-      # ── AI ────────────────────────────────────────────────────
+      # ── AI Intelligence ───────────────────────────────────────
       - key: GEMINI_API_KEY
         sync: false
       - key: AI_PROVIDER
         value: gemini
-      - key: AI_CHAT_MODEL
-        value: gemini-2.5-flash
-      - key: AI_MOD_MODEL
-        value: gemini-2.5-flash
       - key: AI_ENABLED
         value: "true"
+      - key: AI_CHAT_MODEL
+        value: gemini-1.5-flash
 
-      # ── Dashboard ─────────────────────────────────────────────
-      - key: DASHBOARD_PORT
+      # ── Dashboard & Security ──────────────────────────────────
+      - key: PORT # Render injects this, used by server.js
         value: "3000"
       - key: DASHBOARD_ENABLED
         value: "true"
-      - key: DASHBOARD_URL
-        fromService:            # Auto-injects the Render public URL
-          type: web
-          name: aura-bot
-          property: host
       - key: SESSION_SECRET
-        generateValue: true     # Render auto-generates a strong secret
+        generateValue: true
       - key: JWT_SECRET
         generateValue: true
 
-      # ── Bot Config ─────────────────────────────────────────────
-      - key: DEFAULT_LANGUAGE
-        value: en
-      - key: BOT_PREFIX
-        value: "!"
+      # ── Scaling & Logs ────────────────────────────────────────
       - key: SHARD_COUNT
         value: "1"
       - key: LOG_LEVEL
         value: info
-      - key: ENCRYPTION_KEY
-        sync: false

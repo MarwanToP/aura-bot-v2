@@ -64,17 +64,6 @@ export const work = {
   }
 };
 
-/**
- * /gamble — High-risk gambling
- */
-export const gamble = {
-  data: economy.gamble.data,
-  guildOnly: true,
-  cooldown: 10000,
-  async execute(client, interaction) {
-    return economy.gamble.execute(client, interaction);
-  }
-};
 
 /**
  * /richlist — Richest members

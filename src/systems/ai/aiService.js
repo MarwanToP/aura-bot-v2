@@ -1,6 +1,6 @@
 // ================================================================
 //  AURA BOT v2.0 — AI Service (Google Gemini)
-//  All AI features powered by Gemini 2.5 Flash
+//  All AI features powered by Gemini 1.5 Flash
 // ================================================================
 
 import { GoogleGenerativeAI } from '@google/generative-ai';
@@ -25,8 +25,8 @@ class AIService {
 
     try {
       this.gemini  = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-      this.model   = process.env.AI_CHAT_MODEL || 'gemini-2.5-flash';
-      this.modModel = process.env.AI_MOD_MODEL || 'gemini-2.5-flash';
+      this.model   = process.env.AI_CHAT_MODEL || 'gemini-1.5-flash';
+      this.modModel = process.env.AI_MOD_MODEL || 'gemini-1.5-flash';
       logger.info(`[AI] Gemini initialized ✓ (model: ${this.model})`);
     } catch (err) {
       logger.error('[AI] Gemini init failed:', err.message);

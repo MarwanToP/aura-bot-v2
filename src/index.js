@@ -5,74 +5,97 @@ import 'dotenv/config';
 import { ShardingManager } from 'discord.js';
 import { fileURLToPath }   from 'url';
 import { dirname, join }   from 'path';
+import http                from 'http';
 import logger              from './utils/logger.js';
 import monitor             from './systems/monitor/monitorService.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-// Detect Mode: BOTH (default), DASHBOARD, or BOT
+// ── 1. Configuration & Validation ──────────────────────────────
 const MODE = process.env.MODE || 'BOTH';
+const REQUIRED_ENV_VARS = ['DISCORD_TOKEN', 'DISCORD_CLIENT_ID'];
 
-const required = ['DISCORD_TOKEN', 'DISCORD_CLIENT_ID'];
-const missing  = required.filter(k => !process.env[k]);
-if (missing.length) { logger.error(`Missing env vars: ${missing.join(', ')}`); process.exit(1); }
+const missingVars = REQUIRED_ENV_VARS.filter(key => !process.env[key]);
+if (missingVars.length) {
+  logger.error(`[System] Missing required environment variables: ${missingVars.join(', ')}`);
+  process.exit(1);
+}
 
-logger.info(`[System] Initializing Aura Core in mode: ${MODE}`);
+logger.info(`[System] Initializing Aura Core | Mode: ${MODE}`);
 
-// ── 1. DASHBOARD MODE ──────────────────────────────────────────
-if (MODE === 'DASHBOARD' || MODE === 'BOTH') {
-  logger.info('[System] Starting Dashboard Intelligence Engine...');
+// ── 2. Helper: Mode Checks ──────────────────────────────────────
+const shouldRunDashboard = ['DASHBOARD', 'BOTH'].includes(MODE);
+const shouldRunBot       = ['BOT', 'BOTH'].includes(MODE);
+
+// ── 3. Dashboard Initialization ─────────────────────────────────
+if (shouldRunDashboard) {
+  logger.info('[Dashboard] Starting Intelligence Engine...');
   monitor.startHeartbeat('dashboard');
-  if (MODE === 'BOTH' || MODE === 'DASHBOARD') {
-    monitor.startAlertLoop(); // Only one process needs to monitor others
-  }
+  
+  // Start the global alert monitoring loop
+  monitor.startAlertLoop();
+
   import('./web/server.js').catch(err => {
-    logger.error('[Dashboard] Failed to start:', err.message);
+    logger.error('[Dashboard] Critical failure during startup:', err.message);
   });
 }
 
-// ── 2. BOT MODE ───────────────────────────────────────────────
-if (MODE === 'BOT' || MODE === 'BOTH') {
-  logger.info('[System] Starting Bot Logic Core...');
+// ── 4. Bot Initialization ───────────────────────────────────────
+if (shouldRunBot) {
+  logger.info('[Bot] Starting Logic Core...');
   monitor.startHeartbeat('bot');
-  
-  // If running as a Render Web Service in BOT mode, bind to PORT to pass healthchecks
+
+  /**
+   * Health Check Server
+   * Required for Render.com when running in BOT-only mode to prevent deployment timeouts.
+   */
   if (MODE === 'BOT' && process.env.PORT) {
-    import('http').then(({ createServer }) => {
-      createServer((req, res) => {
-        res.writeHead(200);
-        res.end('Aura Bot is online.');
-      }).listen(process.env.PORT, '0.0.0.0', () => {
-        logger.info(`[HealthCheck] Dummy server listening on port ${process.env.PORT}`);
-      });
+    http.createServer((req, res) => {
+      res.writeHead(200);
+      res.end('Aura Bot Status: Online');
+    }).listen(process.env.PORT, '0.0.0.0', () => {
+      logger.info(`[HealthCheck] Binding heartbeat to port ${process.env.PORT}`);
     });
   }
 
-  
-  // If we are on a memory-constrained host like Discloud, skip ShardingManager
-  const isDiscloud = !!process.env.DISCLOUD || !!process.env.ID;
-  
-  if (isDiscloud) {
-    logger.info('[System] Memory-Saving Mode Active: Starting single bot instance.');
-    import('./bot.js').catch(err => logger.error('[Bot] Start failed:', err));
+  // Handle Sharding based on environment constraints (e.g., Discloud 100MB limit)
+  const isMemoryConstrained = !!process.env.DISCLOUD || !!process.env.ID;
+
+  if (isMemoryConstrained) {
+    logger.info('[Bot] Memory-Saving Mode: Initializing single instance (No Sharding).');
+    import('./bot.js').catch(err => logger.error('[Bot] Instance failed:', err));
   } else {
-    const manager = new ShardingManager(join(__dirname, 'bot.js'), {
-      token:       process.env.DISCORD_TOKEN,
-      totalShards: parseInt(process.env.SHARD_COUNT || '1'),
-      respawn:     true,
-    });
-
-    manager.on('shardCreate', shard => {
-      logger.info(`[Shard ${shard.id}] Launched`);
-      shard.on('ready', () => logger.info(`[Shard ${shard.id}] Ready ✓`));
-    });
-
-    manager.spawn({ timeout: 60_000 }).catch(err => {
-      logger.error('[System] Shard spawning failed:', err.message);
-      process.exit(1);
-    });
+    initializeSharding();
   }
 }
 
-process.on('unhandledRejection', r => logger.error('UnhandledRejection:', r));
-process.on('uncaughtException',  e => { logger.error('UncaughtException:', e); process.exit(1); });
+/**
+ * Initializes the Discord.js ShardingManager for high-availability.
+ */
+function initializeSharding() {
+  const manager = new ShardingManager(join(__dirname, 'bot.js'), {
+    token:       process.env.DISCORD_TOKEN,
+    totalShards: parseInt(process.env.SHARD_COUNT || '1'),
+    respawn:     true,
+  });
+
+  manager.on('shardCreate', shard => {
+    logger.info(`[Shard ${shard.id}] Launched`);
+    shard.on('ready', () => logger.info(`[Shard ${shard.id}] Successfully initialized ✓`));
+  });
+
+  manager.spawn({ timeout: 60_000 }).catch(err => {
+    logger.error('[System] Sharding failed to spawn:', err.message);
+    process.exit(1);
+  });
+}
+
+// ── 5. Error Handling ───────────────────────────────────────────
+process.on('unhandledRejection', (reason) => {
+  logger.error('Unhandled Promise Rejection:', reason);
+});
+
+process.on('uncaughtException', (error) => {
+  logger.error('Uncaught Exception:', error);
+  process.exit(1);
+});
