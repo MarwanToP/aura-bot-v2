@@ -226,6 +226,29 @@ io.on('connection', (socket) => {
 // ── Boot ──────────────────────────────────────────────────────
 app.get('*', (req, res) => res.sendFile(join(__dirname, 'public', 'index.html')));
 
+// ── Service Initialization ──────────────────────────────────
+async function initializeServices() {
+  try {
+    logger.info('[Dashboard] Verifying connections...');
+    
+    // 1. Database
+    await database.authenticate();
+    logger.info('[Dashboard] Database connection verified ✓');
+
+    // 2. Redis
+    await redis.ping();
+    logger.info('[Dashboard] Redis connection verified ✓');
+
+    // 3. AI Service (if dashboard uses it for /search or similar)
+    // import aiService from '../systems/ai/aiService.js';
+    // await aiService.init();
+
+    logger.info('[Dashboard] All background services ready ✓');
+  } catch (err) {
+    throw new Error(`Service initialization failed: ${err.message}`);
+  }
+}
+
 async function startDashboard() {
   app.listen(PORT, '0.0.0.0', () => {
     logger.info(`[Dashboard] ✨ Listening on port ${PORT} (0.0.0.0)`);
