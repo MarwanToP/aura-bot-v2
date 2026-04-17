@@ -301,6 +301,58 @@
     }
     @keyframes entry { from { opacity: 0; transform: translateX(-15px); } to { opacity: 1; transform: translateX(0); } }
 
+    /* Neural Interface Extras */
+    .neural-core {
+        position: relative;
+        width: 200px;
+        height: 200px;
+        margin: 0 auto 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .core-ring {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        border: 2px dashed rgba(245, 158, 11, 0.2);
+        border-radius: 50%;
+        animation: rotate 20s linear infinite;
+    }
+
+    .core-pulse {
+        width: 120px;
+        height: 120px;
+        background: radial-gradient(circle, var(--accent) 0%, transparent 70%);
+        border-radius: 50%;
+        filter: blur(10px);
+        animation: core-glow 3s infinite;
+    }
+
+    @keyframes core-glow {
+        0%, 100% { transform: scale(1); opacity: 0.5; box-shadow: 0 0 50px var(--accent); }
+        50% { transform: scale(1.2); opacity: 0.8; box-shadow: 0 0 100px var(--accent); }
+    }
+
+    @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+    .scanline {
+        width: 100%;
+        height: 100px;
+        z-index: 10;
+        background: linear-gradient(to bottom, transparent, rgba(245,158,11,0.05), transparent);
+        position: absolute;
+        top: -100px;
+        animation: scan 4s linear infinite;
+        pointer-events: none;
+    }
+
+    @keyframes scan {
+        0% { top: -100px; }
+        100% { top: 100%; }
+    }
+
     /* ── Pro Plans ─────────────────────────────────────── */
     .plan-box {
       border: 1px solid var(--glass-border);
@@ -359,11 +411,19 @@
     </div>
   </header>
 
-  <main class="main-wrap">
-    <div id="welcomeHeader" style="margin-bottom: 60px;">
-      <h1 style="font-size: 4rem; font-weight: 800; letter-spacing: -3px; line-height: 0.9;">Neural Control<br><span style="color: var(--accent);">Interface.</span></h1>
-      <p style="color: var(--secondary); margin-top: 20px; letter-spacing: 4px; font-weight: 600; font-size: 0.75rem;">AURA INTELLIGENCE v2.0 // ESTABLISHED 2026</p>
-    </div>
+    <main class="main-wrap">
+      <div class="scanline"></div>
+      
+      <div id="welcomeHeader" style="margin-bottom: 80px; text-align: center;">
+        <div class="neural-core">
+          <div class="core-ring"></div>
+          <div class="core-ring" style="width: 80%; height: 80%; animation-direction: reverse; animation-duration: 15s;"></div>
+          <div class="core-pulse"></div>
+          <i data-lucide="brain" style="position: absolute; color: white; width: 48px; height: 48px;"></i>
+        </div>
+        <h1 style="font-size: 5rem; font-weight: 800; letter-spacing: -4px; line-height: 0.8; margin-top: -20px;">Neural Control<br><span style="color: var(--accent);">Interface.</span></h1>
+        <p style="color: var(--secondary); margin-top: 30px; letter-spacing: 6px; font-weight: 600; font-size: 0.7rem; text-transform: uppercase;">AURA INTELLIGENCE v2.1 // NEURAL BRIDGING ACTIVE</p>
+      </div>
 
     <!-- Dashboard -->
     <section id="dashboard" class="section active">
@@ -414,25 +474,30 @@
 
     <!-- Project Ecosystem -->
     <section id="ecosystem" class="section">
-      <div class="aura-card" style="padding: 60px; text-align: center; border: 1px dashed var(--glass-border);">
-         <h2 style="font-size: 3rem; margin-bottom: 20px;">Technological <span style="color: var(--accent);">Singularity.</span></h2>
+      <div class="aura-card" style="padding: 60px; text-align: center; background: radial-gradient(circle at center, rgba(245,158,11,0.05), transparent);">
+         <h2 style="font-size: 3.5rem; margin-bottom: 20px; letter-spacing: -2px;">Technological <span style="color: var(--accent);">Singularity.</span></h2>
          <p style="color: var(--secondary); max-width: 700px; margin: 0 auto 50px;">Aura is built on a distributed split-core architecture designed for infinite scalability and sub-millisecond responsiveness.</p>
          
-         <div style="display: flex; justify-content: center; gap: 40px; flex-wrap: wrap;">
-            <div class="aura-card" style="padding: 30px; min-width: 200px;">
-               <i data-lucide="database" style="color: #00cec9; margin-bottom: 12px;"></i>
-               <h4>PostgreSQL</h4>
-               <p style="font-size: 12px; color: var(--secondary);">Neon Cloud Cluster</p>
-            </div>
-            <div class="aura-card" style="padding: 30px; min-width: 200px;">
-               <i data-lucide="wind" style="color: #ff7675; margin-bottom: 12px;"></i>
-               <h4>Redis</h4>
-               <p style="font-size: 12px; color: var(--secondary);">Upstash Low-Latency</p>
-            </div>
-            <div class="aura-card" style="padding: 30px; min-width: 200px;">
-               <i data-lucide="sparkles" style="color: var(--accent); margin-bottom: 12px;"></i>
-               <h4>Gemini Pro</h4>
-               <p style="font-size: 12px; color: var(--secondary);">LMM Intelligence</p>
+         <div style="position: relative; height: 300px; margin: 60px 0; display: flex; align-items: center; justify-content: center;">
+            <!-- Neural Mesh Lines (CSS simulated) -->
+            <div style="position: absolute; width: 100%; height: 100%; opacity: 0.1; background-image: radial-gradient(var(--accent) 1px, transparent 1px); background-size: 40px 40px;"></div>
+            
+            <div style="display: flex; justify-content: center; gap: 60px; align-items: center; z-index: 10;">
+               <div class="aura-card" style="padding: 24px; min-width: 180px; border-radius: 20px;">
+                  <i data-lucide="database" style="color: #00cec9; margin-bottom: 12px;"></i>
+                  <h4 style="font-size: 14px;">NEON</h4>
+                  <p style="font-size: 10px; color: var(--secondary);">DATA LAYER</p>
+               </div>
+               
+               <div style="width: 100px; height: 100px; border-radius: 50%; background: var(--accent); display: flex; align-items: center; justify-content: center; box-shadow: 0 0 50px var(--accent);">
+                  <i data-lucide="zap" style="color: white; width: 40px; height: 40px;"></i>
+               </div>
+
+               <div class="aura-card" style="padding: 24px; min-width: 180px; border-radius: 20px;">
+                  <i data-lucide="wind" style="color: #ff7675; margin-bottom: 12px;"></i>
+                  <h4 style="font-size: 14px;">UPSTASH</h4>
+                  <p style="font-size: 10px; color: var(--secondary);">CACHE MESH</p>
+               </div>
             </div>
          </div>
       </div>
