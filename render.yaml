@@ -42,7 +42,8 @@ services:
       - key: PORT
         value: "10000"
       - key: DASHBOARD_URL
-        value: "aura-bot-dashboard.onrender.com"
+        value: "https://aura-bot-dashboard-new.onrender.com"
+
       - key: DATABASE_URL
         sync: false
       - key: REDIS_URL
