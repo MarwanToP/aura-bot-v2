@@ -68,6 +68,7 @@ export const voiceStateUpdate = {
     await Promise.allSettled([
       importAndRun('../systems/logging/loggingSystem.js', 'logVoiceUpdate', client, oldState, newState),
       importAndRun('../systems/voice/voiceSystem.js', 'handleVoiceUpdate', client, oldState, newState),
+      trackActivity(client, newState.guild.id, newState.id, 'voice'),
     ]);
   },
 };
@@ -128,6 +129,8 @@ export const messageReactionAdd = {
   name: 'messageReactionAdd',
   async execute(client, reaction, user) {
     if (user.bot) return;
+    // Staff Activity Tracking
+    await trackActivity(client, reaction.message.guildId, user.id, 'reaction');
     await Promise.allSettled([
       handleStarboard(client, reaction, user),
       handleReactionRole(client, reaction, user, true),

@@ -1,6 +1,6 @@
 // ================================================================
 //  AURA BOT v2.0 — Web Dashboard Server
-//  Express + Socket.IO real-time dashboard
+//  Refactored for Production Security & Performance
 // ================================================================
 import 'dotenv/config';
 import express      from 'express';
@@ -13,13 +13,13 @@ import passport      from 'passport';
 import { Strategy }  from 'passport-discord';
 import Redis         from 'ioredis';
 import { RedisStore } from 'connect-redis';
-import { fileURLToPath } from 'url';
+import { fileURLToPath, pathToFileURL } from 'url';
 import { dirname, join } from 'path';
+import { readdirSync, statSync } from 'fs';
+
 import logger       from '../utils/logger.js';
 import redis        from '../database/redis.js';
 import database     from '../database/index.js';
-import { readdirSync, statSync } from 'fs';
-import { pathToFileURL } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app       = express();
@@ -27,6 +27,7 @@ const httpServer = createServer(app);
 const io        = new SocketIO(httpServer, { cors: { origin: '*' } });
 
 const PORT = parseInt(process.env.PORT || '3000');
+let commandCache = null; // Memory cache for command list
 
 // ── Middleware ────────────────────────────────────────────────
 app.use(helmet({ contentSecurityPolicy: false }));
@@ -42,7 +43,11 @@ app.use(session({
   secret:            process.env.SESSION_SECRET || 'aura-dashboard-secret-change-me',
   resave:            false,
   saveUninitialized: false,
-  cookie:            { secure: process.env.NODE_ENV === 'production', maxAge: 7 * 24 * 60 * 60 * 1000 },
+  cookie:            { 
+    secure: process.env.NODE_ENV === 'production', 
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+    sameSite: 'lax' 
+  },
 }));
 
 // ── Passport Initialization ──────────────────────────────────
@@ -65,6 +70,11 @@ passport.use(new Strategy({
   return done(null, profile);
 }));
 
+const ensureAuth = (req, res, next) => {
+  if (req.isAuthenticated()) return next();
+  res.status(401).json({ error: 'Authentication required' });
+};
+
 // ── Authentication Routes ────────────────────────────────────
 app.get('/auth/discord', passport.authenticate('discord'));
 app.get('/auth/discord/callback', passport.authenticate('discord', { failureRedirect: '/' }), (req, res) => res.redirect('/'));
@@ -72,200 +82,163 @@ app.get('/auth/logout', (req, res) => req.logout(() => res.redirect('/')));
 
 app.get('/api/me', (req, res) => {
   if (!req.user) return res.status(401).json({ error: 'Not authenticated' });
-  res.json(req.user);
+  res.json({
+    id:       req.user.id,
+    username: req.user.username,
+    avatar:   req.user.avatar,
+    guilds:   req.user.guilds.filter(g => (parseInt(g.permissions) & 0x8) === 0x8) // Only return guilds where user is admin
+  });
 });
 
-const ensureAuth = (req, res, next) => {
-  if (req.isAuthenticated()) return next();
-  res.status(401).json({ error: 'Unauthorized' });
-};
-
-// ── Redis Pub/Sub for Live Dashboard ─────────────────────────
-const subRedis = process.env.REDIS_URL ? new Redis(process.env.REDIS_URL) : new Redis({
-  host: process.env.REDIS_HOST || 'localhost',
-  port: parseInt(process.env.REDIS_PORT) || 6379,
-  password: process.env.REDIS_PASSWORD || undefined,
-  db: parseInt(process.env.REDIS_DB) || 0,
-});
-
-subRedis.subscribe('aura:modlogs');
-subRedis.on('message', (channel, message) => {
-  if (channel === 'aura:modlogs') {
-    try {
-      const data = JSON.parse(message);
-      io.emit('modLog', data);
-    } catch (err) {
-      logger.error('Failed to parse modlog message:', err);
-    }
-  }
-});
-
-// ── API Routes ──────────────────────────────────────────────
+// ── API Routes (Public/Health) ────────────────────────────────
 app.get('/api/health', (req, res) => res.json({ status: 'ok', uptime: process.uptime() }));
 
-// Stats Overview
+// ── API Routes (Protected) ────────────────────────────────────
+
+// Global Stats
 app.get('/api/stats', async (req, res) => {
   try {
-    const { GuildSettings, UserProfile, ModerationCase, Ticket } = database.models;
-    const [guilds, users, cases, tickets] = await Promise.all([
+    const { GuildSettings, UserProfile } = database.models;
+    const [guilds, users] = await Promise.all([
       GuildSettings.count(),
-      UserProfile.count(),
-      ModerationCase.count(),
-      Ticket.count()
+      UserProfile.count()
     ]);
-    res.json({ guilds, users, cases, tickets, uptime: Math.floor(process.uptime()) });
+    res.json({ guilds, users, uptime: Math.floor(process.uptime()) });
   } catch (err) {
-    logger.error('[Dashboard API] Stats failure:', err.message);
-    res.status(500).json({ error: 'Failed' });
+    logger.error(`[Dashboard API] Stats error: ${err.message}`);
+    res.status(502).json({ error: 'Database synchronization failed' });
   }
 });
 
-// Guild Operations
-app.get('/api/guilds', async (req, res) => {
+// User's Authorized Guilds
+app.get('/api/guilds', ensureAuth, async (req, res) => {
   try {
-    const guilds = await database.models.GuildSettings.findAll({
-      order: [['createdAt', 'DESC']]
+    const adminGuildIds = req.user.guilds
+      .filter(g => (parseInt(g.permissions) & 0x8) === 0x8)
+      .map(g => g.id);
+
+    const activeGuilds = await database.models.GuildSettings.findAll({
+      where: { guildId: adminGuildIds }
     });
-    res.json(guilds);
+    res.json(activeGuilds);
   } catch (err) {
-    logger.error('[Dashboard API] Guilds failure:', err.message);
-    res.status(500).json({ error: 'Failed' });
+    logger.error(`[Dashboard API] Guilds error: ${err.message}`);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-app.get('/api/guilds/:guildId', async (req, res) => {
+// Specific Guild Config
+app.get('/api/guilds/:guildId', ensureAuth, async (req, res) => {
+  const { guildId } = req.params;
+  const isAdmin = req.user.guilds.some(g => g.id === guildId && (parseInt(g.permissions) & 0x8) === 0x8);
+  if (!isAdmin) return res.status(403).json({ error: 'Forbidden' });
+
   try {
-    const settings = await database.models.GuildSettings.findByPk(req.params.guildId);
-    if (!settings) return res.status(404).json({ error: 'Not found' });
-    res.json({ settings });
+    const settings = await database.models.GuildSettings.findByPk(guildId);
+    if (!settings) return res.status(404).json({ error: 'Guild not found' });
+    res.json(settings);
   } catch (err) {
-    res.status(500).json({ error: 'Failed' });
+    res.status(500).json({ error: 'Error fetching guild settings' });
   }
 });
 
-app.patch('/api/guilds/:guildId/settings', async (req, res) => {
-  try {
-    const settings = await database.models.GuildSettings.findByPk(req.params.guildId);
-    if (!settings) return res.status(404).json({ error: 'Not found' });
-    await settings.update(req.body);
-    res.json({ success: true, settings });
-  } catch (err) {
-    res.status(500).json({ error: 'Failed' });
-  }
-});
-
-// Applications
-app.get('/api/guilds/:guildId/applications', async (req, res) => {
-  try {
-    const apps = await database.models.StaffApplication.findAll({
-      where: { guildId: req.params.guildId },
-      order: [['createdAt', 'DESC']]
-    });
-    res.json(apps);
-  } catch (err) {
-    res.status(500).json({ error: 'Failed' });
-  }
-});
-
-app.patch('/api/applications/:id', async (req, res) => {
-  try {
-    const app = await database.models.StaffApplication.findByPk(req.params.id);
-    if (!app) return res.status(404).json({ error: 'Not found' });
-    await app.update(req.body);
-    res.json({ success: true, app });
-  } catch (err) {
-    res.status(500).json({ error: 'Failed' });
-  }
-});
-
-// Command List (Automated Discovery)
+// Command List with Memory Caching
 app.get('/api/commands', async (req, res) => {
+  if (commandCache) return res.json(commandCache);
+
   try {
-    const commands = [];
+    const discovered = [];
     const scanDir = async (dirPath) => {
-      if (!readdirSync(dirPath)) return;
-      for (const entry of readdirSync(dirPath)) {
-        const full = join(dirPath, entry);
-        if (statSync(full).isDirectory()) { await scanDir(full); continue; }
+      const entries = readdirSync(dirPath);
+      for (const entry of entries) {
+        const fullPath = join(dirPath, entry);
+        if (statSync(fullPath).isDirectory()) {
+          await scanDir(fullPath);
+          continue;
+        }
         if (!entry.endsWith('.js')) continue;
+
         try {
-          const mod = await import(pathToFileURL(full).href);
-          const process = (m) => {
-            if (m?.data) commands.push({ name: m.data.name, description: m.data.description, category: dirPath.split(/[\\/]/).pop() });
-          };
-          if (mod.default) process(mod.default);
-          for (const v of Object.values(mod)) process(v);
+          const { default: cmd } = await import(pathToFileURL(fullPath).href);
+          if (cmd?.data) {
+            discovered.push({
+              name:        cmd.data.name,
+              description: cmd.data.description,
+              category:    dirPath.split(/[\\/]/).pop(),
+            });
+          }
         } catch {}
       }
     };
+
     await scanDir(join(__dirname, '../commands'));
-    const unique = Array.from(new Map(commands.map(c => [c.name, c])).values());
-    res.json(unique);
+    commandCache = Array.from(new Map(discovered.map(c => [c.name, c])).values());
+    res.json(commandCache);
   } catch (err) {
-    res.status(500).json({ error: 'Failed' });
+    res.status(500).json({ error: 'Discovery failed' });
   }
 });
 
-// Subscriptions
+// Subscriptions Config
 app.get('/api/subscriptions', (req, res) => {
   res.json([
-    { id: 'free', name: 'Free', price: '0', color: '#8b8b9e', features: ['AI Chat (Limited)', 'Basic Moderation', 'Economy', 'Leveling'] },
-    { id: 'premium', name: 'Premium', price: '4.99', color: '#CA8A04', features: ['Unlimited AI Chat', 'Custom Automations (100)', 'Timed Messages', 'Premium Embeds', 'Priority Support'] },
-    { id: 'dev', name: 'Developer Tools', price: 'Exclusive', color: '#00cec9', features: ['Code Injection', 'Database Explorer', 'System Metrics (Detailed)', 'API Access'], exclusive: 'Lenin' }
+    { id: 'free',    name: 'Standard Core', price: '0',     color: '#94A3B8', features: ['AI Chat (10 req/day)', 'Moderation', 'Economy'] },
+    { id: 'premium', name: 'Neural Elite', price: '4.99',  color: '#F59E0B', features: ['Unlimited AI', 'Custom Commands', 'Priority Sync'] },
+    { id: 'dev',     name: 'Hyperion Dev',   price: 'Grant', color: '#7000FF', features: ['Terminal Access', 'Direct DB Link'], exclusive: 'Lenin' }
   ]);
 });
 
-// ── Socket.IO ────────────────────────────────────────────────
+// ── Socket.IO Real-time Bridge ──────────────────────────────
 io.on('connection', (socket) => {
-  const sendStats = async () => {
+  logger.debug(`[Socket] New connection: ${socket.id}`);
+
+  const broadcastStats = async () => {
     try {
-      const g = await database.models.GuildSettings.count();
-      const u = await database.models.UserProfile.count();
+      const [g, u] = await Promise.all([
+        database.models.GuildSettings.count(),
+        database.models.UserProfile.count()
+      ]);
       socket.emit('stats', { guilds: g, users: u, uptime: Math.floor(process.uptime()) });
     } catch {}
   };
-  sendStats();
-  const iv = setInterval(sendStats, 5000);
-  socket.on('disconnect', () => clearInterval(iv));
+
+  broadcastStats();
+  const interval = setInterval(broadcastStats, 10000); // 10s intervals for production stability
+
+  socket.on('disconnect', () => clearInterval(interval));
 });
 
-// ── Boot ──────────────────────────────────────────────────────
+// ── Redis ModLog Subscription ────────────────────────────────
+const modSub = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
+modSub.subscribe('aura:modlogs');
+modSub.on('message', (channel, message) => {
+  if (channel === 'aura:modlogs') {
+    try { io.emit('modLog', JSON.parse(message)); } catch {}
+  }
+});
+
+// ── Catch-all & Error Handling ──────────────────────────────
 app.get('*', (req, res) => res.sendFile(join(__dirname, 'public', 'index.html')));
 
-// ── Service Initialization ──────────────────────────────────
-async function initializeServices() {
+app.use((err, req, res, next) => {
+  logger.error(`[Dashboard Server] Error: ${err.message}`);
+  res.status(500).json({ error: 'Stable error boundary reached.' });
+});
+
+// ── Start ───────────────────────────────────────────────────
+const start = async () => {
   try {
-    logger.info('[Dashboard] Verifying connections...');
-    
-    // 1. Database
     await database.authenticate();
-    logger.info('[Dashboard] Database connection verified ✓');
-
-    // 2. Redis
     await redis.ping();
-    logger.info('[Dashboard] Redis connection verified ✓');
-
-    // 3. AI Service (if dashboard uses it for /search or similar)
-    // import aiService from '../systems/ai/aiService.js';
-    // await aiService.init();
-
-    logger.info('[Dashboard] All background services ready ✓');
-  } catch (err) {
-    throw new Error(`Service initialization failed: ${err.message}`);
-  }
-}
-
-async function startDashboard() {
-  httpServer.listen(PORT, '0.0.0.0', () => {
-    logger.info(`[Dashboard] ✨ Listening on port ${PORT} (0.0.0.0)`);
-    logger.info(`[Dashboard] 🚀 View at: http://localhost:${PORT}`);
     
-    // Non-blocking initialization
-    initializeServices().catch(err => {
-      logger.error('[Dashboard] Critical failure during background init:', err);
+    httpServer.listen(PORT, '0.0.0.0', () => {
+      logger.info(`[Dashboard] Aura Neural Dashboard live on port ${PORT} ✓`);
     });
-  });
+  } catch (err) {
+    logger.error(`[Dashboard] Failed to start: ${err.message}`);
+    process.exit(1);
+  }
 };
 
-startDashboard();
+start();
 export { io };

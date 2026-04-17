@@ -1,10 +1,7 @@
 // ================================================================
 //  Ticket System v2 — Create, Close, Claim, Transcripts
 // ================================================================
-import { 
-  ChannelType, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle, 
-  AttachmentBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder 
-} from 'discord.js';
+import { trackActivity } from '../staff/staffSystem.js';
 import { buildEmbed } from '../../utils/embedBuilder.js';
 import config         from '../../../config/config.js';
 import logger         from '../../utils/logger.js';
@@ -107,8 +104,11 @@ export async function handleButton(client, interaction, args) {
     const { Ticket } = client.db.models;
     const ticket = await Ticket.findOne({ where: { ticketId, guildId: interaction.guildId } });
     if (!ticket) return interaction.reply({ embeds: [buildEmbed({ type: 'error', description: '❌ Ticket not found.' })], ephemeral: true });
-    if (ticket.claimedBy) return interaction.reply({ embeds: [buildEmbed({ type: 'warning', description: `Already claimed by <@${ticket.claimedBy}>.` })], ephemeral: true });
     await ticket.update({ claimedBy: interaction.user.id, status: 'claimed', firstResponseAt: new Date() });
+    
+    // Track Staff Activity
+    await trackActivity(client, interaction.guildId, interaction.user.id, 'ticket');
+    
     await interaction.channel?.send({ embeds: [buildEmbed({ type: 'success', description: `🙋 Claimed by <@${interaction.user.id}>.` })] });
     return interaction.reply({ embeds: [buildEmbed({ type: 'success', description: '✅ Ticket claimed.' })], ephemeral: true });
   }
