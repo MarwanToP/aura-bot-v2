@@ -4,56 +4,53 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Bot Innovations — Intelligence Dashboard</title>
-  <meta name="description" content="Premium Bot Dashboard — Liquid Glass Design System">
+  <title>Aura — Intelligence Dashboard</title>
+  <meta name="description" content="State-of-the-Art Discord Intelligence Dashboard">
   
-  <!-- Fonts: Fira Code & Fira Sans -->
+  <!-- Fonts: Inter & Outfit -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Fira+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@300;400;600;800&family=Fira+Code:wght@400;600&display=swap" rel="stylesheet">
   
   <!-- Icons: Lucide -->
   <script src="https://unpkg.com/lucide@latest"></script>
   
   <!-- Socket.IO -->
-  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  <script src="/socket.io/socket.io.js"></script>
 
   <style>
     :root {
-      --primary: #050505;
-      --secondary: #71717A;
-      --accent: #F59E0B; /* Amber/Gold */
-      --holo-1: #00F2FE; /* Cyan */
-      --holo-2: #4FACFE; /* Blue */
-      --holo-3: #D0E1FF; /* Soft Blue */
-      --holo-grad: linear-gradient(135deg, #00F2FE 0%, #4FACFE 50%, #D0E1FF 100%);
-      --bg: #FAFAF9;
-      --text: #09090B;
-      --glass: rgba(255, 255, 255, 0.4);
-      --glass-dark: rgba(9, 9, 11, 0.8);
-      --border: rgba(0, 0, 0, 0.05);
-      --radius: 24px;
-      --shadow: 0 8px 32px rgba(0, 0, 0, 0.03);
-      --transition: all 500ms cubic-bezier(0.23, 1, 0.32, 1);
+      --bg: #030303;
+      --text: #ffffff;
+      --accent: #F59E0B; /* Solar Gold */
+      --holo-cyan: #00F2FE;
+      --holo-blue: #4FACFE;
+      --holo-purple: #7000FF;
+      --secondary: #94A3B8;
+      --glass: rgba(255, 255, 255, 0.03);
+      --glass-border: rgba(255, 255, 255, 0.08);
+      --glass-heavy: rgba(10, 10, 12, 0.85);
+      --radius-sm: 16px;
+      --radius-md: 24px;
+      --radius-lg: 32px;
+      --shadow: 0 10px 40px -10px rgba(0,0,0,0.5);
+      --transition: all 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
     }
 
-    [data-theme="dark"] {
-      --bg: #050505;
-      --text: #FAFAF9;
-      --glass: rgba(15, 15, 15, 0.6);
-      --border: rgba(255, 255, 255, 0.1);
-      --shadow: 0 12px 64px rgba(0, 0, 0, 0.6);
+    [data-theme="light"] {
+      --bg: #F8FAFC;
+      --text: #0F172A;
+      --glass: rgba(0, 0, 0, 0.03);
+      --glass-border: rgba(0, 0, 0, 0.05);
+      --glass-heavy: rgba(255, 255, 255, 0.9);
+      --secondary: #64748B;
     }
 
     * {
       margin: 0;
       padding: 0;
       box-sizing: border-box;
-      font-family: 'Fira Sans', sans-serif;
-    }
-
-    code, .tech-font {
-      font-family: 'Fira Code', monospace;
+      font-family: 'Outfit', sans-serif;
     }
 
     body {
@@ -61,573 +58,430 @@
       color: var(--text);
       min-height: 100vh;
       overflow-x: hidden;
+      overflow-y: overlay;
     }
 
-    /* ── Background Prism Effects ────────────────────────── */
-    .bg-blobs {
+    /* ── Futuristic Background ─────────────────────────── */
+    .nebula {
       position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
+      top: 0; left: 0; width: 100%; height: 100%;
       z-index: -1;
       overflow: hidden;
-      filter: blur(120px);
-      opacity: 0.35;
+      filter: blur(80px);
+      opacity: 0.6;
     }
 
-    .blob {
+    .shard {
       position: absolute;
-      width: 50vw;
-      height: 50vw;
       border-radius: 50%;
-      animation: morph 25s infinite alternate;
+      filter: blur(40px);
+      animation: drift 30s infinite linear alternate;
     }
 
-    .blob-1 { top: -15%; left: -10%; background: var(--accent); opacity: 0.25; }
-    .blob-2 { bottom: -15%; right: -10%; background: var(--holo-1); opacity: 0.2; }
-    .blob-3 { top: 40%; right: -20%; background: var(--holo-2); opacity: 0.15; }
+    .shard-1 { width: 60vw; height: 60vw; top: -20%; left: -10%; background: radial-gradient(circle, var(--accent) 0%, transparent 70%); opacity: 0.15; }
+    .shard-2 { width: 50vw; height: 50vw; bottom: -10%; right: -5%; background: radial-gradient(circle, var(--holo-cyan) 0%, transparent 70%); opacity: 0.12; }
+    .shard-3 { width: 40vw; height: 40vw; top: 30%; right: -10%; background: radial-gradient(circle, var(--holo-purple) 0%, transparent 70%); opacity: 0.1; }
 
-    @keyframes morph {
-      0% { transform: translate(0, 0) scale(1) rotate(0deg); border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%; }
-      100% { transform: translate(15%, 15%) scale(1.2) rotate(120deg); border-radius: 30% 60% 70% 40% / 50% 60% 30% 60%; }
+    @keyframes drift {
+      0% { transform: translate(0,0) scale(1) rotate(0deg); }
+      100% { transform: translate(10%, 5%) scale(1.1) rotate(45deg); }
     }
 
-    /* ── Layout ───────────────────────────────────────── */
-    .main {
-      padding: 120px 48px 48px;
-      max-width: 1440px;
+    /* ── Premium Layout ────────────────────────────────── */
+    .main-wrap {
+      max-width: 1400px;
       margin: 0 auto;
+      padding: 130px 24px 60px;
     }
 
+    /* ── Floating Header (Center View) ────────────────── */
     header {
       position: fixed;
-      top: 16px;
+      top: 24px;
       left: 50%;
       transform: translateX(-50%);
-      width: calc(100% - 32px);
-      max-width: 1400px;
-      height: 72px;
-      padding: 0 24px;
-      background: var(--glass);
-      backdrop-filter: blur(64px) saturate(200%);
-      -webkit-backdrop-filter: blur(64px) saturate(200%);
-      border: 1px solid var(--border);
-      border-radius: 24px;
+      width: calc(100% - 48px);
+      max-width: 1200px;
+      height: 80px;
+      background: var(--glass-heavy);
+      backdrop-filter: blur(50px) saturate(180%);
+      -webkit-backdrop-filter: blur(50px) saturate(180%);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-lg);
       display: flex;
       justify-content: space-between;
       align-items: center;
-      z-index: 1000;
-      box-shadow: var(--shadow);
-    }
-    
-    header::before {
-      content: '';
-      position: absolute;
-      top: 0; left: 0; right: 0; bottom: 0;
-      border-radius: 24px;
-      padding: 1px;
-      background: linear-gradient(135deg, rgba(255,255,255,0.2), transparent, rgba(245,158,11,0.1));
-      -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-      mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-      -webkit-mask-composite: xor;
-      mask-composite: exclude;
-      pointer-events: none;
+      padding: 0 32px;
+      z-index: 2000;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.3);
     }
 
     .brand {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 16px;
     }
 
-    .brand-logo {
-      width: 40px;
-      height: 40px;
-      background: var(--accent);
+    .brand-core {
+      width: 44px;
+      height: 44px;
+      background: linear-gradient(135deg, var(--accent), var(--holo-purple));
       border-radius: 12px;
       display: flex;
       align-items: center;
       justify-content: center;
-      color: white;
-      box-shadow: 0 0 20px rgba(245, 158, 11, 0.4);
+      box-shadow: 0 0 25px rgba(245, 158, 11, 0.4);
+      position: relative;
     }
-    
-    .brand-logo i { width: 20px; height: 20px; }
 
-    .nav {
+    .brand-core::after {
+      content: '';
       position: absolute;
-      left: 50%;
-      transform: translateX(-50%);
-      display: flex;
-      gap: 8px;
+      top: -2px; left: -2px; right: -2px; bottom: -2px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, var(--accent), var(--holo-cyan));
+      z-index: -1;
+      opacity: 0.4;
+      animation: pulse-border 3s infinite;
     }
 
-    .nav-item {
+    @keyframes pulse-border {
+      0% { transform: scale(1); opacity: 0.4; }
+      50% { transform: scale(1.1); opacity: 0.1; }
+      100% { transform: scale(1); opacity: 0.4; }
+    }
+
+    .nav-cluster {
       display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 10px 16px;
-      border-radius: 14px;
+      background: rgba(255,255,255,0.02);
+      padding: 6px;
+      border-radius: 20px;
+      gap: 4px;
+    }
+
+    .nav-btn {
+      padding: 10px 20px;
+      border-radius: 15px;
       text-decoration: none;
       color: var(--secondary);
       font-weight: 600;
       font-size: 14px;
       transition: var(--transition);
       cursor: pointer;
-    }
-
-    .nav-item:hover {
-      background: rgba(255, 255, 255, 0.05);
-      color: var(--text);
-    }
-
-    .nav-item.active {
-      color: var(--accent);
-      background: rgba(245, 158, 11, 0.08);
-    }
-    
-    .nav-item.active i {
-      filter: drop-shadow(0 0 8px var(--accent));
-      animation: heartBeat 2s infinite;
-    }
-    
-    @keyframes heartBeat {
-      0% { transform: scale(1); opacity: 0.8; }
-      50% { transform: scale(1.1); opacity: 1; }
-      100% { transform: scale(1); opacity: 0.8; }
-    }
-
-    .user-profile {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 10px;
     }
 
-    .avatar {
-      width: 32px;
-      height: 32px;
-      border-radius: 50%;
-      background: var(--secondary);
-      border: 1.5px solid var(--accent);
+    .nav-btn:hover { color: var(--text); background: rgba(255,255,255,0.03); }
+    .nav-btn.active { 
+      color: var(--text); 
+      background: var(--glass);
+      box-shadow: inset 0 0 0 1px var(--glass-border);
     }
 
-    .pulse-glow {
-      box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4);
-      animation: pulse-glow 2s infinite;
-    }
-    @keyframes pulse-glow {
-      0% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4); }
-      70% { box-shadow: 0 0 0 12px rgba(245, 158, 11, 0); }
-      100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
+    .nav-btn.active i {
+      color: var(--accent);
+      filter: drop-shadow(0 0 8px var(--accent));
+      animation: heartbeat 2s infinite;
     }
 
-    /* ── Sections ───────────────────────────────────────── */
-    .section {
-      display: none;
-      animation: fadeIn 800ms cubic-bezier(0.16, 1, 0.3, 1);
+    @keyframes heartbeat {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.15); }
+      100% { transform: scale(1); }
     }
 
-    .section.active {
-      display: block;
-    }
-
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(20px) scale(0.98); }
-      to { opacity: 1; transform: translateY(0) scale(1); }
-    }
-
-    /* ── Cards Grid ─────────────────────────────────────── */
+    /* ── Cards & Grid ──────────────────────────────────── */
     .grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
       gap: 32px;
       margin-bottom: 48px;
     }
 
-    .card {
+    .aura-card {
       background: var(--glass);
-      backdrop-filter: blur(48px) saturate(180%);
-      -webkit-backdrop-filter: blur(48px) saturate(180%);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
+      backdrop-filter: blur(40px);
+      -webkit-backdrop-filter: blur(40px);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-lg);
       padding: 40px;
       transition: var(--transition);
       position: relative;
       overflow: hidden;
-      box-shadow: var(--shadow);
     }
-    
-    .card::before {
+
+    .aura-card:hover {
+      transform: translateY(-10px);
+      background: rgba(255,255,255,0.05);
+      border-color: rgba(245,158,11,0.2);
+      box-shadow: 0 30px 60px -15px rgba(0,0,0,0.6);
+    }
+
+    .aura-card::before {
       content: '';
       position: absolute;
-      top: 0; left: 0; right: 0; bottom: 0;
-      border-radius: var(--radius);
-      padding: 1px;
-      background: linear-gradient(135deg, rgba(255,255,255,0.1), transparent, rgba(0,242,254,0.05));
-      -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-      mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-      -webkit-mask-composite: xor;
-      mask-composite: exclude;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, transparent 50%);
       pointer-events: none;
     }
 
-    .card:hover {
-      transform: translateY(-8px) scale(1.02);
-      box-shadow: 0 32px 64px rgba(0, 0, 0, 0.2);
-      border-color: rgba(245, 158, 11, 0.3);
-    }
-
-    .card-icon {
-      margin-bottom: 24px;
-      color: var(--accent);
-      width: 48px;
-      height: 48px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: rgba(245, 158, 11, 0.1);
-      border-radius: 14px;
-    }
-
-    .card-label {
-      font-size: 0.8rem;
-      font-weight: 700;
-      color: var(--secondary);
-      text-transform: uppercase;
-      letter-spacing: 2px;
-      margin-bottom: 12px;
-    }
-
-    .card-value {
-      font-size: 3rem;
+    .metric-val {
+      font-size: 3.5rem;
       font-weight: 800;
-      letter-spacing: -1.5px;
-      background: linear-gradient(135deg, var(--text) 0%, var(--secondary) 100%);
+      letter-spacing: -2px;
+      background: linear-gradient(to right, #fff, #94a3b8);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
+      margin: 10px 0;
     }
 
-    .badge {
-      padding: 4px 12px;
-      border-radius: 20px;
-      font-size: 10px;
-      font-weight: 800;
-      letter-spacing: 1px;
-      background: var(--border);
+    .metric-tag {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      color: var(--secondary);
+      text-transform: uppercase;
     }
 
-    .pill.gold {
-      background: linear-gradient(135deg, #CA8A04, #FACC15);
-      color: white;
-      text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+    /* ── Sections ──────────────────────────────────────── */
+    .section { display: none; animation: slideUp 0.8s cubic-bezier(0.16, 1, 0.3, 1); }
+    .section.active { display: block; }
+
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(30px) scale(0.98); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
     }
 
-    /* ── Subscriptions ──────────────────────────────────── */
-    .plan-card {
-      display: flex;
-      flex-direction: column;
-      gap: 24px;
-    }
-    .plan-card.featured {
-      border: 2px solid var(--accent);
-      background: rgba(245, 158, 11, 0.05);
-    }
-    .plan-price { font-size: 3.5rem; font-weight: 800; }
-    .plan-price span { font-size: 1rem; color: var(--secondary); }
-    .feature-list { list-style: none; display: flex; flex-direction: column; gap: 12px; }
-    .feature-item { display: flex; align-items: center; gap: 12px; font-size: 0.95rem; }
-    .feature-item i { color: var(--accent); }
-
+    /* ── Buttons ───────────────────────────────────────── */
     .btn {
-      padding: 16px 32px;
-      border-radius: 14px;
+      padding: 14px 28px;
+      border-radius: 16px;
       font-weight: 700;
       cursor: pointer;
       border: none;
       transition: var(--transition);
-      text-decoration: none;
       display: inline-flex;
       align-items: center;
-      justify-content: center;
-      gap: 8px;
-    }
-    .btn-primary { background: var(--accent); color: white; box-shadow: 0 8px 16px rgba(245, 158, 11, 0.2); }
-    .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
-    .btn-primary:hover { transform: scale(1.02); box-shadow: 0 12px 24px rgba(245, 158, 11, 0.3); }
-
-    .hidden { display: none !important; }
-
-    /* ── Interactions ───────────────────────────────────── */
-    .switch {
-      position: relative;
-      display: inline-block;
-      width: 44px;
-      height: 24px;
-    }
-    .switch input { opacity: 0; width: 0; height: 0; }
-    .slider {
-      position: absolute;
-      cursor: pointer;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background-color: var(--secondary);
-      transition: .4s;
-      border-radius: 24px;
-    }
-    .slider:before {
-      position: absolute;
-      content: "";
-      height: 18px; width: 18px;
-      left: 3px; bottom: 3px;
-      background-color: white;
-      transition: .4s;
-      border-radius: 50%;
-    }
-    input:checked + .slider { background-color: var(--accent); }
-    input:checked + .slider:before { transform: translateX(20px); }
-
-    .activity-item {
-      display: flex;
       gap: 12px;
-      padding: 16px;
-      border-bottom: 1px solid var(--border);
-      animation: slideIn 0.4s ease;
+      text-decoration: none;
     }
-    @keyframes slideIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
+
+    .btn-aura {
+      background: linear-gradient(135deg, var(--accent), #d97706);
+      color: white;
+      box-shadow: 0 10px 25px rgba(245, 158, 11, 0.3);
+    }
+
+    .btn-ghost {
+      background: var(--glass);
+      border: 1px solid var(--glass-border);
+      color: white;
+    }
+
+    .btn-aura:hover { transform: translateY(-3px) scale(1.02); box-shadow: 0 15px 35px rgba(245, 158, 11, 0.4); }
+
+    /* ── Custom UI Components ─────────────────────────── */
+    .feed {
+      height: 350px;
+      overflow-y: auto;
+      padding-right: 10px;
+    }
+    .feed::-webkit-scrollbar { width: 4px; }
+    .feed::-webkit-scrollbar-thumb { background: var(--glass-border); border-radius: 10px; }
+
+    .feed-item {
+      padding: 16px;
+      border-radius: var(--radius-sm);
+      background: rgba(255,255,255,0.02);
+      border: 1px solid var(--glass-border);
+      margin-bottom: 12px;
+      animation: entry 0.5s ease backwards;
+    }
+    @keyframes entry { from { opacity: 0; transform: translateX(-15px); } to { opacity: 1; transform: translateX(0); } }
+
+    /* ── Pro Plans ─────────────────────────────────────── */
+    .plan-box {
+      border: 1px solid var(--glass-border);
+      padding: 48px;
+      border-radius: var(--radius-lg);
+      transition: var(--transition);
+    }
+    .plan-box.premium {
+      background: radial-gradient(circle at top right, rgba(245,158,11,0.05), transparent);
+      border-color: rgba(245,158,11,0.3);
+    }
+    .plan-price { font-size: 3rem; font-weight: 800; font-family: 'Outfit'; }
+    .plan-price span { font-size: 1rem; color: var(--secondary); }
+
+    .badge-dev {
+      background: linear-gradient(135deg, #00cec9, #0984e3);
+      padding: 4px 12px;
+      border-radius: 8px;
+      font-size: 10px;
+      font-weight: 800;
+      color: white;
+      letter-spacing: 1px;
+    }
   </style>
 </head>
 
 <body>
-  <div class="bg-blobs">
-    <div class="blob blob-1"></div>
-    <div class="blob blob-2"></div>
-    <div class="blob blob-3"></div>
+  <div class="nebula">
+    <div class="shard shard-1"></div>
+    <div class="shard shard-2"></div>
+    <div class="shard shard-3"></div>
   </div>
 
   <header>
     <div class="brand">
-      <div class="brand-logo"><i data-lucide="zap"></i></div>
-      <span class="brand-name" style="font-weight: 800; font-size: 1.1rem; letter-spacing: -0.5px;">Innovations</span>
+      <div class="brand-core"><i data-lucide="zap" style="color: white; width: 22px;"></i></div>
+      <span style="font-size: 1.4rem; font-weight: 800; letter-spacing: -1px;">AURA<span style="color: var(--accent);">.</span></span>
     </div>
 
-    <nav class="nav">
-      <a class="nav-item active" onclick="showSection('dashboard', this)">
-        <i data-lucide="layout-dashboard"></i>
-        <span>Dashboard</span>
-      </a>
-      <a class="nav-item" onclick="showSection('guilds', this)">
-        <i data-lucide="shield"></i>
-        <span>Servers</span>
-      </a>
-      <a class="nav-item" onclick="showSection('ecosystem', this)">
-        <i data-lucide="blocks"></i>
-        <span>Ecosystem</span>
-      </a>
-      <a class="nav-item" onclick="showSection('subscriptions', this)">
-        <i data-lucide="credit-card"></i>
-        <span>Pro</span>
-      </a>
+    <div class="nav-cluster">
+      <a class="nav-btn active" onclick="showSection('dashboard', this)"><i data-lucide="layout-grid"></i> Dashboard</a>
+      <a class="nav-btn" onclick="showSection('guilds', this)"><i data-lucide="shield"></i> Servers</a>
+      <a class="nav-btn" onclick="showSection('ecosystem', this)"><i data-lucide="cpu"></i> Ecosystem</a>
+      <a class="nav-btn" onclick="showSection('plans', this)"><i data-lucide="gem"></i> Pro</a>
       <div id="leninNav" class="hidden">
-        <a class="nav-item" onclick="showSection('devtools', this)" style="color: #00cec9;">
-          <i data-lucide="cpu"></i>
-          <span>Dev</span>
-        </a>
+        <a class="nav-btn" onclick="showSection('devtools', this)" style="color: var(--holo-cyan);"><i data-lucide="binary"></i> Terminal</a>
       </div>
-    </nav>
+    </div>
 
-    <div style="display: flex; align-items: center; gap: 12px;">
-      <a class="nav-item" onclick="toggleTheme()" style="padding: 8px; border-radius: 12px; border: 1px solid var(--border);">
-        <i data-lucide="moon" id="themeIcon" style="width: 18px; height: 18px;"></i>
-      </a>
-      <div class="user-profile" id="userProfile" style="min-width: 180px; display: flex; justify-content: flex-end;">
-        <span style="font-size: 11px; color: var(--secondary); font-weight: 600;">Neural Unit...</span>
+    <div style="display: flex; align-items: center; gap: 16px;">
+      <div id="themeToggle" onclick="toggleTheme()" style="cursor: pointer; color: var(--secondary);"><i data-lucide="moon" id="themeIcon"></i></div>
+      <div id="userProfile">
+         <!-- Profile inject -->
+         <button class="btn btn-ghost" style="padding: 10px 20px; font-size: 13px;" onclick="location.href='/auth/discord'">Sign In</button>
       </div>
     </div>
   </header>
 
-  <main class="main">
-    <div style="margin-bottom: 64px; text-align: center;">
-      <h2 id="pageTitle" style="font-size: 3rem; letter-spacing: -2px; font-weight: 800;">Command Center</h2>
-      <p id="pageSubtitle" style="color: var(--secondary); font-size: 1rem; letter-spacing: 2px;">AURA INTELLIGENCE MONITORING SYSTEM</p>
+  <main class="main-wrap">
+    <div id="welcomeHeader" style="margin-bottom: 60px;">
+      <h1 style="font-size: 4rem; font-weight: 800; letter-spacing: -3px; line-height: 0.9;">Neural Control<br><span style="color: var(--accent);">Interface.</span></h1>
+      <p style="color: var(--secondary); margin-top: 20px; letter-spacing: 4px; font-weight: 600; font-size: 0.75rem;">AURA INTELLIGENCE v2.0 // ESTABLISHED 2026</p>
     </div>
 
-    <!-- Dashboard Section -->
+    <!-- Dashboard -->
     <section id="dashboard" class="section active">
       <div class="grid">
-        <div class="card">
-          <div class="card-icon"><i data-lucide="server"></i></div>
-          <div class="card-label">Active Guilds</div>
-          <div class="card-value tech-font" id="statGuilds">0</div>
+        <div class="aura-card">
+          <div class="metric-tag">Active Guilds</div>
+          <div class="metric-val tech-font" id="statGuilds">0</div>
+          <div style="font-size: 12px; color: #00cec9; display: flex; align-items: center; gap: 4px;"><i data-lucide="trending-up" style="width:14px;"></i> Live Sync</div>
         </div>
-        <div class="card">
-          <div class="card-icon"><i data-lucide="users"></i></div>
-          <div class="card-label">Total Users</div>
-          <div class="card-value tech-font" id="statUsers">0</div>
+        <div class="aura-card">
+          <div class="metric-tag">Memory Points</div>
+          <div class="metric-val tech-font" id="statUsers">0</div>
+          <div style="font-size: 12px; color: var(--secondary);">Total verified users</div>
         </div>
-        <div class="card">
-          <div class="card-icon"><i data-lucide="activity"></i></div>
-          <div class="card-label">System Uptime</div>
-          <div class="card-value tech-font" id="statUptime">0h 0m</div>
+        <div class="aura-card">
+          <div class="metric-tag">Uptime Constant</div>
+          <div class="metric-val tech-font" id="statUptime">0h 0m</div>
+          <div style="font-size: 12px; color: var(--accent);">99.99% Core Stability</div>
         </div>
       </div>
 
       <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 32px;">
-        <div class="card" style="padding: 40px; background: linear-gradient(135deg, rgba(245, 158, 11, 0.05), transparent);">
-          <h3 style="margin-bottom: 24px;">Global System Status</h3>
-          <div style="display: flex; gap: 40px; align-items: center;">
-            <div style="text-align: center;">
-              <div class="tech-font" style="font-size: 24px; color: #00cec9;">99.9%</div>
-              <div style="font-size: 10px; color: var(--secondary);">CORE STABILITY</div>
-            </div>
-            <div style="text-align: center;">
-              <div class="tech-font" style="font-size: 24px; color: var(--accent);">24ms</div>
-              <div style="font-size: 10px; color: var(--secondary);">NEURAL LATENCY</div>
-            </div>
+        <div class="aura-card">
+          <h3 style="margin-bottom: 30px; letter-spacing: -1px;">Intelligence Nexus</h3>
+          <div id="globalModLogs" class="feed">
+             <div style="text-align: center; color: var(--secondary); margin-top: 100px;">
+                <i data-lucide="satellite-dish" style="width: 48px; height: 48px; opacity: 0.2; margin-bottom: 16px;"></i>
+                <p>Establishing encrypted link to neural core...</p>
+             </div>
           </div>
         </div>
-        <div class="card">
-          <h4 style="margin-bottom: 20px; font-size: 14px; text-transform: uppercase; letter-spacing: 1px;">Intelligence Feed</h4>
-          <div id="globalModLogs" style="height: 180px; overflow-y: auto; font-size: 12px;">
-            <p style="color: var(--secondary);">Waiting for neural signals...</p>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Subscriptions Section -->
-    <section id="subscriptions" class="section">
-      <div class="grid" id="planGrid">
-        <!-- Plans will be rendered here -->
-      </div>
-    </section>
-
-    <!-- Guilds List Section -->
-    <section id="guilds" class="section">
-      <div class="manager-controls">
-        <input type="text" placeholder="Search servers..." class="search-input" id="guildSearch">
-      </div>
-      <div class="grid" id="guildList">
-        <!-- Guilds will be rendered here -->
-      </div>
-    </section>
-
-    <!-- Commands Section -->
-    <section id="commands" class="section">
-      <div class="manager-controls">
-        <input type="text" placeholder="Filter commands..." class="search-input" id="cmdSearch" oninput="filterCommands()">
-      </div>
-      <div class="table-container">
-        <table>
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Description</th>
-              <th>Category</th>
-              <th>Inputs</th>
-            </tr>
-          </thead>
-          <tbody id="cmdTable">
-            <!-- Commands will be rendered here -->
-          </tbody>
-        </table>
-      </div>
-    </section>
-
-    <!-- Ecosystem Section -->
-    <section id="ecosystem" class="section">
-      <div class="card" style="padding: 48px; border-radius: 32px; background: rgba(0,0,0,0.2);">
-        <h3 style="margin-bottom: 32px; text-align: center;">Neural System Architecture</h3>
-        <div style="display: flex; justify-content: space-around; align-items: center; position: relative;">
-          <!-- Node 1 -->
-          <div style="text-align: center; z-index: 10;">
-            <div style="width: 80px; height: 80px; border-radius: 24px; background: var(--glass); border: 1px solid #00cec9; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; box-shadow: 0 0 20px rgba(0,206,201,0.2);">
-              <i data-lucide="glob"></i>
-            </div>
-            <p class="tech-font" style="font-size: 11px;">EXTERNAL API</p>
-          </div>
-          <!-- Line -->
-          <div style="flex: 1; height: 1px; background: linear-gradient(90deg, #00cec9, var(--accent)); margin: 0 20px; opacity: 0.3;"></div>
-          <!-- Node 2 -->
-          <div style="text-align: center; z-index: 10;">
-            <div class="pulse-glow" style="width: 100px; height: 100px; border-radius: 50%; background: var(--accent); display: flex; align-items: center; justify-content: center; margin-bottom: 16px; box-shadow: 0 0 40px rgba(245,158,11,0.4);">
-              <i data-lucide="zap" style="color: white; width: 40px; height: 40px;"></i>
-            </div>
-            <p class="tech-font" style="font-size: 13px; font-weight: 800; color: var(--accent);">AURA CORE</p>
-          </div>
-          <!-- Line -->
-          <div style="flex: 1; height: 1px; background: linear-gradient(90deg, var(--accent), #ff7675); margin: 0 20px; opacity: 0.3;"></div>
-          <!-- Node 3 -->
-          <div style="text-align: center; z-index: 10;">
-            <div style="width: 80px; height: 80px; border-radius: 24px; background: var(--glass); border: 1px solid #ff7675; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; box-shadow: 0 0 20px rgba(255,118,117,0.2);">
-              <i data-lucide="database"></i>
-            </div>
-            <p class="tech-font" style="font-size: 11px;">NEURAL MESH</p>
-          </div>
-        </div>
-      </div>
-
-      <div class="grid" style="margin-top: 32px;">
-        <div class="card">
-          <h4 style="margin-bottom: 12px;">Intelligence Layer</h4>
-          <p style="font-size: 14px; color: var(--secondary);">Powered by Google Gemini Pro 1.5, providing advanced natural language understanding and real-time intent analysis.</p>
-        </div>
-        <div class="card">
-          <h4 style="margin-bottom: 12px;">Data Persistence</h4>
-          <p style="font-size: 14px; color: var(--secondary);">High-availability Neon PostgreSQL cluster for system memory and Upstash Redis for instant session synchronization.</p>
-        </div>
-        <div class="card">
-          <h4 style="margin-bottom: 12px;">Core Logic</h4>
-          <p style="font-size: 14px; color: var(--secondary);">Event-driven Node.js architecture with Discord.js, optimized for low-latency command execution and high throughput.</p>
-        </div>
-      </div>
-    </section>
-
-    <!-- Dev Tools Section -->
-    <section id="devtools" class="section">
-      <div class="grid">
-        <div class="card" style="background: var(--glass-dark); color: #00cec9; grid-column: span 2;">
-          <h3 style="margin-bottom: 24px;">Intelligence Console</h3>
-          <div id="terminal" style="font-family: 'Fira Code', monospace; font-size: 12px; line-height: 1.6; height: 300px; overflow-y: auto;">
-            <p>Aura Intelligence System v2.0.0-PRO-BETA</p>
-            <p>Initializing neural bridge... OK</p>
-            <p>Syncing with Upstash Redis... OK</p>
-            <p>Establishing Neon PostgreSQL tunnel... OK</p>
-            <p>Welcome, Authorized Developer.</p>
-            <p>> _</p>
-          </div>
-        </div>
-        <div class="card">
-          <h3 style="margin-bottom: 20px;">System Vitals</h3>
+        <div class="aura-card" style="background: linear-gradient(135deg, rgba(245,158,11,0.03), transparent);">
+          <h3 style="margin-bottom: 24px;">Quick Protocols</h3>
           <div style="display: flex; flex-direction: column; gap: 16px;">
-            <div>
-              <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px;">
-                <span>CPU LOAD</span>
-                <span>12%</span>
-              </div>
-              <div style="width: 100%; height: 6px; background: rgba(255,255,255,0.05); border-radius: 10px;">
-                <div style="width: 12%; height: 100%; background: #00cec9; border-radius: 10px; box-shadow: 0 0 10px #00cec9;"></div>
-              </div>
-            </div>
-            <div>
-              <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px;">
-                <span>MEMORY USAGE</span>
-                <span>442MB / 1024MB</span>
-              </div>
-              <div style="width: 100%; height: 6px; background: rgba(255,255,255,0.05); border-radius: 10px;">
-                <div style="width: 42%; height: 100%; background: var(--accent); border-radius: 10px; box-shadow: 0 0 10px var(--accent);"></div>
-              </div>
+            <button class="btn btn-ghost" onclick="botAction('Panic')"><i data-lucide="alert-octagon"></i> Panic Protocol</button>
+            <button class="btn btn-ghost" onclick="botAction('AI Focus')"><i data-lucide="brain-circuit"></i> AI Fine-Tuning</button>
+            <button class="btn btn-ghost" onclick="botAction('Flush')"><i data-lucide="trash-2"></i> Cache Purge</button>
+          </div>
+          <div style="margin-top: 40px; border-top: 1px solid var(--glass-border); padding-top: 24px;">
+            <div class="metric-tag">System Load</div>
+            <div style="width: 100%; height: 4px; background: rgba(255,255,255,0.05); border-radius: 10px; margin-top: 12px;">
+              <div style="width: 14%; height: 100%; background: var(--accent); border-radius: 10px; box-shadow: 0 0 10px var(--accent);"></div>
             </div>
           </div>
         </div>
       </div>
+    </section>
+
+    <!-- Project Ecosystem -->
+    <section id="ecosystem" class="section">
+      <div class="aura-card" style="padding: 60px; text-align: center; border: 1px dashed var(--glass-border);">
+         <h2 style="font-size: 3rem; margin-bottom: 20px;">Technological <span style="color: var(--accent);">Singularity.</span></h2>
+         <p style="color: var(--secondary); max-width: 700px; margin: 0 auto 50px;">Aura is built on a distributed split-core architecture designed for infinite scalability and sub-millisecond responsiveness.</p>
+         
+         <div style="display: flex; justify-content: center; gap: 40px; flex-wrap: wrap;">
+            <div class="aura-card" style="padding: 30px; min-width: 200px;">
+               <i data-lucide="database" style="color: #00cec9; margin-bottom: 12px;"></i>
+               <h4>PostgreSQL</h4>
+               <p style="font-size: 12px; color: var(--secondary);">Neon Cloud Cluster</p>
+            </div>
+            <div class="aura-card" style="padding: 30px; min-width: 200px;">
+               <i data-lucide="wind" style="color: #ff7675; margin-bottom: 12px;"></i>
+               <h4>Redis</h4>
+               <p style="font-size: 12px; color: var(--secondary);">Upstash Low-Latency</p>
+            </div>
+            <div class="aura-card" style="padding: 30px; min-width: 200px;">
+               <i data-lucide="sparkles" style="color: var(--accent); margin-bottom: 12px;"></i>
+               <h4>Gemini Pro</h4>
+               <p style="font-size: 12px; color: var(--secondary);">LMM Intelligence</p>
+            </div>
+         </div>
+      </div>
+    </section>
+
+    <!-- Guilds Section -->
+    <section id="guilds" class="section">
+       <div class="grid" id="guildList">
+          <!-- Injected Servers -->
+       </div>
+    </section>
+
+    <!-- Plans -->
+    <section id="plans" class="section">
+       <div class="grid" id="planGrid">
+          <!-- Injected Plans -->
+       </div>
+    </section>
+
+    <!-- Terminal -->
+    <section id="devtools" class="section">
+       <div class="aura-card" style="background: #0a0a0c; border: 1px solid #1a1a1e; font-family: 'Fira Code', monospace;">
+          <div style="display: flex; gap: 8px; margin-bottom: 15px;">
+             <div style="width:12px; height:12px; border-radius:50%; background:#ff5f56"></div>
+             <div style="width:12px; height:12px; border-radius:50%; background:#ffbd2e"></div>
+             <div style="width:12px; height:12px; border-radius:50%; background:#27c93f"></div>
+          </div>
+          <div id="terminal" style="color: #00cec9; font-size: 13px; line-height: 1.6; height: 500px; overflow-y: auto;">
+             <p>[AURA-SYSTEM] Booting Neural Bridge...</p>
+             <p>[AURA-SYSTEM] Connecting to Neon-01... SUCCESS</p>
+             <p>[AURA-SYSTEM] Syncing Upstash-Main... SUCCESS</p>
+             <p>[AURA-SYSTEM] Loading Gemini-1.5-Pro... ACTIVE</p>
+             <p>> ready for telemetry transmission_</p>
+          </div>
+       </div>
     </section>
   </main>
 
   <script>
-    // ── Icons ───────────────────────────────────────────
+    // ── Global State ─────────────────────────────────────
+    let currentUser = null;
+    let isLenin = false;
+    let commands = [];
+    let plans = [];
+
+    // ── Init Icons ───────────────────────────────────────
     lucide.createIcons();
 
-    // ── Socket.IO ───────────────────────────────────────
+    // ── Socket Connection ────────────────────────────────
     const socket = io();
     socket.on('stats', data => {
       document.getElementById('statGuilds').innerText = data.guilds;
@@ -641,40 +495,42 @@
     });
 
     function updateFeed(container, data) {
+      if (container.querySelector('satellite-dish')) container.innerHTML = '';
       const item = document.createElement('div');
-      item.className = 'activity-item';
+      item.className = 'feed-item';
       item.innerHTML = `
-        <div style="width: 8px; height: 8px; border-radius: 50%; background: ${data.color || 'var(--accent)'}; margin-top: 4px;"></div>
-        <div>
-          <div style="font-weight: 600;">${data.type.toUpperCase()}</div>
-          <div style="color: var(--secondary); font-size: 12px;">${data.user} • ${data.reason}</div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <span style="font-weight: 800; font-size: 11px; color: ${data.color || 'var(--accent)'}; letter-spacing: 1px;">${data.type.toUpperCase()}</span>
+          <span style="font-size: 10px; color: var(--secondary);">${new Date().toLocaleTimeString()}</span>
         </div>
+        <p style="font-size: 13px; color: var(--text);">${data.reason}</p>
+        <p style="font-size: 11px; color: var(--secondary); margin-top: 8px;">Target: ${data.user}</p>
       `;
-      if (container.firstChild && container.firstChild.tagName === 'P') container.innerHTML = '';
       container.prepend(item);
-      if (container.children.length > 20) container.lastChild.remove();
+      if (container.children.length > 15) container.lastChild.remove();
     }
 
-    // ── State ───────────────────────────────────────────
-    let currentUser = null;
-    let isLenin = false;
-    let commands = [];
-    let plans = [];
+    // ── Navigation ──────────────────────────────────────
+    function showSection(id, el) {
+      document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+      document.getElementById(id).classList.add('active');
+      
+      document.querySelectorAll('.nav-btn').forEach(n => n.classList.remove('active'));
+      if (el) el.classList.add('active');
 
-    // ── Authentication ──────────────────────────────────
+      if (id === 'guilds') fetchGuilds();
+      if (id === 'plans') fetchPlans();
+    }
+
+    // ── Auth ───────────────────────────────────────────
     async function checkAuth() {
-      const container = document.getElementById('userProfile');
       try {
         const res = await fetch('/api/me');
         if (res.ok) {
           currentUser = await res.json();
           renderProfile(currentUser);
-        } else {
-          renderLoginButton();
         }
-      } catch (err) {
-        renderLoginButton();
-      }
+      } catch {}
     }
 
     function renderProfile(user) {
@@ -685,170 +541,78 @@
       
       container.innerHTML = `
         <div style="display: flex; align-items: center; gap: 12px;">
-          <div style="display: flex; flex-direction: column; align-items: flex-end;">
-            <span style="font-size: 13px; font-weight: 700;">${user.username}</span>
-            <div style="display: flex; gap: 6px; align-items: center;">
-              <span style="font-size: 8px; color: var(--accent); font-weight: 800; letter-spacing: 0.5px;">LINK ESTABLISHED</span>
-              ${isLenin ? '<span style="font-size: 8px; padding: 1px 4px; border: 1px solid #00cec9; color: #00cec9; border-radius: 4px;">PRO</span>' : ''}
-            </div>
+          <div style="text-align: right;">
+            <div style="font-size: 13px; font-weight: 700;">${user.username}</div>
+            <div style="font-size: 9px; color: var(--accent); font-weight: 800;">NEURAL LINK ON</div>
           </div>
-          <img src="${avatarUrl}" class="avatar pulse-glow" alt="PF" style="width: 32px; height: 32px; border-radius: 50%; border: 2px solid var(--accent); cursor: pointer;" onclick="toggleLenin()">
-          <a class="nav-item" style="padding: 6px; border-radius: 8px; border: 1px solid var(--border);" onclick="location.href='/auth/logout'">
-            <i data-lucide="log-out" style="width:14px; height:14px;"></i>
-          </a>
+          <img src="${avatarUrl}" class="avatar pulse-glow" style="width: 38px; height: 38px; border-radius: 50%; border: 2px solid var(--accent); cursor: pointer;" onclick="toggleLenin()">
         </div>
       `;
-      lucide.createIcons();
     }
 
-    function renderLoginButton() {
-      const container = document.getElementById('userProfile');
-      container.innerHTML = `
-        <button class="btn btn-primary" style="font-size: 12px; padding: 8px 16px;" onclick="location.href='/auth/discord'">
-          <i data-lucide="log-in" style="width:14px;"></i>
-          Sign in
-        </button>
-      `;
-      lucide.createIcons();
-    }
-
-    // ── Caching ─────────────────────────────────────────
-    const cache = {
-      get: (key) => {
-        const item = localStorage.getItem(`aura_cache_${key}`);
-        if (!item) return null;
-        const parsed = JSON.parse(item);
-        if (Date.now() > parsed.expiry) {
-          localStorage.removeItem(`aura_cache_${key}`);
-          return null;
-        }
-        return parsed.data;
-      },
-      set: (key, data, ttl = 300000) => {
-        localStorage.setItem(`aura_cache_${key}`, JSON.stringify({ data, expiry: Date.now() + ttl }));
-      }
-    };
-
-    // ── Navigation ──────────────────────────────────────
-    function showSection(id, el) {
-      document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-      const target = document.getElementById(id);
-      if (target) target.classList.add('active');
-      
-      if (el) {
-        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-        el.classList.add('active');
-      }
-      
-      if (id === 'commands') fetchCommands();
-      if (id === 'subscriptions') fetchPlans();
-      if (id === 'guilds') fetchGuilds();
-    }
-
-    async function fetchCommands() {
-      const cached = cache.get('commands');
-      if (cached) { renderCommands(cached); return; }
-      const res = await fetch('/api/commands');
-      commands = await res.json();
-      cache.set('commands', commands);
-      renderCommands(commands);
-    }
-
+    // ── Caching & Data ──────────────────────────────────
     async function fetchPlans() {
-      const cached = cache.get('plans');
-      if (cached) { plans = cached; renderPlans(); return; }
       const res = await fetch('/api/subscriptions');
       plans = await res.json();
-      cache.set('plans', plans);
-      renderPlans();
-    }
-
-    async function fetchGuilds() {
-      const gList = document.getElementById('guildList');
-      gList.innerHTML = '<div class="card">Scanning neural network...</div>';
-      try {
-        const res = await fetch('/api/guilds');
-        const guilds = await res.json();
-        gList.innerHTML = guilds.map(g => `
-          <div class="card" style="cursor: pointer;" onclick="manageGuild('${g.guildId}')">
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
-              <div class="card-icon"><i data-lucide="shield"></i></div>
-              <div class="badge ${g.premiumTier > 0 ? 'pill gold' : ''}">${g.premiumTier > 0 ? 'PREMIUM' : 'FREE'}</div>
-            </div>
-            <div style="font-weight: 700; margin-bottom: 4px;">Server ID</div>
-            <div class="tech-font" style="font-size: 14px; color: var(--secondary);">${g.guildId}</div>
-            <div class="btn btn-outline" style="width: 100%; margin-top: 20px; padding: 10px;">Connect</div>
-          </div>
-        `).join('');
-        lucide.createIcons();
-      } catch (err) {
-        gList.innerHTML = '<div class="card" style="color: #FF4444;">Neural connection timed out.</div>';
-      }
-    }
-
-    function renderCommands(list) {
-      const tbody = document.getElementById('cmdTable');
-      tbody.innerHTML = list.map(c => `
-        <tr>
-          <td class="tech-font" style="color: var(--accent); font-weight: 600;">/${c.name}</td>
-          <td style="color: var(--secondary);">${c.description}</td>
-          <td><span class="badge">${c.category}</span></td>
-          <td><span class="tech-font" style="font-size: 12px;">${c.options || 0}</span></td>
-        </tr>
-      `).join('');
-    }
-
-    function renderPlans() {
       const grid = document.getElementById('planGrid');
       grid.innerHTML = plans.map(p => {
         if (p.exclusive === 'Lenin' && !isLenin) return '';
         return `
-          <div class="card plan-card ${p.id === 'premium' ? 'featured' : ''}">
+          <div class="aura-card plan-box ${p.id === 'premium' ? 'premium' : ''}">
             <h3 style="color: ${p.color};">${p.name}</h3>
-            <div class="plan-price tech-font">${p.price === 'Exclusive' ? '∞' : '$' + p.price}<span>/mo</span></div>
-            <ul class="feature-list">
-              ${p.features.map(f => ` <li class="feature-item"><i data-lucide="check-circle-2"></i> ${f}</li> `).join('')}
+            <div class="plan-price">${p.price === 'Exclusive' ? '∞' : '$' + p.price}<span>/mo</span></div>
+            <ul style="margin-top: 24px; display: flex; flex-direction: column; gap: 12px; list-style: none;">
+               ${p.features.map(f => ` <li style="font-size: 14px; color: var(--secondary);"><i data-lucide="check" style="width:14px; margin-right:8px; color: var(--accent);"></i> ${f}</li> `).join('')}
             </ul>
-            <button class="btn ${p.id === 'premium' ? 'btn-primary' : 'btn-outline'}">
-              ${p.price === 'Exclusive' ? 'Access Tools' : 'Select'}
-            </button>
+            <button class="btn btn-aura" style="width: 100%; margin-top: 32px;">${p.price === 'Exclusive' ? 'ENTER DEV' : 'ACTIVATE'}</button>
           </div>
         `;
       }).join('');
       lucide.createIcons();
     }
 
-    function filterCommands() {
-      const q = document.getElementById('cmdSearch').value.toLowerCase();
-      const filtered = commands.filter(c => c.name.toLowerCase().includes(q) || c.description.toLowerCase().includes(q));
-      renderCommands(filtered);
+    async function fetchGuilds() {
+      const res = await fetch('/api/guilds');
+      const guilds = await res.json();
+      const list = document.getElementById('guildList');
+      list.innerHTML = guilds.map(g => `
+        <div class="aura-card" style="cursor: pointer;" onclick="botAction('Manage ${g.guildId}')">
+           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+              <i data-lucide="shield" style="color: var(--accent);"></i>
+              <span class="badge-dev">${g.premiumTier > 0 ? 'ELITE' : 'SYNCED'}</span>
+           </div>
+           <p style="font-family: 'Fira Code'; font-size: 14px; color: var(--secondary);">${g.guildId}</p>
+           <h4 style="margin-top: 8px;">Quantum Server</h4>
+        </div>
+      `).join('');
+      lucide.createIcons();
+    }
+
+    // ── Utilities ───────────────────────────────────────
+    function toggleTheme() {
+      const body = document.body;
+      const theme = body.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+      body.setAttribute('data-theme', theme);
+      document.getElementById('themeIcon').setAttribute('data-lucide', theme === 'dark' ? 'moon' : 'sun');
+      lucide.createIcons();
     }
 
     function toggleLenin() {
       isLenin = !isLenin;
-      if (currentUser) renderProfile(currentUser);
       document.getElementById('leninNav').classList.toggle('hidden', !isLenin);
-      renderPlans();
+      if (currentUser) renderProfile(currentUser);
+      if (document.getElementById('plans').classList.contains('active')) fetchPlans();
     }
 
-    function toggleTheme() {
-      const body = document.body;
-      const icon = document.getElementById('themeIcon');
-      const current = body.getAttribute('data-theme');
-      const next = current === 'dark' ? 'light' : 'dark';
-      body.setAttribute('data-theme', next);
-      icon.setAttribute('data-lucide', next === 'dark' ? 'sun' : 'moon');
-      lucide.createIcons();
-    }
-
-    function formatUptime(seconds) {
-      const h = Math.floor(seconds / 3600);
-      const m = Math.floor((seconds % 3600) / 60);
+    function formatUptime(s) {
+      const h = Math.floor(s / 3600);
+      const m = Math.floor((s % 3600) / 60);
       return `${h}h ${m}m`;
     }
 
+    function botAction(a) { alert(`${a} request transmitted to core.`); }
+
     checkAuth();
-    fetchCommands();
   </script>
 </body>
 </html>
