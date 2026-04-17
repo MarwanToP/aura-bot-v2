@@ -1,21 +1,25 @@
 # Aura Bot v2.0 — Render Unified Infrastructure
 services:
+  # ── Discord Bot Core ─────────────────────────────────────
   - type: web
-    name: aura-bot
+    name: aura-bot-core
     runtime: docker
     dockerfilePath: ./Dockerfile
     plan: free
     branch: main
     autoDeploy: true
-    
-    # Critical for Render Free tier stability
     healthCheckPath: /api/health
-    
     envVars:
-      - key: NODE_ENV
-        value: production
-
-      # ── Core Identity ─────────────────────────────────────────
+      - key: MODE
+        value: BOT
+      - key: PORT
+        value: "3000"
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
       - key: DISCORD_TOKEN
         sync: false
       - key: DISCORD_CLIENT_ID
@@ -23,38 +27,38 @@ services:
       - key: DISCORD_CLIENT_SECRET
         sync: false
 
-      # ── Database & Cache ──────────────────────────────────────
-      # Note: Neon (Postgres) and Upstash (Redis) are recommended for Free Tier
+  # ── Intelligence Dashboard ──────────────────────────────
+  - type: web
+    name: aura-bot-dashboard
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    branch: main
+    autoDeploy: true
+    healthCheckPath: /api/health
+    envVars:
+      - key: MODE
+        value: DASHBOARD
+      - key: PORT
+        value: "10000"
+      - key: DASHBOARD_URL
+        value: "aura-bot-dashboard.onrender.com"
       - key: DATABASE_URL
         sync: false
-      - key: DB_SSL
-        value: "true"
       - key: REDIS_URL
         sync: false
-      - key: REDIS_TLS
-        value: "true"
-
-      # ── AI Intelligence ───────────────────────────────────────
       - key: GEMINI_API_KEY
         sync: false
-      - key: AI_PROVIDER
-        value: gemini
-      - key: AI_ENABLED
-        value: "true"
-      - key: AI_CHAT_MODEL
-        value: gemini-1.5-flash
-
-      # ── Dashboard & Security ──────────────────────────────────
-      - key: PORT # Render injects this, used by server.js
-        value: "3000"
-      - key: DASHBOARD_ENABLED
-        value: "true"
+      - key: DISCORD_TOKEN
+        sync: false
+      - key: DISCORD_CLIENT_ID
+        sync: false
+      - key: DISCORD_CLIENT_SECRET
+        sync: false
       - key: SESSION_SECRET
         generateValue: true
       - key: JWT_SECRET
         generateValue: true
-
-      # ── Scaling & Logs ────────────────────────────────────────
       - key: SHARD_COUNT
         value: "1"
       - key: LOG_LEVEL
