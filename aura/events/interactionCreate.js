@@ -5,14 +5,11 @@ import { InteractionType, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'd
 import { buildEmbed }      from '../../shared/utils/embedBuilder.js';
 import config              from '../../shared/config/config.js';
 import logger              from '../../shared/utils/logger.js';
+import customization       from '../../shared/systems/customization/customizationSystem.js';
 
 // Local cache for system handlers to avoid expensive dynamic imports
 const handlerRegistry = new Map();
 
-import customization from '../../shared/systems/customization/customizationSystem.js';
-
-// Local cache for system handlers to avoid expensive dynamic imports
-const handlerRegistry = new Map();
 
 export default {
   name: 'interactionCreate',
@@ -50,16 +47,23 @@ async function handleSlash(client, interaction, lang) {
   const command = client.commands.get(interaction.commandName);
   if (!command) return;
 
-  // Optimized Cooldown Check (Single Redis PTTL call)
   const coolKey = `cd:${interaction.user.id}:${interaction.commandName}`;
-  const remaining = await client.redis.pttl(coolKey); // -2 if key doesn't exist, -1 if no TTL
+
+  // Optimized Cooldown Check with Timeout (Fallback to no cooldown on lag)
+  let remaining = -1;
+  try {
+    remaining = await Promise.race([
+      client.redis.pttl(coolKey),
+      new Promise(resolve => setTimeout(() => resolve(-1), 1000))
+    ]);
+  } catch {}
 
   if (remaining > 0) {
     const secs = (remaining / 1000).toFixed(1);
     return interaction.reply({ 
       embeds: [buildEmbed({ type: 'warning', description: client.i18n.t('common.onCooldown', { time: `${secs}s` }, lang) })], 
       ephemeral: true 
-    });
+    }).catch(() => {});
   }
 
   // Guild scope verification
@@ -75,18 +79,25 @@ async function handleSlash(client, interaction, lang) {
     }
   }
 
-  // Premium Tier Verification (Optimized with Redis Caching)
+  // Premium Tier Verification (Optimized with Timeout fallback)
   if (command.premiumTier > 0 && interaction.guildId) {
-    const tier = await getGuildPremiumTier(client, interaction.guildId);
+    let tier = 0;
+    try {
+      tier = await Promise.race([
+        getGuildPremiumTier(client, interaction.guildId),
+        new Promise(resolve => setTimeout(() => resolve(0), 1000))
+      ]);
+    } catch {}
+
     if (tier < command.premiumTier) {
       const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setLabel('Unlock Premium').setStyle(ButtonStyle.Link).setURL(config.links?.premium || 'https://example.com/premium').setEmoji('⭐')
+        new ButtonBuilder().setLabel('Unlock Premium').setStyle(ButtonStyle.Link).setURL(config.links?.premium || 'https://discord.gg/aura').setEmoji('⭐')
       );
       return interaction.reply({ 
         embeds: [buildEmbed({ type: 'premium', description: `⭐ Requires **Premium Tier ${command.premiumTier}**.\n\nBoost your server with Aura's elite features!`, footer: 'Support aura development.' })], 
         components: [row],
         ephemeral: true 
-      });
+      }).catch(() => {});
     }
   }
 
@@ -131,6 +142,9 @@ async function getHandler(prefix) {
     giveaway: '../../shared/systems/giveaway/giveawaySystem.js',
     poll:     '../../shared/systems/polls/pollSystem.js',
     apply:    '../../shared/systems/applications/applicationSystem.js',
+    economy:  '../../shared/systems/economy/economySystem.js',
+    games:    '../../shared/systems/games/gameCommands.js',
+    staff:    '../commands/management/staff.js',
   };
 
   const path = paths[prefix];
@@ -141,7 +155,7 @@ async function getHandler(prefix) {
     handlerRegistry.set(prefix, mod);
     return mod;
   } catch (err) {
-    logger.error(`[Registry] Failed to load ${prefix}:`, err.message);
+    logger.error(`[Registry] Failed to load ${prefix} from ${path}:`, err.message);
     return null;
   }
 }

@@ -63,7 +63,11 @@ class AIService {
       // optimization: simple prompt for single message
       if (messages.length === 1) {
         const result = await genModel.generateContent(messages[0].content);
-        return { content: result.response.text(), provider: 'gemini' };
+        try {
+           return { content: result.response.text(), provider: 'gemini' };
+        } catch (e) {
+           return { content: "⚠️ The AI core refused to generate a response for this request (Safety Filter).", provider: 'gemini' };
+        }
       }
 
       // Handle Gemini's specific history format
@@ -75,7 +79,11 @@ class AIService {
       const chatInstance = genModel.startChat({ history });
       const result       = await chatInstance.sendMessage(messages[messages.length - 1].content);
       
-      return { content: result.response.text(), provider: 'gemini' };
+      try {
+         return { content: result.response.text(), provider: 'gemini' };
+      } catch (e) {
+         return { content: "⚠️ The AI conversation was interrupted by safety filters.", provider: 'gemini' };
+      }
     } catch (err) {
       logger.error(`[AI] Chat generation failed: ${err.message}`);
       throw err;

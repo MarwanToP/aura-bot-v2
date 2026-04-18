@@ -157,6 +157,27 @@ export async function handleButton(client, interaction, args) {
     return interaction.reply({ embeds: [buildEmbed({ type: 'success', description: '✅ Ticket claimed.' })], ephemeral: true });
   }
 
+  // Handle dynamic buttons from the Web-configured Ticket Panel
+  if (action === 'open') {
+    // extra contains cat.id. We can find the category name from panel config, or just use it as the category string.
+    const categoryName = extra || 'Support';
+    
+    const row = new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId(`ticket:setlang:dummy:${categoryName}|ar`).setLabel('🇸🇦 Arabic / عربى').setStyle(ButtonStyle.Primary),
+      new ButtonBuilder().setCustomId(`ticket:setlang:dummy:${categoryName}|en`).setLabel('🇬🇧 English').setStyle(ButtonStyle.Secondary),
+    );
+
+    return interaction.reply({
+      embeds: [buildEmbed({ 
+        type: 'info', 
+        title: 'Select Language | اختر لغتك', 
+        description: `Please select the language for your **Ticket**.\nيرجى اختيار لغة تذكرة.` 
+      })],
+      components: [row],
+      ephemeral: true
+    });
+  }
+
   if (action === 'close') {
     const result = await closeTicket(client, ticketId, interaction.guildId, interaction.user);
     return interaction.reply({ embeds: [buildEmbed({ type: result.error ? 'error' : 'success', description: result.error || client.i18n.t('tickets.closed', { id: ticketId }, lang) })], ephemeral: true });

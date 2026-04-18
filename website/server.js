@@ -60,12 +60,8 @@ passport.deserializeUser((obj, done) => done(null, obj));
 passport.use(new Strategy({
   clientID:     process.env.DISCORD_CLIENT_ID,
   clientSecret: process.env.DISCORD_CLIENT_SECRET,
-  callbackURL:  (() => {
-    let url = process.env.DASHBOARD_URL || `http://localhost:${PORT}`;
-    if (!url.startsWith('http')) url = `https://${url}`;
-    return url.replace(/\/$/, '') + '/auth/discord/callback';
-  })(),
   scope:        ['identify', 'guilds'],
+  // callbackURL is resolved dynamically in the routes to fix environment mismatches.
 }, (accessToken, refreshToken, profile, done) => {
   return done(null, profile);
 }));
@@ -76,17 +72,40 @@ const ensureAuth = (req, res, next) => {
 };
 
 // ── Authentication Routes ────────────────────────────────────
-app.get('/auth/discord', passport.authenticate('discord'));
-app.get('/auth/discord/callback', passport.authenticate('discord', { failureRedirect: '/' }), (req, res) => res.redirect('/'));
+app.get('/auth/discord', (req, res, next) => {
+  const host = req.get('host');
+  const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+  const dynamicCallback = `${protocol}://${host}/auth/discord/callback`;
+  
+  passport.authenticate('discord', { callbackURL: dynamicCallback })(req, res, next);
+});
+
+app.get('/auth/discord/callback', (req, res, next) => {
+  const host = req.get('host');
+  const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+  const dynamicCallback = `${protocol}://${host}/auth/discord/callback`;
+
+  passport.authenticate('discord', { 
+    callbackURL: dynamicCallback, 
+    failureRedirect: '/' 
+  })(req, res, next);
+}, (req, res) => res.redirect('/'));
+
 app.get('/auth/logout', (req, res) => req.logout(() => res.redirect('/')));
 
 app.get('/api/me', (req, res) => {
   if (!req.user) return res.status(401).json({ error: 'Not authenticated' });
+  
+  // Developer Access Check
+  const un = req.user.username.toLowerCase();
+  const isDeveloper = (un.includes('3dh') || un.includes('lenin') || req.user.id === '942130377823252490');
+
   res.json({
-    id:       req.user.id,
-    username: req.user.username,
-    avatar:   req.user.avatar,
-    guilds:   req.user.guilds.filter(g => (parseInt(g.permissions) & 0x8) === 0x8) // Only return guilds where user is admin
+    id:          req.user.id,
+    username:    req.user.username,
+    avatar:      req.user.avatar,
+    isDeveloper: isDeveloper,
+    guilds:      req.user.guilds.filter(g => (parseInt(g.permissions) & 0x8) === 0x8) // Only return guilds where user is admin
   });
 });
 
@@ -313,6 +332,14 @@ const start = async () => {
     await database.authenticate();
     await redis.ping();
     
+    httpServer.on('error', (err) => {
+      if (err.code === 'EADDRINUSE') {
+        logger.warn(`[Dashboard] Port ${PORT} is already in use. Dashboard may be running in another process.`);
+      } else {
+        logger.error(`[Dashboard] Server error: ${err.message}`);
+      }
+    });
+
     httpServer.listen(PORT, '0.0.0.0', () => {
       logger.info(`[Dashboard] Aura Neural Dashboard live on port ${PORT} ✓`);
     });

@@ -457,6 +457,25 @@ export const richlist = {
   },
 };
 
+/**
+ * Handle button interactions for the economy system
+ */
+export async function handleButton(client, interaction, action) {
+  if (action === 'daily') {
+    return daily.execute(client, interaction);
+  }
+  
+  if (action.startsWith('shop')) {
+    const sub = action.split(':')[1] || 'browse';
+    // Simplified shop redirect or logic
+    return interaction.reply({ content: '🛒 Use `/shop browse` to see the full market.', ephemeral: true });
+  }
+
+  if (action === 'transfer_help') {
+    return interaction.reply({ content: '💸 To transfer points, use `/transfer <user> <amount>`', ephemeral: true });
+  }
+}
+
 async function checkPremium(client, guildId) {
   try {
     const { GuildSettings } = client.db.models;

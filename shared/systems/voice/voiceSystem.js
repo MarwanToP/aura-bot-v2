@@ -97,34 +97,40 @@ export async function handleVoiceUpdate(client, oldState, newState) {
  * Sends the Arabic Grid Interface to the TempVoice channel
  */
 async function sendTempVoiceInterface(channel, owner) {
+  const desc = `يمكنك استخدام **voice/** الأوامر للتحكم في الروم الخاص بك الصوتي المؤقت. المزيد من\nالخيارات متاحة من خلال هذه الواجهة\n\n` +
+    `\`💬 موضوع\`  \`🕒 غرفة الانتظار\`  \`🛡️ خصوصية قناتك\`  \`👥 حد عدد الاعضاء\`  \`📝 تغيير اسم\`\n\n` +
+    `\`🌍 تغيير منطقة\`  \`📞 طرد\`  \`🔗 دعوة\`  \`➖ عدم الثقة\`  \`➕ الثقة\`\n\n` +
+    `\`🗑️ إلغاء\`  \`📈 نقل ملكية\`  \`👑 اخذ الملكية\`  \`🔓 رفع الحظر\`  \`🚫 حظر\`\n\n` +
+    `**يمكن استخدام هذه الواجهة بالنقر فوق الأزرار أدناه**`;
+
   const embed = new EmbedBuilder()
     .setTitle('TempVoice Interface')
-    .setDescription('يمكنك استخدام /voice للأوامر للتحكم في الروم الخاص بك الصوتي المؤقت. المزيد من الخيارات متاحة من خلال هذه الواجهة بالنقر فوق الأزرار أدناه')
-    .setColor('#5865F2')
+    .setDescription(desc)
+    .setColor('#2b2d31') // Discord dark theme color to blend the embed
     .setThumbnail(owner.user.displayAvatarURL());
 
   const row1 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('tv:topic').setEmoji('💬').setLabel('موضوع').setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId('tv:waiting').setEmoji('🕒').setLabel('غرفة الانتظار').setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId('tv:privacy').setEmoji('🛡️').setLabel('خصوصية قناتك').setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId('tv:limit').setEmoji('👥').setLabel('حد عدد الاعضاء').setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId('tv:rename').setEmoji('📝').setLabel('تغيير اسم').setStyle(ButtonStyle.Secondary)
+    new ButtonBuilder().setCustomId('tv:rename').setEmoji('📝').setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId('tv:limit').setEmoji('👥').setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId('tv:privacy').setEmoji('🛡️').setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId('tv:waiting').setEmoji('🕒').setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId('tv:topic').setEmoji('💬').setStyle(ButtonStyle.Secondary)
   );
 
   const row2 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('tv:region').setEmoji('🌍').setLabel('تغيير منطقة').setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId('tv:kick').setEmoji('📞').setLabel('طرد').setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId('tv:invite').setEmoji('🔗').setLabel('دعوة').setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId('tv:trust').setEmoji('➕').setLabel('الثقة').setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId('tv:untrust').setEmoji('➖').setLabel('عدم الثقة').setStyle(ButtonStyle.Secondary)
+    new ButtonBuilder().setCustomId('tv:trust').setEmoji('➕').setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId('tv:untrust').setEmoji('➖').setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId('tv:invite').setEmoji('🔗').setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId('tv:kick').setEmoji('📞').setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId('tv:region').setEmoji('🌍').setStyle(ButtonStyle.Secondary)
   );
 
   const row3 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('tv:cancel').setEmoji('🗑️').setLabel('إلغاء').setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId('tv:transfer').setEmoji('📈').setLabel('نقل ملكية').setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId('tv:claim').setEmoji('👑').setLabel('اخذ الملكية').setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId('tv:unban').setEmoji('🔓').setLabel('رفع الحظر').setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId('tv:ban').setEmoji('🚫').setLabel('حظر').setStyle(ButtonStyle.Secondary)
+    new ButtonBuilder().setCustomId('tv:ban').setEmoji('🚫').setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId('tv:unban').setEmoji('🔓').setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId('tv:claim').setEmoji('👑').setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId('tv:transfer').setEmoji('📈').setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId('tv:cancel').setEmoji('🗑️').setStyle(ButtonStyle.Danger) // Using Danger for cancel to make it distinct
   );
 
   await channel.send({ content: `<@${owner.id}>`, embeds: [embed], components: [row1, row2, row3] });
@@ -156,17 +162,25 @@ export async function handleTempVoiceInteraction(client, interaction) {
       return interaction.reply({ content: isLocked ? '✅ تم فتح الروم للجميع.' : '🔒 تم قفل الروم.', ephemeral: true });
     
     case 'limit':
-      // This would normally trigger a modal for input
+      // Trigger limit modal or command reply
       return interaction.reply({ content: '🛠️ يرجى استخدام أمر `/voice limit` لتحديد العدد حالياً.', ephemeral: true });
+    
+    case 'rename':
+      // Trigger rename command reply or modal
+      return interaction.reply({ content: '🛠️ يرجى استخدام أمر `/voice rename` لتغيير اسم الروم.', ephemeral: true });
 
     case 'cancel':
-      await channel.delete().catch(() => {});
+      await interaction.reply({ content: '🗑️ يتم الآن حذف الروم...', ephemeral: true });
       await temp.destroy();
+      await channel.delete().catch(() => {});
       break;
 
     case 'claim':
-      if (channel.members.has(temp.ownerId)) {
+      if (channel.members.has(temp.ownerId) && temp.ownerId !== member.id) {
         return interaction.reply({ content: '❌ المالك الأصلي لا يزال موجوداً في الروم.', ephemeral: true });
+      }
+      if (temp.ownerId === member.id) {
+        return interaction.reply({ content: '👑 أنت المالك الفعلي لهذا الروم.', ephemeral: true });
       }
       await temp.update({ ownerId: member.id });
       return interaction.reply({ content: '👑 تم استلام ملكية الروم بنجاح.', ephemeral: true });

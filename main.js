@@ -53,16 +53,26 @@ if (shouldRunBot) {
    * Required for Render.com when running in BOT-only mode to prevent deployment timeouts.
    */
   if (MODE === 'BOT' && process.env.PORT) {
-    http.createServer((req, res) => {
+    const server = http.createServer((req, res) => {
       res.writeHead(200);
       res.end('Aura Bot Status: Online');
-    }).listen(process.env.PORT, '0.0.0.0', () => {
+    });
+    
+    server.on('error', (err) => {
+      if (err.code === 'EADDRINUSE') {
+        logger.warn(`[HealthCheck] Port ${process.env.PORT} is already in use. Skipping dedicated bot HTTP server.`);
+      } else {
+        logger.error(`[HealthCheck] Server error:`, err);
+      }
+    });
+
+    server.listen(process.env.PORT, '0.0.0.0', () => {
       logger.info(`[HealthCheck] Binding heartbeat to port ${process.env.PORT}`);
     });
   }
 
-  // Handle Sharding based on environment constraints (e.g., Discloud 100MB limit)
-  const isMemoryConstrained = !!process.env.DISCLOUD || !!process.env.ID;
+  // Handle Sharding based on environment constraints (e.g., Discloud 100MB limit, Render Free 512MB)
+  const isMemoryConstrained = !!process.env.DISCLOUD || !!process.env.ID || !!process.env.RENDER || !!process.env.RAILWAY_ENVIRONMENT;
 
   if (isMemoryConstrained) {
     logger.info('[Bot] Memory-Saving Mode: Initializing single instance (No Sharding).');

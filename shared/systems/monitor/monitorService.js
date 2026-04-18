@@ -123,8 +123,8 @@ class MonitorService {
 
     const ping = async () => {
       try {
-        if (dashboardUrl) await axios.get(`${dashboardUrl.replace(/\/$/, '')}/api/health`).catch(() => {});
-        if (botUrl) await axios.get(`${botUrl.replace(/\/$/, '')}/api/health`).catch(() => {});
+        if (dashboardUrl) await axios.get(`${dashboardUrl.replace(/\/$/, '')}/api/health`, { timeout: 5000 }).catch(() => {});
+        if (botUrl) await axios.get(`${botUrl.replace(/\/$/, '')}/api/health`, { timeout: 5000 }).catch(() => {});
         logger.debug('[Pulse] 💓 Heartbeat sync successful.');
       } catch (err) {
         // Silently fail as some services take time to wake up

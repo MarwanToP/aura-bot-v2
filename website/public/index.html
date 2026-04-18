@@ -18,7 +18,7 @@
       --accent-purple: #BF5AF2;
       --accent-yellow: #FFB800;
       --bg-dark: #010103;
-      --glass-bg: rgba(13, 14, 20, 0.4);
+      --glass-bg: rgba(13, 14, 20, 0.5);
       --glass-border: rgba(255, 255, 255, 0.1);
       --text-main: #FFFFFF;
       --text-dim: #8E8E93;
@@ -28,11 +28,7 @@
       --font-mono: 'Fira Code', monospace;
     }
 
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
 
     body {
       background: var(--bg-dark) url('/aura_ultimate_bg.png') no-repeat center center fixed;
@@ -46,236 +42,77 @@
       justify-content: center;
     }
 
-    /* ── Main Holographic Panel ───────────────────────── */
+    .bg-overlay {
+      position: absolute; top:0; left:0; width:100%; height:100%;
+      background: rgba(1, 1, 3, 0.65);
+      backdrop-filter: blur(15px);
+      -webkit-backdrop-filter: blur(15px);
+      z-index: -1;
+    }
+
     .hologram-frame {
-      width: 95vw;
-      height: 90vh;
-      max-width: 1600px;
-      max-height: 900px;
+      width: 95vw; height: 90vh; max-width: 1600px; max-height: 900px;
       background: var(--glass-bg);
       backdrop-filter: blur(40px) saturate(180%);
       -webkit-backdrop-filter: blur(40px) saturate(180%);
-      border: 1px solid var(--glass-border);
-      border-radius: 40px;
-      display: flex;
-      box-shadow: var(--shadow), inset 0 0 40px rgba(255, 255, 255, 0.02);
-      position: relative;
-      animation: zoomIn 1s cubic-bezier(0.16, 1, 0.3, 1);
+      border: 1px solid var(--glass-border); border-radius: 40px;
+      display: flex; box-shadow: var(--shadow), inset 0 0 40px rgba(255, 255, 255, 0.02);
+      position: relative; animation: zoomIn 1s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
-    @keyframes zoomIn {
-      from { transform: scale(0.95); opacity: 0; }
-      to { transform: scale(1); opacity: 1; }
-    }
+    @keyframes zoomIn { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 
-    /* ── Side Navigation ──────────────────────────────── */
-    .sidebar {
-      width: 80px;
-      border-right: 1px solid var(--glass-border);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 40px 0;
-      gap: 30px;
-    }
+    .sidebar { width: 80px; border-right: 1px solid var(--glass-border); display: flex; flex-direction: column; align-items: center; padding: 40px 0; gap: 30px; }
+    .side-item { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; color: var(--text-dim); transition: all 0.3s; cursor: pointer; }
+    .side-item:hover, .side-item.active { color: var(--accent-cyan); background: rgba(0, 229, 255, 0.1); box-shadow: 0 0 20px rgba(0, 229, 255, 0.2); }
+    .side-item.logout:hover { color: var(--accent-pink); background: rgba(255, 45, 85, 0.1); box-shadow: 0 0 20px rgba(255, 45, 85, 0.2); }
 
-    .side-item {
-      width: 44px;
-      height: 44px;
-      border-radius: 12px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: var(--text-dim);
-      transition: all 0.3s;
-      cursor: pointer;
-    }
+    .content-area { flex: 1; display: flex; flex-direction: column; padding: 40px; overflow-y: auto; }
+    .content-area::-webkit-scrollbar { width: 0; } /* Hide scrollbar for a cleaner look */
 
-    .side-item:hover, .side-item.active {
-      color: var(--accent-cyan);
-      background: rgba(0, 229, 255, 0.1);
-      box-shadow: 0 0 20px rgba(0, 229, 255, 0.2);
-    }
+    .top-nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; flex-shrink: 0; }
+    .pill-nav { background: rgba(0, 0, 0, 0.3); padding: 6px; border-radius: 20px; display: flex; gap: 5px; border: 1px solid var(--glass-border); }
+    .pill-item { padding: 10px 24px; border-radius: 15px; font-size: 13px; font-weight: 600; color: var(--text-dim); cursor: pointer; transition: 0.3s; }
+    .pill-item:hover, .pill-item.active { background: rgba(255, 255, 255, 0.08); color: #fff; }
 
-    .side-item i { width: 20px; }
+    .user-pill { display: flex; align-items: center; gap: 15px; }
+    .avatar-ring { width: 45px; height: 45px; border-radius: 50%; background: linear-gradient(135deg, var(--accent-pink), var(--accent-purple)); padding: 2px; }
+    .avatar-ring img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; border: 2px solid #000; }
 
-    /* ── Content Area ────────────────────────────────── */
-    .content-area {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      padding: 40px;
-    }
+    .page-section { display: none; animation: fadeInUp 0.5s ease-out; height: 100%; }
+    .page-section.active { display: block; }
+    @keyframes fadeInUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-    /* ── Top Navigation ──────────────────────────────── */
-    .top-nav {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 40px;
-    }
-
-    .pill-nav {
-      background: rgba(0, 0, 0, 0.3);
-      padding: 6px;
-      border-radius: 20px;
-      display: flex;
-      gap: 5px;
-      border: 1px solid var(--glass-border);
-    }
-
-    .pill-item {
-      padding: 10px 24px;
-      border-radius: 15px;
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--text-dim);
-      cursor: pointer;
-      transition: 0.3s;
-    }
-
-    .pill-item:hover, .pill-item.active {
-      background: rgba(255, 255, 255, 0.08);
-      color: #fff;
-    }
-
-    .user-pill {
-      display: flex;
-      align-items: center;
-      gap: 15px;
-    }
-
-    .avatar-ring {
-      width: 45px;
-      height: 45px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, var(--accent-pink), var(--accent-purple));
-      padding: 2px;
-    }
-
-    .avatar-ring img {
-      width: 100%;
-      height: 100%;
-      border-radius: 50%;
-      object-fit: cover;
-      border: 2px solid #000;
-    }
-
-    /* ── Dashboard Grid ──────────────────────────────── */
-    .dashboard-grid {
-      display: grid;
-      grid-template-columns: 2fr 1fr;
-      grid-template-rows: auto auto;
-      gap: 25px;
-      flex: 1;
-    }
-
-    .card {
-      background: rgba(255, 255, 255, 0.02);
-      border: 1px solid var(--glass-border);
-      border-radius: 28px;
-      padding: 30px;
-      position: relative;
-      overflow: hidden;
-      backdrop-filter: blur(10px);
-    }
-
+    /* Dashboard Layout */
+    .dashboard-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 25px; flex: 1; }
+    .card { background: rgba(255, 255, 255, 0.02); border: 1px solid var(--glass-border); border-radius: 28px; padding: 30px; position: relative; overflow: hidden; backdrop-filter: blur(10px); }
     .card h3 { font-size: 16px; font-weight: 700; margin-bottom: 5px; }
     .card p.sub { font-size: 11px; color: var(--text-dim); margin-bottom: 20px; text-transform: uppercase; letter-spacing: 1px; }
-
-    /* ── Sections ── */
     .overview-card { grid-row: span 1; }
     .side-stats { display: flex; flex-direction: column; gap: 20px; }
 
-    /* --- Wave Chart --- */
-    .wave-container {
-      height: 140px;
-      width: 100%;
-      position: relative;
-      margin: 20px 0;
-    }
-    
+    .wave-container { height: 140px; width: 100%; position: relative; margin: 20px 0; }
     .wave-svg { width: 100%; height: 100%; }
-
-    /* --- Stats Row --- */
     .stats-row { display: flex; gap: 40px; margin-bottom: 10px; }
     .stat-box .val { font-size: 28px; font-family: var(--font-outfit); font-weight: 800; }
     .stat-box .lbl { font-size: 11px; color: var(--text-dim); margin-top: 5px; }
 
-    /* --- Gauges --- */
-    .gauge-ring {
-       width: 100px; height: 100px;
-       border-radius: 50%;
-       border: 8px solid rgba(0, 229, 255, 0.1);
-       border-top-color: var(--accent-cyan);
-       display: flex; align-items: center; justify-content: center;
-       position: relative;
-       animation: spin 30s linear infinite;
-    }
+    .gauge-ring { width: 100px; height: 100px; border-radius: 50%; border: 8px solid rgba(0, 229, 255, 0.1); border-top-color: var(--accent-cyan); display: flex; align-items: center; justify-content: center; position: relative; animation: spin 30s linear infinite; }
     @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-
-    .gauge-inner {
-      width: 60px; height: 60px;
-      background: rgba(255,255,255,0.05);
-      border-radius: 50%;
-      display: flex; align-items: center; justify-content: center;
-      transform: rotate(-30s); /* negate spin */
-      animation: spinCounter 30s linear infinite;
-    }
+    .gauge-inner { width: 60px; height: 60px; background: rgba(255,255,255,0.05); border-radius: 50%; display: flex; align-items: center; justify-content: center; transform: rotate(-30s); animation: spinCounter 30s linear infinite; }
     @keyframes spinCounter { from { transform: rotate(0deg); } to { transform: rotate(-360deg); } }
 
-    /* ── Bottom Strip ────────────────────────────────── */
-    .bottom-strip {
-      display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
-      gap: 25px;
-      margin-top: 25px;
-    }
+    .bottom-strip { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 25px; margin-top: 25px; }
+    .status-badge { font-size: 24px; font-weight: 800; color: #27c93f; text-shadow: 0 0 20px rgba(39, 201, 63, 0.5); font-family: var(--font-outfit); }
+    .tech-bar { width: 100%; height: 6px; background: rgba(255,255,255,0.05); border-radius: 10px; margin-top: 15px; overflow: hidden; }
+    .tech-bar-fill { width: 60%; height: 100%; background: #27c93f; border-radius: 10px; box-shadow: 0 0 15px #27c93f; }
 
-    .status-badge {
-      font-size: 24px;
-      font-weight: 800;
-      color: #27c93f;
-      text-shadow: 0 0 20px rgba(39, 201, 63, 0.5);
-      font-family: var(--font-outfit);
-    }
-
-    .tech-bar {
-      width: 100%;
-      height: 6px;
-      background: rgba(255,255,255,0.05);
-      border-radius: 10px;
-      margin-top: 15px;
-      position: relative;
-      overflow: hidden;
-    }
-    .tech-bar-fill {
-      width: 60%;
-      height: 100%;
-      background: #27c93f;
-      border-radius: 10px;
-      box-shadow: 0 0 15px #27c93f;
-    }
-
-    .btn-manage {
-      background: rgba(255,255,255,0.08);
-      border: 1px solid var(--glass-border);
-      padding: 10px 20px;
-      border-radius: 12px;
-      color: #fff;
-      font-size: 12px;
-      font-weight: 700;
-      cursor: pointer;
-      transition: 0.3s;
-    }
+    .btn-manage { background: rgba(255,255,255,0.08); border: 1px solid var(--glass-border); padding: 10px 20px; border-radius: 12px; color: #fff; font-size: 12px; font-weight: 700; cursor: pointer; transition: 0.3s; }
     .btn-manage:hover { background: rgba(255,255,255,0.15); }
+    .btn-solid { background: linear-gradient(135deg, var(--accent-pink), var(--accent-purple)); border: none; padding: 10px 24px; border-radius: 12px; color: #fff; font-size: 13px; font-weight: 700; cursor: pointer; box-shadow: 0 5px 20px rgba(255,45,85,0.3); transition: 0.3s; }
+    .btn-solid:hover { transform: scale(1.05); }
 
-    /* ── List Elements ───────────────────────────────── */
-    .list-item {
-       display: flex; justify-content: space-between; align-items: center;
-       padding: 8px 0;
-       border-bottom: 1px solid rgba(255,255,255,0.05);
-    }
+    .list-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
     .list-item:last-child { border: none; }
     .list-item .meta { font-size: 11px; color: var(--text-dim); }
 
@@ -283,24 +120,33 @@
     .glow-pink { border-top: 4px solid var(--accent-pink); }
     .glow-purple { border-top: 4px solid var(--accent-purple); }
 
+    /* Developer UI */
+    .terminal-window { background: #0a0a0c; border: 1px solid #1a1a1e; font-family: var(--font-mono); border-radius: 20px; padding: 25px; height: 100%; }
+    .terminal-dots { display: flex; gap: 8px; margin-bottom: 20px; }
+    .terminal-dots div { width: 12px; height: 12px; border-radius: 50%; }
+    .log-line { color: var(--accent-cyan); font-size: 13px; line-height: 1.8; }
+    .log-warn { color: var(--accent-yellow); }
+    .log-err { color: var(--accent-pink); }
+    
+    .hidden { display: none !important; }
   </style>
 </head>
 
 <body>
+  <div class="bg-overlay"></div>
+  
   <div class="hologram-frame">
     <!-- Sidebar -->
     <nav class="sidebar">
-      <div class="side-item active"><i data-lucide="layout-grid"></i></div>
-      <div class="side-item"><i data-lucide="users"></i></div>
-      <div class="side-item"><i data-lucide="monitor"></i></div>
-      <div class="side-item"><i data-lucide="bar-chart-2"></i></div>
-      <div class="side-item"><i data-lucide="pie-chart"></i></div>
-      <div class="side-item"><i data-lucide="settings"></i></div>
+      <div class="side-item active" onclick="switchSection('dashboard')"><i data-lucide="layout-grid"></i></div>
+      <div class="side-item" onclick="switchSection('servers')"><i data-lucide="server"></i></div>
+      <div class="side-item" onclick="switchSection('staff')"><i data-lucide="users"></i></div>
+      <div id="devIcon" class="side-item hidden" onclick="switchSection('developer')" style="color: var(--accent-cyan);"><i data-lucide="terminal"></i></div>
       <div style="flex: 1;"></div>
-      <div class="side-item"><i data-lucide="log-out"></i></div>
+      <div class="side-item logout" onclick="location.href='/auth/logout'"><i data-lucide="log-out"></i></div>
     </nav>
 
-    <!-- Content -->
+    <!-- Content Area -->
     <main class="content-area">
       <!-- Top Nav -->
       <section class="top-nav">
@@ -312,212 +158,400 @@
         </div>
 
         <div class="pill-nav">
-          <div class="pill-item active">Dashboard</div>
-          <div class="pill-item">Servers</div>
-          <div class="pill-item">Analytics</div>
-          <div class="pill-item">Modules</div>
-          <div class="pill-item">Commands</div>
-          <div class="pill-item">Profile</div>
+          <div class="pill-item nav-pill active" onclick="switchSection('dashboard')">Dashboard</div>
+          <div class="pill-item nav-pill" onclick="switchSection('servers')">Servers</div>
+          <div class="pill-item nav-pill" onclick="switchSection('staff')">Staff HQ</div>
+          <div id="devPill" class="pill-item nav-pill hidden" onclick="switchSection('developer')">Developer</div>
         </div>
 
         <div class="user-pill">
            <i data-lucide="bell" style="color: var(--text-dim); width: 20px; cursor: pointer;"></i>
-           <div id="userProfile">
+           <div id="userProfileComponent">
               <button class="btn-manage" style="padding: 10px 24px;" onclick="location.href='/auth/discord'">Link Account</button>
            </div>
         </div>
       </section>
 
-      <!-- Dashboard Grid -->
-      <div class="dashboard-grid">
+      <!-- SECTIONS -->
+
+      <!-- [1] Dashboard Section -->
+      <section id="s-dashboard" class="page-section active">
+        <div class="dashboard-grid">
+          <!-- Left Column -->
+          <div class="card overview-card glow-cyan">
+             <div style="display: flex; justify-content: space-between; align-items: start;">
+                <div>
+                   <h3>Aura Overview</h3>
+                   <p class="sub">Real-time stats — global metrics</p>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                   <div style="width: 35px; height: 35px; border-radius: 8px; background: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center;"><i data-lucide="layers" style="width: 16px; color: var(--accent-purple);"></i></div>
+                   <div style="width: 35px; height: 35px; border-radius: 8px; background: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center;"><i data-lucide="cpu" style="width: 16px; color: var(--accent-cyan);"></i></div>
+                </div>
+             </div>
+
+             <div class="stats-row">
+                <div class="stat-box">
+                   <div class="val" id="statGuilds">0</div>
+                   <div class="lbl">Active Servers</div>
+                </div>
+                <div class="stat-box">
+                   <div class="val" id="statUsers">0</div>
+                   <div class="lbl">Total Users</div>
+                </div>
+                <div class="stat-box">
+                   <div class="val">89M</div>
+                   <div class="lbl">Commands Executed</div>
+                </div>
+             </div>
+
+             <div class="wave-container">
+                <svg class="wave-svg" viewBox="0 0 800 140" preserveAspectRatio="none">
+                   <!-- Cyan Wave -->
+                   <path d="M0,80 C150,40 350,120 500,70 C650,20 750,90 800,60 L800,140 L0,140 Z" fill="rgba(0, 229, 255, 0.1)"></path>
+                   <path d="M0,80 C150,40 350,120 500,70 C650,20 750,90 800,60" fill="none" stroke="var(--accent-cyan)" stroke-width="4"></path>
+                   <!-- Purple Wave -->
+                   <path d="M0,100 C200,60 400,140 600,90 C800,40 800,100 800,100 L800,140 L0,140 Z" fill="rgba(191, 90, 242, 0.1)"></path>
+                   <path d="M0,100 C200,60 400,140 600,90 C800,40 800,100 800,100" fill="none" stroke="var(--accent-purple)" stroke-width="4"></path>
+                   <!-- Gold Wave -->
+                   <path d="M0,120 C100,100 300,130 500,110 C700,90 800,120 800,120" fill="none" stroke="var(--accent-yellow)" stroke-width="2" opacity="0.5"></path>
+                </svg>
+             </div>
+
+             <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div style="display: flex; gap: 15px;">
+                   <i data-lucide="zap" style="color: var(--accent-yellow); width: 18px;"></i>
+                   <div style="background: rgba(255,184,0,0.1); color: var(--accent-yellow); font-size: 10px; font-weight: 800; padding: 4px 10px; border-radius: 6px;">Uptime: <span id="statUptime">0h</span></div>
+                </div>
+                <button class="btn-manage" onclick="switchSection('servers')">Manage Guilds</button>
+             </div>
+          </div>
+
+          <!-- Right Column Stats -->
+          <div class="side-stats">
+             <div class="card glow-purple" style="display: flex; gap: 20px; align-items: center;">
+                <div class="gauge-ring">
+                   <div class="gauge-inner">
+                      <span style="font-weight: 800; font-size: 14px;">120</span>
+                   </div>
+                </div>
+                <div>
+                   <h3>Shard Performance</h3>
+                   <p class="sub">Node Analytics</p>
+                   <div style="display: flex; gap: 20px; font-size: 12px; margin-bottom: 5px;">
+                      <div><span style="color: var(--text-dim);">Latency</span><br><b>32ms</b></div>
+                      <div><span style="color: var(--text-dim);">Load</span><br><b>18%</b></div>
+                   </div>
+                </div>
+             </div>
+
+             <div class="card glow-pink" style="flex: 1;">
+                <h3>Neural Wealth</h3>
+                <p class="sub">Economy Leaderboard</p>
+                <div id="globalLeaderboard" style="display: flex; flex-direction: column; gap: 12px; margin-top: 10px;">
+                    <span style="color: var(--text-dim); font-size: 12px;">Syncing data center...</span>
+                </div>
+             </div>
+          </div>
+        </div>
+
+        <!-- Bottom strip -->
+        <div class="bottom-strip">
+           <div class="card glow-cyan">
+              <h3>System Status</h3>
+              <div class="status-badge">OPTIMAL</div>
+              <div class="tech-bar"><div class="tech-bar-fill"></div></div>
+           </div>
+           
+           <div class="card glow-purple">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                 <h3>Commands</h3>
+                 <button class="btn-manage" style="font-size: 9px; padding: 4px 12px;" onclick="botAction('Config')">Configure</button>
+              </div>
+              <div class="list-item">
+                 <div style="display: flex; align-items: center; gap: 10px;"><i data-lucide="activity" style="width:12px;"></i><span style="font-size: 12px;">Auth Guilds</span></div>
+                 <span class="meta" id="statAuthGuilds">0</span>
+              </div>
+           </div>
+           
+           <div class="card glow-pink" style="overflow-y: auto; max-height: 140px;" id="globalModLogs">
+              <h3>Global Stream</h3>
+              <p class="sub">Live Security Events</p>
+              <div class="list-item">
+                 <span class="meta" style="width:100%; text-align:center;">Awaiting telemetry...</span>
+              </div>
+           </div>
+        </div>
+      </section>
+
+      <!-- [2] Servers / Modules Section -->
+      <section id="s-servers" class="page-section">
+        <h2 style="font-size: 24px; font-weight: 800; font-family: var(--font-outfit); margin-bottom: 10px;">Managed Nodes</h2>
+        <p class="sub" style="color: var(--text-dim); margin-bottom: 30px;">Select an authorized server to configure its Neural Core</p>
         
-        <!-- Left Column (Span 1) -->
-        <div class="card overview-card glow-cyan">
-           <div style="display: flex; justify-content: space-between; align-items: start;">
-              <div>
-                 <h3>Aura Overview</h3>
-                 <p class="sub">Real-time stats — online stats</p>
-              </div>
-              <div style="display: flex; gap: 10px;">
-                 <div style="width: 35px; height: 35px; border-radius: 8px; background: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center;"><i data-lucide="layers" style="width: 16px; color: var(--accent-purple);"></i></div>
-                 <div style="width: 35px; height: 35px; border-radius: 8px; background: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center;"><i data-lucide="cpu" style="width: 16px; color: var(--accent-cyan);"></i></div>
-              </div>
-           </div>
-
-           <div class="stats-row">
-              <div class="stat-box">
-                 <div class="val" id="statGuilds">0</div>
-                 <div class="lbl">Active Servers</div>
-              </div>
-              <div class="stat-box">
-                 <div class="val" id="statUsers">0</div>
-                 <div class="lbl">Total Users</div>
-              </div>
-              <div class="stat-box">
-                 <div class="val">89M</div>
-                 <div class="lbl">Commands executed</div>
-              </div>
-           </div>
-
-           <div class="wave-container">
-              <svg class="wave-svg" viewBox="0 0 800 140" preserveAspectRatio="none">
-                 <!-- Wave 1 (Cyan) -->
-                 <path d="M0,80 C150,40 350,120 500,70 C650,20 750,90 800,60 L800,140 L0,140 Z" fill="rgba(0, 229, 255, 0.1)"></path>
-                 <path d="M0,80 C150,40 350,120 500,70 C650,20 750,90 800,60" fill="none" stroke="var(--accent-cyan)" stroke-width="4"></path>
-                 <!-- Wave 2 (Purple) -->
-                 <path d="M0,100 C200,60 400,140 600,90 C800,40 800,100 800,100 L800,140 L0,140 Z" fill="rgba(191, 90, 242, 0.1)"></path>
-                 <path d="M0,100 C200,60 400,140 600,90 C800,40 800,100 800,100" fill="none" stroke="var(--accent-purple)" stroke-width="4"></path>
-                 <!-- Wave 3 (Gold) -->
-                 <path d="M0,120 C100,100 300,130 500,110 C700,90 800,120 800,120" fill="none" stroke="var(--accent-yellow)" stroke-width="2" opacity="0.5"></path>
-              </svg>
-           </div>
-
-           <div style="display: flex; justify-content: space-between; align-items: center;">
-              <div style="display: flex; gap: 15px;">
-                 <i data-lucide="zap" style="color: var(--accent-yellow); width: 18px;"></i>
-                 <i data-lucide="bar-chart-3" style="color: var(--accent-purple); width: 18px;"></i>
-                 <div style="background: rgba(255,184,0,0.1); color: var(--accent-yellow); font-size: 10px; font-weight: 800; padding: 4px 10px; border-radius: 6px;">10W</div>
-              </div>
-              <button class="btn-manage" onclick="botAction('Manage Core')">Manage Server</button>
-           </div>
+        <div id="guildList" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px;">
+           <p style="color: var(--text-dim); font-size: 14px;">Loading permitted guilds...</p>
         </div>
 
-        <!-- Right Column Stats -->
-        <div class="side-stats">
-           <div class="card glow-purple" style="display: flex; gap: 20px; align-items: center;">
-              <div class="gauge-ring">
-                 <div class="gauge-inner">
-                    <span style="font-weight: 800; font-size: 14px;">120</span>
-                 </div>
-              </div>
-              <div>
-                 <h3>Server Performance</h3>
-                 <p class="sub">Server Analytics</p>
-                 <div style="display: flex; gap: 20px; font-size: 12px;">
-                    <div><span style="color: var(--text-dim);">Latency</span><br><b id="ping">32ms</b></div>
-                    <div><span style="color: var(--text-dim);">Efficiency</span><br><b>18%</b></div>
-                    <button class="btn-manage" style="font-size: 10px; padding: 6px 14px; margin-top: 5px;">Manage</button>
-                 </div>
-              </div>
+        <hr style="border: none; border-top: 1px solid var(--glass-border); margin: 40px 0;">
+
+        <!-- Component Builder Inside Servers context -->
+        <div id="builderContext" class="hidden">
+           <div style="display: flex; justify-content: space-between; margin-bottom: 20px;">
+              <h2 style="font-size: 20px; font-weight: 800;"><span id="activeGuildName" style="color: var(--accent-cyan);">Node</span> / Dynamic Studio.</h2>
+              <button class="btn-solid" onclick="saveComponent()">Install to Server</button>
            </div>
-
-           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 25px;">
-              <div class="card glow-cyan">
-                 <h3>User Engagement</h3>
-                 <p class="sub">Growth chart</p>
-                 <svg viewBox="0 0 100 40" style="width: 100%; height: 40px;">
-                    <path d="M0,35 Q20,30 40,20 T80,10 T100,5" fill="none" stroke="var(--accent-cyan)" stroke-width="2"></path>
-                    <circle cx="100" cy="5" r="3" fill="var(--accent-cyan)"></circle>
-                 </svg>
-                 <div style="margin-top: 15px;">
-                    <div style="font-size: 14px; font-weight: 800;">1.2B</div>
-                    <p class="sub" style="margin: 0; font-size: 9px;">Messages</p>
+           
+           <div class="card glow-cyan" style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px;">
+              <!-- Editor -->
+              <div>
+                 <div style="margin-bottom: 20px;">
+                    <label style="font-size: 12px; color: var(--text-dim); font-weight: 700;">Welcome Component Text</label>
+                    <input type="text" id="builderMsg" style="width: 100%; padding: 12px; border-radius: 8px; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); color: #fff; margin-top: 5px; outline: none;" value="Welcome {user} to the future!">
+                 </div>
+                 <div>
+                    <label style="font-size: 12px; color: var(--text-dim); font-weight: 700;">Background Hero Asset</label>
+                    <input type="text" id="builderImg" style="width: 100%; padding: 12px; border-radius: 8px; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); color: #fff; margin-top: 5px; outline: none;" value="https://wallpapers.com/images/featured/dark-galaxy-background-03w95hps10x6f06a.jpg">
                  </div>
               </div>
-
-              <div class="card glow-pink">
-                 <h3>Top Servers</h3>
-                 <p class="sub">Icons, names, online users</p>
-                 <div style="display: flex; flex-direction: column; gap: 10px;">
-                    <div class="list-item">
-                       <div style="display: flex; align-items: center; gap: 8px;"><div style="width:18px; height:18px; border-radius:50%; background: var(--accent-cyan);"></div><span style="font-size: 11px;">Aura Name</span></div>
-                       <i data-lucide="users" style="width: 12px; color: var(--text-dim);"></i>
-                    </div>
-                    <div class="list-item">
-                       <div style="display: flex; align-items: center; gap: 8px;"><div style="width:18px; height:18px; border-radius:50%; background: var(--accent-purple);"></div><span style="font-size: 11px;">Aura Servers</span></div>
-                       <i data-lucide="users" style="width: 12px; color: var(--text-dim);"></i>
-                    </div>
+              
+              <!-- Live Preview -->
+              <div style="background: #000; border-radius: 12px; border: 1px solid var(--glass-border); position: relative; overflow: hidden; aspect-ratio: 16/9; display: flex; flex-direction: column; justify-content: flex-end; padding: 20px;">
+                 <img id="builderPreviewImg" src="https://wallpapers.com/images/featured/dark-galaxy-background-03w95hps10x6f06a.jpg" style="position: absolute; top:0; left:0; width: 100%; height: 100%; object-fit: cover; opacity: 0.6;">
+                 <div style="position: relative; z-index: 10; display: flex; align-items: center; gap: 15px;">
+                    <img src="https://cdn.discordapp.com/embed/avatars/0.png" style="width: 60px; height: 60px; border-radius: 50%; border: 2px solid var(--accent-cyan);">
+                    <h3 id="builderPreviewText" style="font-size: 18px; font-weight: 800; text-shadow: 0 5px 15px rgba(0,0,0,0.8);">Welcome AuraUser to the future!</h3>
                  </div>
               </div>
            </div>
         </div>
+      </section>
 
-      </div>
+      <!-- [3] Staff Section -->
+      <section id="s-staff" class="page-section">
+         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+            <h2 style="font-size: 24px; font-weight: 800; font-family: var(--font-outfit);">Staff HQ</h2>
+            <button class="btn-solid">Promote Operator</button>
+         </div>
+         <p class="sub" style="color: var(--text-dim); margin-bottom: 20px;">Showing active duty telemetry.</p>
+         <div id="staffList" style="display: flex; flex-direction: column; gap: 15px;">
+            <p style="color: var(--text-dim); font-size: 14px;">Select a server first to view logic operators.</p>
+         </div>
+      </section>
 
-      <!-- Bottom strip -->
-      <div class="bottom-strip">
-         <div class="card glow-cyan">
-            <h3>System Status</h3>
-            <div class="status-badge" id="statusText">OPTIMAL</div>
-            <div class="tech-bar"><div class="tech-bar-fill"></div></div>
+      <!-- [4] Developer Terminal (Lenin Mode) -->
+      <section id="s-developer" class="page-section">
+         <div class="terminal-window">
+             <div class="terminal-dots">
+                <div style="background:#ff5f56"></div>
+                <div style="background:#ffbd2e"></div>
+                <div style="background:#27c93f"></div>
+             </div>
+             <p class="log-line">> AUTHENTICATED: DEVELOPER MODE SECURED</p>
+             <p class="log-line">> Initiating Render environment verification...</p>
+             <p class="log-line">[OK] Server 1 (Aura Core) - Heartbeat established.</p>
+             <p class="log-line">[OK] Server 2 (Dashboard) - Socket synced.</p>
+             <p class="log-line log-warn">[WARNING] High volume logic cycles detected on Shard 0.</p>
+             <p class="log-line">> Waiting for incoming payload...</p>
          </div>
-         <div class="card glow-purple">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-               <h3>Commands</h3>
-               <button class="btn-manage" style="font-size: 9px; padding: 4px 12px;">Configure</button>
-            </div>
-            <div class="list-item">
-               <div style="display: flex; align-items: center; gap: 10px;"><i data-lucide="activity" style="width:12px;"></i><span style="font-size: 12px;">Active Servers</span></div>
-               <span class="meta" id="statGuilds2">3</span>
-            </div>
-            <div class="list-item">
-               <div style="display: flex; align-items: center; gap: 10px;"><i data-lucide="terminal" style="width:12px;"></i><span style="font-size: 12px;">Commands executed</span></div>
-               <span class="meta">89M</span>
-            </div>
-         </div>
-         <div class="card glow-pink">
-            <h3>Events</h3>
-            <p class="sub">Eventing events</p>
-            <div class="list-item">
-               <div style="display: flex; align-items: center; gap: 10px;"><i data-lucide="calendar" style="width:12px;"></i><span style="font-size: 12px;">First Event</span></div>
-               <span class="meta">2 hay ago</span>
-            </div>
-            <div class="list-item">
-               <div style="display: flex; align-items: center; gap: 10px;"><i data-lucide="calendar" style="width:12px;"></i><span style="font-size: 12px;">Event Events</span></div>
-               <span class="meta">3 hay ago</span>
-            </div>
-         </div>
-      </div>
+      </section>
 
     </main>
   </div>
 
   <script>
     lucide.createIcons();
-
     const socket = io();
+    let isDeveloper = false;
+    let activeGuildId = null;
+
+    // ── Navigation Logic ──
+    const sections = ['dashboard', 'servers', 'staff', 'developer'];
+    function switchSection(target) {
+       sections.forEach(s => {
+          const el = document.getElementById(`s-${s}`);
+          if (el) el.classList.remove('active');
+       });
+       document.querySelectorAll('.nav-pill').forEach(el => el.classList.remove('active'));
+       document.querySelectorAll('.side-item').forEach(el => el.classList.remove('active'));
+       
+       document.getElementById(`s-${target}`).classList.add('active');
+       
+       if (target === 'servers') { fetchGuilds(); }
+    }
+
+    // ── Socket Logic ──
     socket.on('stats', data => {
       document.getElementById('statGuilds').innerText = data.guilds.toLocaleString();
-      document.getElementById('statGuilds2').innerText = data.guilds;
       document.getElementById('statUsers').innerText = (data.users / 1000000).toFixed(1) + 'M';
       document.getElementById('statUptime').innerText = formatUptime(data.uptime);
     });
 
-    function botAction(action) {
-      alert(`[AURA-SYSTEM] ${action} Protocol Initialized.`);
-    }
+    socket.on('modLog', data => {
+      const container = document.getElementById('globalModLogs');
+      if (container) {
+         if (container.children.length > 5) container.lastElementChild.remove();
+         const item = document.createElement('div');
+         item.className = 'list-item';
+         item.innerHTML = `
+           <div style="display: flex; align-items: center; gap: 10px;"><i data-lucide="shield-alert" style="width:12px; color: var(--accent-pink);"></i><span style="font-size: 11px;">${data.type.toUpperCase()}: ${data.user}</span></div>
+           <span class="meta">${new Date().toLocaleTimeString()}</span>
+         `;
+         container.insertBefore(item, container.children[2]);
+         lucide.createIcons();
+      }
+    });
 
-    function formatUptime(s) {
-       const h = Math.floor(s / 3600);
-       const m = Math.floor((s % 3600) / 60);
-       return `${h}h ${m}m`;
-    }
-
-    // ── Auth Check ──
+    // ── Auth & Init ──
     async function checkAuth() {
        try {
           const res = await fetch('/api/me');
           if (res.ok) {
              const user = await res.json();
-             const container = document.getElementById('userProfile');
+             isDeveloper = user.isDeveloper;
+             document.getElementById('statAuthGuilds').innerText = user.guilds.length;
+
+             if (isDeveloper) {
+                document.getElementById('devIcon').classList.remove('hidden');
+                document.getElementById('devPill').classList.remove('hidden');
+             }
+
+             const container = document.getElementById('userProfileComponent');
              const avatarUrl = user.avatar 
                ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png`
                : 'https://cdn.discordapp.com/embed/avatars/0.png';
              
              container.innerHTML = `
-               <div class="user-pill">
-                 <div style="text-align: right;">
-                    <div style="font-size: 13px; font-weight: 700;">${user.username}</div>
-                    <div style="font-size: 9px; color: var(--accent-cyan); font-weight: 800;">SYNCED</div>
-                 </div>
-                 <div class="avatar-ring">
-                   <img src="${avatarUrl}">
-                 </div>
+               <div style="text-align: right;">
+                  <div style="font-size: 13px; font-weight: 700;">${user.username}</div>
+                  <div style="font-size: 9px; color: var(--accent-cyan); font-weight: 800;">${isDeveloper ? 'DEV. ROOT' : 'SYNCED'}</div>
+               </div>
+               <div class="avatar-ring">
+                 <img src="${avatarUrl}">
                </div>
              `;
           }
        } catch {}
     }
+
+    // ── System Fetchers ──
+    async function fetchGuilds() {
+      const res = await fetch('/api/guilds');
+      if (!res.ok) return;
+      const guilds = await res.json();
+      const list = document.getElementById('guildList');
+      
+      list.innerHTML = guilds.map(g => `
+        <div class="card glow-cyan" style="cursor: pointer; transition: 0.3s;" onclick="selectGuild('${g.guildId}')" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='none'">
+           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+              <i data-lucide="hard-drive" style="color: var(--accent-cyan);"></i>
+              <div style="font-size: 10px; border: 1px solid rgba(255,255,255,0.1); padding: 4px 8px; border-radius: 8px; color: ${g.premiumTier > 0 ? 'var(--accent-yellow)' : '#fff'};">${g.premiumTier > 0 ? 'ELITE NODE' : 'SYNCED'}</div>
+           </div>
+           <p style="font-family: var(--font-mono); font-size: 12px; color: var(--text-dim);">${g.guildId}</p>
+           <h4 style="margin-top: 5px; font-size: 18px;">Aura Node ${g.guildId.slice(-4)}</h4>
+           <div style="margin-top: 20px; display: flex; gap: 8px;">
+              <button class="btn-manage" style="padding: 6px 12px; flex: 1;">Configure</button>
+           </div>
+        </div>
+      `).join('');
+      lucide.createIcons();
+    }
+
+    async function selectGuild(guildId) {
+       activeGuildId = guildId;
+       document.getElementById('builderContext').classList.remove('hidden');
+       document.getElementById('activeGuildName').innerText = `Node ${guildId.slice(-4)}`;
+       
+       // Load config to builder
+       const res = await fetch(`/api/guilds/${guildId}`);
+       if (res.ok) {
+         const data = await res.json();
+         if (data.welcomeConfig?.message) {
+            document.getElementById('builderMsg').value = data.welcomeConfig.message;
+            document.getElementById('builderImg').value = data.welcomeConfig.image;
+            updatePreview();
+         }
+       }
+       
+       fetchLeaderboard(guildId);
+       fetchStaff(guildId);
+       
+       // Auto-scroll to builder
+       document.getElementById('builderContext').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    async function fetchLeaderboard(guildId) {
+       const res = await fetch(`/api/guilds/${guildId}/leaderboard`);
+       if (!res.ok) return;
+       const users = await res.json();
+       const list = document.getElementById('globalLeaderboard');
+       
+       if (users.length === 0) { list.innerHTML = `<span style="color: var(--text-dim); font-size: 12px;">No logic nodes generated wealth.</span>`; return; }
+       
+       list.innerHTML = users.map((u, i) => `
+          <div class="list-item">
+             <div style="display: flex; align-items: center; gap: 12px;">
+                <span style="color: var(--text-dim); font-size: 10px;">#${i+1}</span>
+                <span style="font-weight: 600; font-size: 13px;">ID: ${u.userId.slice(-6)}</span>
+             </div>
+             <span style="color: var(--accent-yellow); font-weight: 800; font-family: var(--font-mono); font-size: 13px;">${Number(u.balance).toLocaleString()} P</span>
+          </div>
+       `).join('');
+    }
+
+    async function fetchStaff(guildId) {
+      const res = await fetch(`/api/guilds/${guildId}/staff`);
+      if (!res.ok) return;
+      const staff = await res.json();
+      const list = document.getElementById('staffList');
+      
+      if (staff.length === 0) { list.innerHTML = `<div class="card" style="text-align:center;"><p class="sub">No duty cycles recorded.</p></div>`; return; }
+      
+      list.innerHTML = staff.map(s => `
+        <div class="card glow-purple" style="display: flex; justify-content: space-between; align-items: center; padding: 20px 30px;">
+           <div style="display: flex; gap: 20px; align-items: center;">
+              <div style="width: 40px; height: 40px; border-radius: 50%; background: rgba(191,90,242,0.1); border: 1px solid var(--accent-purple); display: flex; align-items: center; justify-content: center; font-weight: 800; color: var(--accent-purple); font-size: 12px;">${s.userId.slice(-2)}</div>
+              <div>
+                 <h4 style="font-size: 15px; font-weight: 800; margin-bottom: 2px;">Logic Op ${s.userId.slice(-4)}</h4>
+                 <p style="font-size: 10px; letter-spacing: 1px; color: ${s.isOnDuty ? '#27c93f' : 'var(--text-dim)'};">${s.isOnDuty ? '● ACTIVE DUTY' : '● SLEEP MODE'}</p>
+              </div>
+           </div>
+           <div style="display: flex; gap: 40px; text-align: left;">
+              <div>
+                 <p class="sub" style="margin-bottom: 2px;">Duty Time</p>
+                 <p style="font-family: var(--font-mono); font-size: 14px; font-weight: 800;">${Math.floor(s.totalDutyTime/3600)}h ${Math.floor((s.totalDutyTime%3600)/60)}m</p>
+              </div>
+              <div>
+                 <p class="sub" style="margin-bottom: 2px;">Engagements</p>
+                 <p style="font-family: var(--font-mono); font-size: 14px; font-weight: 800;">${s.messagesSent + s.ticketsHandled}</p>
+              </div>
+           </div>
+        </div>
+      `).join('');
+    }
+
+    // ── Builder Logic ──
+    const msgInput = document.getElementById('builderMsg');
+    const imgInput = document.getElementById('builderImg');
+    const updatePreview = () => {
+       document.getElementById('builderPreviewText').innerText = msgInput.value.replace('{user}', 'AuraUser');
+       if(imgInput.value) document.getElementById('builderPreviewImg').src = imgInput.value;
+    };
+    msgInput.addEventListener('input', updatePreview);
+    imgInput.addEventListener('input', updatePreview);
+
+    async function saveComponent() {
+      if (!activeGuildId) return alert('No server target selected.');
+      const config = { welcomeConfig: { enabled: true, message: msgInput.value, image: imgInput.value }};
+      const res = await fetch(`/api/guilds/${activeGuildId}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(config)
+      });
+      if (res.ok) alert('✨ Transmission successful.');
+    }
+
+    function formatUptime(s) { const h = Math.floor(s / 3600); const m = Math.floor((s % 3600) / 60); return `${h}h ${m}m`; }
+    function botAction(action) { console.log(`Triggered: ${action}`); }
+
     checkAuth();
   </script>
 </body>
