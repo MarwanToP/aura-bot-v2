@@ -33,8 +33,8 @@ async function loadCommands(dir) {
 }
 
 async function deploy() {
-  await loadCommands(join(__dirname, '../src/commands'));
-  await loadCommands(join(__dirname, '../src/systems'));
+  await loadCommands(join(__dirname, '../bot/commands'));
+  await loadCommands(join(__dirname, '../shared/systems'));
 
   // Deduplicate
   const seen  = new Set();

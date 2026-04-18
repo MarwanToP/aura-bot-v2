@@ -2,15 +2,15 @@
   "name": "aura-bot-v2",
   "version": "2.0.0",
   "description": "Enterprise Discord Bot — MEE6-class + AI",
-  "main": "src/index.js",
+  "main": "main.js",
   "type": "module",
   "scripts": {
-    "start": "node src/index.js",
-    "dev": "nodemon src/index.js",
+    "start": "node main.js",
+    "dev": "nodemon main.js",
     "deploy": "node scripts/deploy-commands.js",
     "deploy:guild": "node scripts/deploy-commands.js --guild",
     "db:migrate": "node scripts/migrate.js",
-    "dashboard": "node src/web/server.js"
+    "dashboard": "node website/server.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.27.3",
@@ -23,7 +23,7 @@
     "axios": "^1.7.2",
     "bcryptjs": "^2.4.3",
     "cheerio": "^1.0.0",
-    "connect-redis": "^9.0.0",
+    "connect-redis": "^7.1.1",
     "cors": "^2.8.5",
     "cron": "^3.1.7",
     "discord-api-types": "^0.37.97",

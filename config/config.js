@@ -128,9 +128,9 @@ Respond with JSON only:
 
   // ── Economy (Aura Credits) ──────────────────────────────────
   economy: {
-    currencyName:    'Aura Credits',
-    currencyEmoji:   '💰',
-    dailyReward:     { min: 100, max: 500 },
+    currencyName:   'Aura Points',
+    currencyEmoji:  '✨',
+    dailyReward:    { min: 500, max: 2500 },
     weeklyReward:    { min: 1000, max: 3000 },
     workReward:      { min: 50, max: 200 },
     workCooldown:    4 * 60 * 60 * 1000,     // 4 hours
