@@ -5,9 +5,12 @@ RUN apk add --no-cache python3 make g++ cairo-dev pango-dev jpeg-dev giflib-dev 
 
 WORKDIR /app
 
-# Install dependencies first (cached layer)
+# Set production environment
+ENV NODE_ENV=production
+
+# Install dependencies
 COPY package*.json ./
-RUN npm ci --omit=dev
+RUN npm install --omit=dev --no-audit --no-fund
 
 # Copy source
 COPY . .
