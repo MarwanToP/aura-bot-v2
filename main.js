@@ -38,6 +38,9 @@ if (shouldRunDashboard) {
   import('./website/server.js').catch(err => {
     logger.error('[Dashboard] Critical failure during startup:', err.message);
   });
+
+  // Start the 24/7 Uptime Pulse
+  monitor.startPulse();
 }
 
 // ── 4. Bot Initialization ───────────────────────────────────────

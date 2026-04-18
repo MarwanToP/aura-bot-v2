@@ -1,7 +1,5 @@
-// Event: messageCreate — XP + Custom Cmds + AI AutoMod + AI Chat
-import { awardMessageXp }       from '../../shared/systems/leveling/levelingSystem.js';
-import { handleCustomCommand }  from '../../shared/systems/customcommands/customCommands.js';
-import logger                   from '../../shared/utils/logger.js';
+import customization from '../../shared/systems/customization/customizationSystem.js';
+import logger        from '../../shared/utils/logger.js';
 
 export const mentionCache = new Map();
 
@@ -11,25 +9,49 @@ export default {
     if (message.author.bot) return;
     if (!message.guild) return handleDM(client, message);
 
-    // Cache mentions for ghost ping detection
-    if (message.mentions.users.size || message.mentions.roles.size) {
-      mentionCache.set(message.id, {
-        mentions: { users: new Map(message.mentions.users), roles: new Map(message.mentions.roles) },
-        author: message.author, channelId: message.channel.id, content: message.content, guildId: message.guild.id,
-      });
-      setTimeout(() => mentionCache.delete(message.id), 30_000);
-    }
+    // ─── Neural Custom Handlers ──────────────────────────────
+    await handlePrefixCommands(client, message);
 
-    // Run all in parallel
+    // Run parallel tasks
     await Promise.allSettled([
       awardMessageXp(client, message),
-      handleCustomCommand(client, message),
       handleAutoMod(client, message),
       handleAIChatChannel(client, message),
       handleAutoResponder(client, message),
     ]);
   },
 };
+
+/**
+ * Prefix Command Handler — Supports Dynamic Aliases and Restrictions.
+ */
+async function handlePrefixCommands(client, message) {
+  try {
+    const { GuildSettings } = client.db.models;
+    const settings = await GuildSettings.findOne({ where: { guildId: message.guildId } });
+    const prefix = settings?.prefix || '!';
+
+    if (!message.content.startsWith(prefix)) return;
+
+    const args = message.content.slice(prefix.length).trim().split(/ +/);
+    let commandName = args.shift().toLowerCase();
+
+    // 1. Resolve Neural Aliases (e.g. p -> profile)
+    commandName = await customization.resolveAlias(client, message.guildId, commandName);
+
+    // 2. Enforce Neural Blacklists & Restrictions
+    const isRestricted = await customization.isCommandRestricted(client, message.guildId, message.channel.id, commandName);
+    if (isRestricted) return;
+
+    const command = client.commands.get(commandName);
+    if (!command) return;
+
+    const lang = settings.language || 'en';
+    await command.execute(client, message, lang, args);
+  } catch (err) {
+    logger.error(`[PrefixCmd] Handling failed:`, err.message);
+  }
+}
 
 // ─── AI Auto-Mod ──────────────────────────────────────────────
 async function handleAutoMod(client, message) {

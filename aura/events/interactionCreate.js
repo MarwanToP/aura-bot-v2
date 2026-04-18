@@ -9,6 +9,11 @@ import logger              from '../../shared/utils/logger.js';
 // Local cache for system handlers to avoid expensive dynamic imports
 const handlerRegistry = new Map();
 
+import customization from '../../shared/systems/customization/customizationSystem.js';
+
+// Local cache for system handlers to avoid expensive dynamic imports
+const handlerRegistry = new Map();
+
 export default {
   name: 'interactionCreate',
   async execute(client, interaction) {
@@ -16,7 +21,19 @@ export default {
       // 1. Resolve language ONCE per interaction lifecycle
       const lang = await client.i18n.resolveLanguage(client, interaction.user.id, interaction.guildId);
       
-      if (interaction.isChatInputCommand())      return handleSlash(client, interaction, lang);
+      if (interaction.isChatInputCommand()) {
+        // Enforce Neural Blacklists & Restrictions
+        if (interaction.guildId) {
+          const isRestricted = await customization.isCommandRestricted(client, interaction.guildId, interaction.channelId, interaction.commandName);
+          if (isRestricted) {
+            return interaction.reply({ 
+              embeds: [buildEmbed({ type: 'error', description: '❌ This command is restricted in this channel or has been disabled globally by administrators.' })], 
+              ephemeral: true 
+            });
+          }
+        }
+        return handleSlash(client, interaction, lang);
+      }
       if (interaction.isButton())                return handleButton(client, interaction);
       if (interaction.isStringSelectMenu() || interaction.isUserSelectMenu()) return handleSelect(client, interaction);
       if (interaction.type === InteractionType.ModalSubmit) return handleModal(client, interaction);

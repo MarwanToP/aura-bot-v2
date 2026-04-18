@@ -112,6 +112,31 @@ class MonitorService {
   }
 
   /**
+   * Eternal Pulse — Keeps Render services awake 24/7.
+   * Pings the Bot and Dashboard URLs every 10 minutes.
+   */
+  async startPulse() {
+    const dashboardUrl = process.env.DASHBOARD_URL;
+    const botUrl = process.env.BOT_URL || `http://localhost:${process.env.PORT || 3000}`;
+
+    logger.info(`[Pulse] Neural Heartbeat active: Keeping services awake.`);
+
+    const ping = async () => {
+      try {
+        if (dashboardUrl) await axios.get(`${dashboardUrl.replace(/\/$/, '')}/api/health`).catch(() => {});
+        if (botUrl) await axios.get(`${botUrl.replace(/\/$/, '')}/api/health`).catch(() => {});
+        logger.debug('[Pulse] 💓 Heartbeat sync successful.');
+      } catch (err) {
+        // Silently fail as some services take time to wake up
+      }
+    };
+
+    // Initial ping and then every 10 minutes
+    ping();
+    setInterval(ping, 10 * 60 * 1000);
+  }
+
+  /**
    * Send alert via configured channels
    * @param {string} message 
    */

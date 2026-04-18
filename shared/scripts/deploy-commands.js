@@ -33,7 +33,7 @@ async function loadCommands(dir) {
 }
 
 async function deploy() {
-  await loadCommands(join(__dirname, '../bot/commands'));
+  await loadCommands(join(__dirname, '../aura/commands'));
   await loadCommands(join(__dirname, '../shared/systems'));
 
   // Deduplicate

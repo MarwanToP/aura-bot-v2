@@ -138,6 +138,10 @@ const GuildSettings = sequelize.define('GuildSettings', {
       color: '#FFFFFF'
     }
   },
+  // Customization & Restrictions
+  commandAliases:       { type: DataTypes.JSONB, defaultValue: {} }, // e.g. { "profile": "p" }
+  commandBlacklist:     { type: DataTypes.ARRAY(DataTypes.STRING), defaultValue: [] }, // e.g. ["games"]
+  disabledChannels:     { type: DataTypes.ARRAY(DataTypes.STRING), defaultValue: [] }, // e.g. ["#general-id"]
 }, { tableName: 'guild_settings', timestamps: true });
 
 // ── 2. User Profile ────────────────────────────────────────────

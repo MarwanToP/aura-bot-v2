@@ -7,9 +7,9 @@
   "scripts": {
     "start": "node main.js",
     "dev": "nodemon main.js",
-    "deploy": "node scripts/deploy-commands.js",
-    "deploy:guild": "node scripts/deploy-commands.js --guild",
-    "db:migrate": "node scripts/migrate.js",
+    "deploy": "node shared/scripts/deploy-commands.js",
+    "deploy:guild": "node shared/scripts/deploy-commands.js --guild",
+    "db:migrate": "node shared/scripts/migrate.js",
     "dashboard": "node website/server.js"
   },
   "dependencies": {
@@ -20,7 +20,7 @@
     "@google/generative-ai": "^0.24.1",
     "@googleapis/youtube": "^9.0.0",
     "@napi-rs/canvas": "^0.1.98",
-    "axios": "^1.7.2",
+    "axios": "^1.15.0",
     "bcryptjs": "^2.4.3",
     "cheerio": "^1.0.0",
     "connect-redis": "^7.1.1",
