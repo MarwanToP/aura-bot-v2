@@ -3,8 +3,8 @@
 // ================================================================
 
 import { SlashCommandBuilder, PermissionFlagsBits, AttachmentBuilder } from 'discord.js';
-import { buildEmbed } from '../../utils/embedBuilder.js';
-import config         from '../../../config/config.js';
+import { buildEmbed } from '../../../shared/utils/embedBuilder.js';
+import config         from '../../../shared/config/config.js';
 
 // ── /ask — Single AI question ──────────────────────────────
 export const ask = {
@@ -358,6 +358,57 @@ export const aimod = {
       });
     } catch (err) {
       return interaction.editReply({ embeds: [buildEmbed({ type: 'error', description: `❌ Analysis failed: ${err.message}` })] });
+    }
+  },
+};
+
+// ── /ai-permissions — AI Role Audit ────────────────────────
+export const aiPermissions = {
+  data: new SlashCommandBuilder()
+    .setName('ai-permissions')
+    .setDescription('[Professional] AI role permission analysis & suggestion')
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles)
+    .addRoleOption(o => o.setName('role').setDescription('Role to analyze').setRequired(true))
+    .addStringOption(o => o.setName('purpose').setDescription('What is this role for? (Higher accuracy)').setMaxLength(500)),
+
+  userPermissions: [PermissionFlagsBits.ManageRoles],
+  guildOnly:       true,
+  cooldown:        10000,
+
+  async execute(client, interaction) {
+    await interaction.deferReply({ ephemeral: true });
+    
+    if (!client.ai.isAvailable()) {
+      return interaction.editReply({ embeds: [buildEmbed({ type: 'error', description: '❌ AI is not configured.' })] });
+    }
+
+    const role    = interaction.options.getRole('role');
+    const purpose = interaction.options.getString('purpose') || 'Unspecified';
+    const lang    = await client.i18n.resolveLanguage(client, interaction.user.id, interaction.guildId);
+
+    try {
+      // Get role permissions
+      const perms = role.permissions.toArray();
+      
+      const analysis = await client.ai.suggestPermissions(role.name, perms, purpose);
+      
+      const embed = buildEmbed({
+        type:  analysis.dangerZone ? 'warning' : 'ai',
+        title: `🤖 Neural Role Analysis — ${role.name}`,
+        description: `**AI Rationale:** ${analysis.rationale}`,
+        fields: [
+          { name: '📋 Suggested Permissions', value: analysis.suggestions.length ? analysis.suggestions.map(p => `\`${p}\``).join(', ') : 'No changes suggested.', inline: false },
+          { name: '🛡️ Vulnerability Status',  value: analysis.dangerZone ? '🟠 **Caution**: High-level permissions suggested.' : '🟢 **Secure**: Standards mapping applied.', inline: true },
+        ],
+        footer: 'Powered by Aura Neural Logic Core',
+        timestamp: true,
+      });
+
+      // TODO: Add buttons for Apply (In a real implementation, we would handle the button interaction)
+      return interaction.editReply({ embeds: [embed] });
+    } catch (err) {
+      client.logger.error('[AI] Permissions audit failed:', err);
+      return interaction.editReply({ embeds: [buildEmbed({ type: 'error', description: '❌ AI analysis failed.' })] });
     }
   },
 };

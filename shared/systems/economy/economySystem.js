@@ -4,7 +4,7 @@
 
 import { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import { buildEmbed } from '../../utils/embedBuilder.js';
-import config         from '../../../config/config.js';
+import config         from '../../config/config.js';
 import logger         from '../../utils/logger.js';
 import { generateAuraCard } from '../../utils/cardGenerator.js';
 
@@ -66,8 +66,63 @@ export const aura = {
   },
 };
 
-export const balance = { ...aura, data: new SlashCommandBuilder().setName('balance').setDescription('Check your Aura Points').addUserOption(o => o.setName('user').setDescription('User to check')) };
+// ─── /bank (Aura Central Bank) ───────────────────────────────
+export const bank = {
+  data: new SlashCommandBuilder()
+    .setName('bank')
+    .setDescription('Access your Aura Central Bank account')
+    .addSubcommand(s => s.setName('balance').setDescription('Check your current holdings').addUserOption(o => o.setName('user').setDescription('User to check')))
+    .addSubcommand(s => s.setName('deposit').setDescription('Deposit points into your secure vault').addIntegerOption(o => o.setName('amount').setDescription('Amount to deposit').setMinValue(1).setRequired(true)))
+    .addSubcommand(s => s.setName('withdraw').setDescription('Withdraw points from your vault').addIntegerOption(o => o.setName('amount').setDescription('Amount to withdraw').setMinValue(1).setRequired(true))),
+
+  guildOnly: true,
+  cooldown:  3000,
+
+  async execute(client, interaction) {
+    await interaction.deferReply();
+    const sub    = interaction.options.getSubcommand();
+    const target = interaction.options.getUser('user') || interaction.user;
+    const wallet = await getWallet(client, target.id, interaction.guildId);
+    const { currencyEmoji } = config.economy;
+
+    if (sub === 'balance') {
+      const card = await generateAuraCard(target, {
+        balance:    wallet.balance,
+        bank:       wallet.bank,
+        streak:     wallet.dailyStreak,
+        reputation: wallet.reputation
+      });
+
+      return interaction.editReply({
+        content: `🏛️ **Aura Bank Statement** for **${target.username}**\n💰 Wallet: \`${Number(wallet.balance).toLocaleString()}\` ${currencyEmoji}\n🏦 Vault: \`${Number(wallet.bank).toLocaleString()}\` ${currencyEmoji}`,
+        files: [card]
+      });
+    }
+
+    if (sub === 'deposit') {
+      const amount = interaction.options.getInteger('amount');
+      if (wallet.balance < amount) return interaction.editReply({ embeds: [buildEmbed({ type: 'error', description: `❌ You only have **${wallet.balance}** points in your wallet.` })] });
+
+      await wallet.decrement('balance', { by: amount });
+      await wallet.increment('bank', { by: amount });
+
+      return interaction.editReply({ embeds: [buildEmbed({ type: 'success', title: '📥 Vault Deposit Successful', description: `Successfully secured **${amount.toLocaleString()}** points in your vault.\n**New Vault Balance:** ${Number(wallet.bank) + amount} ${currencyEmoji}`, timestamp: true })] });
+    }
+
+    if (sub === 'withdraw') {
+      const amount = interaction.options.getInteger('amount');
+      if (wallet.bank < amount) return interaction.editReply({ embeds: [buildEmbed({ type: 'error', description: `❌ You only have **${wallet.bank}** points in your vault.` })] });
+
+      await wallet.decrement('bank', { by: amount });
+      await wallet.increment('balance', { by: amount });
+
+      return interaction.editReply({ embeds: [buildEmbed({ type: 'success', title: '📤 Vault Withdrawal Successful', description: `Successfully withdrew **${amount.toLocaleString()}** points to your wallet.\n**New Wallet Balance:** ${Number(wallet.balance) + amount} ${currencyEmoji}`, timestamp: true })] });
+    }
+  },
+};
+
 export const points  = { ...aura, data: new SlashCommandBuilder().setName('points').setDescription('Check your Aura Points').addUserOption(o => o.setName('user').setDescription('User to check')) };
+export const balance = { ...aura, data: new SlashCommandBuilder().setName('balance').setDescription('Check your Aura Points').addUserOption(o => o.setName('user').setDescription('User to check')) };
 
 // ─── /daily ──────────────────────────────────────────────────
 export const daily = {

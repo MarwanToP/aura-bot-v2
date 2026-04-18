@@ -2,8 +2,8 @@
 //  AURA BOT v2.0 — Aura Voice Assistant (AVA) Commands
 // ================================================================
 import { SlashCommandBuilder, PermissionFlagsBits } from 'discord.js';
-import { startListening } from '../../systems/voice/voiceAI.js';
-import { buildEmbed } from '../../utils/embedBuilder.js';
+import { startListening } from '../../../shared/systems/voice/voiceAI.js';
+import { buildEmbed } from '../../../shared/utils/embedBuilder.js';
 import { getVoiceConnection } from '@discordjs/voice';
 
 export const aura = {

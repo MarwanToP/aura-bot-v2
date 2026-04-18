@@ -3,9 +3,53 @@
 // ================================================================
 import { trackActivity } from '../staff/staffSystem.js';
 import { buildEmbed } from '../../utils/embedBuilder.js';
-import config         from '../../../config/config.js';
+import config         from '../../config/config.js';
 import logger         from '../../utils/logger.js';
 import discordTranscripts from 'discord-html-transcripts';
+import { 
+  ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, ChannelType, PermissionFlagsBits 
+} from 'discord.js';
+
+/**
+ * Initializes a persistent ticket panel from a database configuration
+ */
+export async function initializeTicketPanel(client, panelId) {
+  const { TicketPanel } = client.db.models;
+  const panel = await TicketPanel.findOne({ where: { panelId } });
+  if (!panel) return;
+
+  const channel = await client.channels.fetch(panel.channelId).catch(() => null);
+  if (!channel) return;
+
+  const embed = buildEmbed({
+    type: 'primary',
+    title: panel.title || '🎫 Aura Support Portal',
+    description: panel.description || 'Access our specialized support departments below.',
+    footer: 'Aura Intelligence // Secure Channel'
+  });
+
+  const row = new ActionRowBuilder();
+  panel.categories.slice(0, 5).forEach(cat => {
+    row.addComponents(
+      new ButtonBuilder()
+        .setCustomId(`ticket:open:${cat.id}`)
+        .setLabel(cat.label)
+        .setEmoji(cat.emoji || '🎫')
+        .setStyle(ButtonStyle.Primary)
+    );
+  });
+
+  try {
+    if (panel.messageId) {
+      const msg = await channel.messages.fetch(panel.messageId).catch(() => null);
+      if (msg) return await msg.edit({ embeds: [embed], components: [row] });
+    }
+    const newMsg = await channel.send({ embeds: [embed], components: [row] });
+    await panel.update({ messageId: newMsg.id });
+  } catch (err) {
+    console.error(`[TicketSystem] Failed to post panel ${panelId}:`, err);
+  }
+}
 
 export async function createTicket(client, guild, user, { category = 'Other', subject = '', priority = 'Medium' } = {}) {
   try {

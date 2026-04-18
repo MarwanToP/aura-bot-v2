@@ -4,7 +4,7 @@
 
 import { SlashCommandBuilder, PermissionFlagsBits } from 'discord.js';
 import { buildEmbed } from '../../utils/embedBuilder.js';
-import config         from '../../../config/config.js';
+import config         from '../../config/config.js';
 
 // ─── /customcmd ──────────────────────────────────────────────
 export const customcmd = {

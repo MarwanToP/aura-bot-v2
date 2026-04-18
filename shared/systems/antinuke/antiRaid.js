@@ -2,7 +2,7 @@
 //  Anti-Raid System v2
 // ================================================================
 import { buildEmbed } from '../../utils/embedBuilder.js';
-import config         from '../../../config/config.js';
+import config         from '../../config/config.js';
 import logger         from '../../utils/logger.js';
 
 export async function trackJoin(client, member) {

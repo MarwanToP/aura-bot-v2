@@ -3,7 +3,7 @@
 // ================================================================
 import { createCanvas, loadImage } from '@napi-rs/canvas';
 import { AttachmentBuilder }       from 'discord.js';
-import config                      from '../../../config/config.js';
+import config                      from '../../config/config.js';
 import logger                      from '../../utils/logger.js';
 
 export function xpForLevel(level) { return config.leveling.levelFormula(level); }

@@ -3,7 +3,7 @@
 // ================================================================
 import { AuditLogEvent } from 'discord.js';
 import { buildEmbed }    from '../../utils/embedBuilder.js';
-import config            from '../../../config/config.js';
+import config            from '../../config/config.js';
 import logger            from '../../utils/logger.js';
 
 export async function handleAntiNuke(client, guildId, executorId, actionType, details = {}) {

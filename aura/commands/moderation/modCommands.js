@@ -2,7 +2,7 @@
 //  Moderation Commands v2 — ban, kick, timeout, warn, clear, softban
 // ================================================================
 import { SlashCommandBuilder, PermissionFlagsBits } from 'discord.js';
-import { buildEmbed, buildModEmbed } from '../../utils/embedBuilder.js';
+import { buildEmbed, buildModEmbed } from '../../../shared/utils/embedBuilder.js';
 import ms from 'ms';
 
 // ─── Case Manager helpers ─────────────────────────────────────

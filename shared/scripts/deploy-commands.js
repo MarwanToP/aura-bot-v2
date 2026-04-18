@@ -33,8 +33,8 @@ async function loadCommands(dir) {
 }
 
 async function deploy() {
-  await loadCommands(join(__dirname, '../aura/commands'));
-  await loadCommands(join(__dirname, '../shared/systems'));
+  await loadCommands(join(__dirname, '../../aura/commands'));
+  await loadCommands(join(__dirname, '../systems'));
 
   // Deduplicate
   const seen  = new Set();

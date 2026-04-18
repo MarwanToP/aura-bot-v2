@@ -1,5 +1,5 @@
 import { SlashCommandBuilder, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder } from 'discord.js';
-import { buildEmbed } from '../../utils/embedBuilder.js';
+import { buildEmbed } from '../../../shared/utils/embedBuilder.js';
 
 export const tpanel = {
   data: new SlashCommandBuilder()

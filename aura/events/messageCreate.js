@@ -1,5 +1,6 @@
 import customization from '../../shared/systems/customization/customizationSystem.js';
 import logger        from '../../shared/utils/logger.js';
+import { trackActivity } from '../../shared/systems/staff/staffSystem.js';
 
 export const mentionCache = new Map();
 
@@ -8,6 +9,9 @@ export default {
   async execute(client, message) {
     if (message.author.bot) return;
     if (!message.guild) return handleDM(client, message);
+
+    // Track Staff Activity (Messages)
+    await trackActivity(client, message.guildId, message.author.id, 'message');
 
     // ─── Neural Custom Handlers ──────────────────────────────
     await handlePrefixCommands(client, message);

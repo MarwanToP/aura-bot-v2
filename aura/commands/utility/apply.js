@@ -1,6 +1,6 @@
 import { SlashCommandBuilder, PermissionFlagsBits, ChannelType } from 'discord.js';
-import { buildEmbed } from '../../utils/embedBuilder.js';
-import { showApplicationModal } from '../../systems/applications/applicationSystem.js';
+import { buildEmbed } from '../../../shared/utils/embedBuilder.js';
+import { showApplicationModal } from '../../../shared/systems/applications/applicationSystem.js';
 
 export default {
     data: new SlashCommandBuilder()

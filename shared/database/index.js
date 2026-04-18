@@ -429,7 +429,25 @@ const ApplicationForm = sequelize.define('ApplicationForm', {
   cooldown:     { type: DataTypes.INTEGER, defaultValue: 86400 }, // 24h default
 }, { tableName: 'application_forms', timestamps: true });
 
-// ── 25. Staff Application ─────────────────────────────────────
+// ── 25. Ticket Panel (Web Configurable) ───────────────────────
+const TicketPanel = sequelize.define('TicketPanel', {
+  id:           { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
+  guildId:      { type: DataTypes.STRING, allowNull: false },
+  panelId:      { type: DataTypes.STRING, allowNull: false }, // Unique ID for buttons
+  title:        { type: DataTypes.STRING, defaultValue: 'Support Ticket' },
+  description:  { type: DataTypes.TEXT, defaultValue: 'Click a button below to open a ticket' },
+  image:        { type: DataTypes.STRING, allowNull: true },
+  thumbnail:    { type: DataTypes.STRING, allowNull: true },
+  channelId:    { type: DataTypes.STRING, allowNull: true }, // Channel where panel is sent
+  messageId:    { type: DataTypes.STRING, allowNull: true }, // Message ID of the panel
+  categories:   { type: DataTypes.JSONB, defaultValue: [] }, // [{ name, label, emoji, roleId, color }]
+  active:       { type: DataTypes.BOOLEAN, defaultValue: true },
+}, { 
+  tableName: 'ticket_panels', timestamps: true,
+  indexes: [{ unique: true, fields: ['guildId', 'panelId'] }],
+});
+
+// ── 26. Staff Application ─────────────────────────────────────
 const StaffApplication = sequelize.define('StaffApplication', {
   id:           { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
   guildId:      { type: DataTypes.STRING, allowNull: false },
@@ -465,7 +483,7 @@ const models = {
   Birthday, LevelReward, AutoResponder, CustomCommand,
   ReactionRole, StarboardEntry, InviteTrack, GuildCounter,
   Automation, TimedMessage, Achievement, UserAchievement, TempChannel,
-  ApplicationForm, StaffApplication, StaffDuty,
+  ApplicationForm, TicketPanel, StaffApplication, StaffDuty,
 };
 
 Object.entries(models).forEach(([name, model]) => {

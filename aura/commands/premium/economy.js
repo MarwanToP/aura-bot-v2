@@ -2,7 +2,7 @@
 //  AURA BOT v2.0 — Economy Commands (Aura Credits)
 // ================================================================
 import { SlashCommandBuilder } from 'discord.js';
-import * as economy from '../../systems/economy/economySystem.js';
+import * as economy from '../../../shared/systems/economy/economySystem.js';
 
 /**
  * /credits — Main economy profile

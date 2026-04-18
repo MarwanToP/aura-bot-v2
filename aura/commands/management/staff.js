@@ -2,8 +2,8 @@
 //  AURA BOT v2.0 — Staff Management Commands
 // ================================================================
 import { SlashCommandBuilder, PermissionFlagsBits } from 'discord.js';
-import * as staff from '../../systems/staff/staffSystem.js';
-import { buildEmbed } from '../../utils/embedBuilder.js';
+import * as staff from '../../../shared/systems/staff/staffSystem.js';
+import { buildEmbed } from '../../../shared/utils/embedBuilder.js';
 
 export const staffCommand = {
   data: new SlashCommandBuilder()

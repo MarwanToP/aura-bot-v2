@@ -27,10 +27,56 @@
     "leaderboardTitle":"🏆 Leaderboard — {{guild}}",
     "noData":"No XP data yet."
   },
-  "economy": {
-    "insufficient":"❌ Insufficient funds.",
-    "dailyClaimed":"💰 Claimed **{{amount}}** coins!",
-    "transferred":"✅ Transferred **{{amount}}** coins to <@{{user}}>."
+  "bank": {
+    "title": "🏛️ Neural Bank — {{user}}",
+    "insufficient":"❌ Insufficient funds in your neural account.",
+    "dailyClaimed":"💰 Successfully synchronized. Claimed **{{amount}}** Aura Points!",
+    "transferred":"✅ Transferred **{{amount}}** points to <@{{user}}>.",
+    "profile": {
+      "title": "📇 Identity Matrix",
+      "balance": "Balance: {{amount}} AP",
+      "bank": "Vault: {{amount}} AP",
+      "reputation": "Reputation: {{amount}} REP"
+    },
+    "loan": {
+      "approved": "✅ Neural credit approved. **{{amount}}** AP added to your account.",
+      "denied": "❌ Credit request denied. Low reputation or pending debt."
+    }
+  },
+  "games": {
+    "blackjack": {
+      "title": "🃏 Neural Blackjack",
+      "dealer": "Dealer's Hand",
+      "player": "Your Hand",
+      "stand": "You stand.",
+      "hit": "You hit.",
+      "win": "🎉 You win **{{amount}}** AP!",
+      "lose": "💀 You lost. Better luck next time.",
+      "draw": "⚖️ Push. No winner."
+    },
+    "slots": {
+      "title": "🎰 Neural Slots",
+      "result": "Result: {{emojis}}",
+      "win": "🎉 Jackpot! You won **{{amount}}** AP!",
+      "lose": "❌ No match."
+    }
+  },
+  "professional": {
+    "duty": {
+      "on": "🟢 You are now **ON DUTY**. Staff logs will track your activity.",
+      "off": "🔴 You are now **OFF DUTY**. Summary: **{{time}}** of active monitoring.",
+      "alreadyOn": "⚠️ You are already on duty.",
+      "alreadyOff": "⚠️ You are not on duty."
+    },
+    "audit": {
+      "title": "🛡️ Professional Server Audit",
+      "processing": "Analyzing server health and security...",
+      "result": "Server Audit Score: **{{score}}%**\n\n{{details}}"
+    }
+  },
+  "fun": {
+    "meme": { "title": "🎭 Neural Meme", "generating": "Synthesizing meme from the cloud..." },
+    "joke": { "title": "🤣 Randomized Neural Humor", "generating": "Accessing humor database..." }
   },
   "tickets": {
     "created":"✅ Ticket created: {{channel}}",

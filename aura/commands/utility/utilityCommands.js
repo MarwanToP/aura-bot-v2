@@ -3,10 +3,10 @@
 //            /invites /search
 // ================================================================
 import { SlashCommandBuilder, PermissionFlagsBits, ChannelType } from 'discord.js';
-import { buildEmbed }  from '../../utils/embedBuilder.js';
-import { levelFromXp, getLeaderboard, getUserRank, generateRankCard } from '../../systems/leveling/levelingSystem.js';
-import { activateLockdown, liftLockdown, isInLockdown } from '../../systems/antinuke/antiRaid.js';
-import config          from '../../../config/config.js';
+import { buildEmbed }  from '../../../shared/utils/embedBuilder.js';
+import { levelFromXp, getLeaderboard, getUserRank, generateRankCard } from '../../../shared/systems/leveling/levelingSystem.js';
+import { activateLockdown, liftLockdown, isInLockdown } from '../../../shared/systems/antinuke/antiRaid.js';
+import config          from '../../../shared/config/config.js';
 
 // ─── /settings ────────────────────────────────────────────────
 export const settings = {
@@ -209,26 +209,26 @@ export const help = {
     .setDescription('View all commands')
     .addStringOption(o => o.setName('category').setDescription('Category')
       .addChoices(
-        { name: '🤖 AI',          value: 'ai' },
-        { name: '🛡️ Moderation', value: 'moderation' },
-        { name: '📈 Leveling',    value: 'leveling' },
-        { name: '💰 Economy',     value: 'economy' },
-        { name: '🎫 Tickets',     value: 'tickets' },
-        { name: '⚙️ Settings',   value: 'settings' },
-        { name: '⭐ Premium',     value: 'premium' },
+        { name: '🤖 AI',           value: 'ai' },
+        { name: '🛡️ Moderation',  value: 'moderation' },
+        { name: '🏛️ Bank',        value: 'bank' },
+        { name: '🎮 Games',       value: 'games' },
+        { name: '🎨 Fun',         value: 'fun' },
+        { name: '👔 Professional', value: 'professional' },
+        { name: '⚙️ Settings',     value: 'settings' },
       )
     ),
   cooldown: 5000,
   async execute(client, interaction) {
     const category = interaction.options.getString('category');
     const cats = {
-      ai:         { emoji: '🤖', title: 'AI Commands',         cmds: ['/ask','/chat','/imagine','/translate','/summarize','/aimod'] },
-      moderation: { emoji: '🛡️', title: 'Moderation',         cmds: ['/ban','/kick','/timeout','/warn','/clear','/softban','/history','/warnings'] },
-      leveling:   { emoji: '📈', title: 'Leveling & XP',       cmds: ['/rank','/leaderboard','/xp','/levelreward'] },
-      economy:    { emoji: '💰', title: 'Economy',             cmds: ['/balance','/daily','/work','/gamble','/shop','/transfer','/richlist'] },
-      tickets:    { emoji: '🎫', title: 'Tickets',             cmds: ['/ticket open','/ticket close','/ticket claim','/ticket add','/ticket list'] },
-      settings:   { emoji: '⚙️', title: 'Settings',           cmds: ['/settings view','/settings language','/settings welcome','/settings leveling','/settings antinuke','/settings aimod','/settings aichat'] },
-      premium:    { emoji: '⭐', title: 'Premium Features',    cmds: ['/giveaway start','/social add','/customcmd add','/reactionrole add','/timedmsg add','/tempchannel create','/automation create','/lockdown','/poll ai'] },
+      ai:           { emoji: '🤖', title: 'Neural AI Core',     cmds: ['/ask','/imagine','/translate','/summarize','/ai-permissions','/search'] },
+      moderation:   { emoji: '🛡️', title: 'Security Force',      cmds: ['/ban','/kick','/timeout','/softban','/warn','/history','/clear','/lockdown'] },
+      professional: { emoji: '👔', title: 'Management Console', cmds: ['/staff duty','/staff stats','/ticket panel','/settings view','/invites'] },
+      bank:         { emoji: '🏛️', title: 'Aura Central Bank',   cmds: ['/bank balance','/bank deposit','/bank withdraw','/bank daily','/bank work','/shop'] },
+      games:        { emoji: '🎮', title: 'Entertainment Deck', cmds: ['/blackjack','/slots','/coinflip','/dice'] },
+      fun:          { emoji: '🎨', title: 'Aura Social',        cmds: ['/aura','/rank','/leaderboard','/avatar','/rep'] },
+      settings:     { emoji: '⚙️', title: 'System Config',       cmds: ['/settings language','/settings welcome','/settings leveling','/settings aimod'] },
     };
     if (category) {
       const cat = cats[category];

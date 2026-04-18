@@ -2,8 +2,8 @@
 //  AURA BOT v2.0 — TempVoice Management (Phase 2)
 // ================================================================
 import { SlashCommandBuilder, PermissionFlagsBits, ChannelType } from 'discord.js';
-import { buildEmbed } from '../../utils/embedBuilder.js';
-import logger from '../../utils/logger.js';
+import { buildEmbed } from '../../../shared/utils/embedBuilder.js';
+import logger from '../../../shared/utils/logger.js';
 
 export const voice = {
   data: new SlashCommandBuilder()

@@ -3,7 +3,7 @@
 // ================================================================
 import { InteractionType, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import { buildEmbed }      from '../../shared/utils/embedBuilder.js';
-import config              from '../../config/config.js';
+import config              from '../../shared/config/config.js';
 import logger              from '../../shared/utils/logger.js';
 
 // Local cache for system handlers to avoid expensive dynamic imports

@@ -4,8 +4,8 @@
 import {
   SlashCommandBuilder, PermissionFlagsBits, ChannelType
 } from 'discord.js';
-import { buildEmbed } from '../../utils/embedBuilder.js';
-import config         from '../../../config/config.js';
+import { buildEmbed } from '../../../shared/utils/embedBuilder.js';
+import config         from '../../../shared/config/config.js';
 
 // ─── /reactionrole ────────────────────────────────────────────
 export const reactionrole = {

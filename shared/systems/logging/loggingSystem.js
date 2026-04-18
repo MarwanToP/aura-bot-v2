@@ -2,7 +2,7 @@
 //  Logging System v2 — Comprehensive Audit Logs
 // ================================================================
 import { EmbedBuilder } from 'discord.js';
-import config           from '../../../config/config.js';
+import config           from '../../config/config.js';
 import logger           from '../../utils/logger.js';
 
 async function getCh(client, guildId) {

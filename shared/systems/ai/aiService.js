@@ -3,7 +3,7 @@
 //  All AI features powered by Gemini 1.5 Flash
 // ================================================================
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import config    from '../../../config/config.js';
+import config    from '../../config/config.js';
 import logger    from '../../utils/logger.js';
 
 class AIService {
@@ -178,6 +178,43 @@ class AIService {
   }
 
   // ── High-level Utilities ─────────────────────────────────────
+
+  /**
+   * AI-Driven Permission Suggestion
+   */
+  async suggestPermissions(roleName, currentPermissions = [], rolePurpose = 'None') {
+    if (!this.isAvailable()) return { suggestions: [], rationale: 'AI Service disabled.' };
+
+    const prompt = `
+      Analyze a Discord role and suggest the most appropriate permissions.
+      Role Name: "${roleName}"
+      Role Purpose: "${rolePurpose}"
+      Current Permissions: ${JSON.stringify(currentPermissions)}
+
+      Consider: 
+      1. Role names like "Admin", "Staff", "Mod" should have management permissions.
+      2. Role names like "Vip", "Premium", "Member" should have basic but enhanced permissions.
+      3. Global Context: This is a professional-grade bot for Discord servers.
+      4. Security: Do not suggest dangerous permissions (Administrator, Manage Guild) unless the name strongly implies high trust like "Founder" or "Owner".
+
+      Respond ONLY in valid JSON format:
+      {
+        "suggestions": ["PERMISSION_NAME", ...],
+        "rationale": "Briefly explain why these were suggested in one or two sentences.",
+        "dangerZone": boolean
+      }
+
+      Permission Names must be valid Discord.js PermissionFlagsBits keys (e.g., ManageChannels, KickMembers).
+    `;
+
+    try {
+      const result = await this.prompt(prompt, { maxTokens: 500 });
+      return this._parseJSON(result.content);
+    } catch (err) {
+      logger.error(`[AI] Permission suggestion failed: ${err.message}`);
+      return { suggestions: [], rationale: 'Internal AI error.', dangerZone: false };
+    }
+  }
 
   async summarize(text, { language = 'en', maxWords = 150 } = {}) {
     return this.prompt(
