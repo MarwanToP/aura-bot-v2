@@ -142,6 +142,74 @@ app.get('/api/guilds/:guildId', ensureAuth, async (req, res) => {
   }
 });
 
+// Guild Staff List
+app.get('/api/guilds/:guildId/staff', ensureAuth, async (req, res) => {
+  const { guildId } = req.params;
+  const isAdmin = req.user.guilds.some(g => g.id === guildId && (parseInt(g.permissions) & 0x8) === 0x8);
+  if (!isAdmin) return res.status(403).json({ error: 'Forbidden' });
+
+  try {
+    const staff = await database.models.StaffDuty.findAll({
+      where: { guildId },
+      order: [['totalDutyTime', 'DESC']],
+      limit: 20
+    });
+    res.json(staff);
+  } catch (err) {
+    res.status(500).json({ error: 'Error fetching staff performance' });
+  }
+});
+
+// Economy Leaderboard
+app.get('/api/guilds/:guildId/leaderboard', async (req, res) => {
+  const { guildId } = req.params;
+  try {
+    const top = await database.models.Economy.findAll({
+      where: { guildId },
+      order: [['balance', 'DESC']],
+      limit: 10
+    });
+    res.json(top);
+  } catch (err) {
+    res.status(500).json({ error: 'Error fetching leaderboard' });
+  }
+});
+
+// Ticket Panels API
+app.get('/api/guilds/:guildId/ticket-panels', ensureAuth, async (req, res) => {
+  const { guildId } = req.params;
+  const isAdmin = req.user.guilds.some(g => g.id === guildId && (parseInt(g.permissions) & 0x8) === 0x8);
+  if (!isAdmin) return res.status(403).json({ error: 'Forbidden' });
+
+  try {
+    const panels = await database.models.TicketPanel.findAll({ where: { guildId } });
+    res.json(panels);
+  } catch (err) {
+    res.status(500).json({ error: 'Error fetching ticket panels' });
+  }
+});
+
+app.post('/api/guilds/:guildId/ticket-panels', ensureAuth, async (req, res) => {
+  const { guildId } = req.params;
+  const isAdmin = req.user.guilds.some(g => g.id === guildId && (parseInt(g.permissions) & 0x8) === 0x8);
+  if (!isAdmin) return res.status(403).json({ error: 'Forbidden' });
+
+  try {
+    const [panel, created] = await database.models.TicketPanel.findOrCreate({ 
+      where: { guildId, panelId: req.body.panelId },
+      defaults: req.body
+    });
+    if (!created) await panel.update(req.body);
+    
+    // Notify bot
+    redis.publish('aura:ticket_panel_update', JSON.stringify({ guildId, panelId: panel.panelId }));
+    
+    res.json(panel);
+  } catch (err) {
+    res.status(500).json({ error: 'Error creating/updating ticket panel' });
+  }
+});
+
 // Update Guild Settings (Dashboard Sync)
 app.post('/api/guilds/:guildId', ensureAuth, async (req, res) => {
   const { guildId } = req.params;
@@ -152,7 +220,7 @@ app.post('/api/guilds/:guildId', ensureAuth, async (req, res) => {
     const [settings] = await database.models.GuildSettings.findOrCreate({ where: { guildId } });
     await settings.update(req.body);
     
-    // Notify the bot through Redis if necessary
+    // Notify the bot through Redis
     redis.publish('aura:config_update', JSON.stringify({ guildId, updates: req.body }));
     
     res.json({ success: true, settings });
@@ -199,15 +267,6 @@ app.get('/api/commands', async (req, res) => {
   }
 });
 
-// Subscriptions Config
-app.get('/api/subscriptions', (req, res) => {
-  res.json([
-    { id: 'free',    name: 'Standard Core', price: '0',     color: '#94A3B8', features: ['AI Chat (10 req/day)', 'Moderation', 'Economy'] },
-    { id: 'premium', name: 'Neural Elite', price: '4.99',  color: '#F59E0B', features: ['Unlimited AI', 'Custom Commands', 'Priority Sync'] },
-    { id: 'dev',     name: 'Hyperion Dev',   price: 'Grant', color: '#7000FF', features: ['Terminal Access', 'Direct DB Link'], exclusive: 'Lenin' }
-  ]);
-});
-
 // ── Socket.IO Real-time Bridge ──────────────────────────────
 io.on('connection', (socket) => {
   logger.debug(`[Socket] New connection: ${socket.id}`);
@@ -223,12 +282,11 @@ io.on('connection', (socket) => {
   };
 
   broadcastStats();
-  const interval = setInterval(broadcastStats, 10000); // 10s intervals for production stability
+  const interval = setInterval(broadcastStats, 10000); 
 
   socket.on('disconnect', () => clearInterval(interval));
 });
 
-// ── Redis ModLog Subscription ────────────────────────────────
 // ── Redis ModLog Subscription ────────────────────────────────
 const modSub = process.env.REDIS_URL 
   ? new Redis(process.env.REDIS_URL, { ...(process.env.REDIS_TLS === 'true' && { tls: { rejectUnauthorized: false } }) })
