@@ -148,6 +148,13 @@ async function getHandler(prefix) {
 
 async function handleButton(client, interaction) {
   const [prefix, ...rest] = interaction.customId.split(':');
+  
+  // 🎙️ Handle TempVoice Interface
+  if (prefix === 'tv') {
+    const { handleTempVoiceInteraction } = await import('../../shared/systems/voice/voiceSystem.js');
+    return handleTempVoiceInteraction(client, interaction);
+  }
+
   const handler = await getHandler(prefix);
   if (handler?.handleButton) await handler.handleButton(client, interaction, rest.join(':'));
 }

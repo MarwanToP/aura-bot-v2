@@ -1,523 +1,523 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en">
 
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Aura — Intelligence Dashboard</title>
-  <meta name="description" content="State-of-the-Art Discord Intelligence Dashboard">
-  
-  <!-- Fonts: Inter & Outfit -->
+  <title>Aura Ultimate Dashboard</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@300;400;600;800&family=Fira+Code:wght@400;600&display=swap" rel="stylesheet">
-  
-  <!-- Icons: Lucide -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Outfit:wght@400;600;800&family=Fira+Code:wght@400;600&display=swap" rel="stylesheet">
   <script src="https://unpkg.com/lucide@latest"></script>
-  
-  <!-- Socket.IO -->
   <script src="/socket.io/socket.io.js"></script>
 
-  <!-- Styles -->
   <style>
     :root {
-      --bg: #010103;
-      --text: #ffffff;
-      --accent-pink: #FF2D55;
       --accent-cyan: #00E5FF;
+      --accent-pink: #FF2D55;
+      --accent-purple: #BF5AF2;
       --accent-yellow: #FFB800;
-      --secondary: #8E8E93;
-      --glass: rgba(255, 255, 255, 0.03);
-      --glass-border: rgba(255, 255, 255, 0.08);
-      --glass-heavy: rgba(5, 5, 8, 0.9);
-      --shadow: 0 40px 100px rgba(0,0,0,0.8);
-      --transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+      --bg-dark: #010103;
+      --glass-bg: rgba(13, 14, 20, 0.4);
+      --glass-border: rgba(255, 255, 255, 0.1);
+      --text-main: #FFFFFF;
+      --text-dim: #8E8E93;
+      --shadow: 0 40px 100px rgba(0, 0, 0, 0.9);
+      --font-outfit: 'Outfit', sans-serif;
+      --font-inter: 'Inter', sans-serif;
+      --font-mono: 'Fira Code', monospace;
     }
 
-    * { margin:0; padding:0; box-sizing: border-box; font-family: 'Outfit', sans-serif; }
-    body { background-color: var(--bg); color: var(--text); overflow-x: hidden; }
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
 
-    .nebula { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; }
-    .shard { position: absolute; border-radius: 50%; filter: blur(120px); opacity: 0.15; animation: drift 40s infinite linear alternate; }
-    .shard-1 { width: 80vw; height: 80vw; top: -20%; left: -10%; background: radial-gradient(circle, var(--accent-pink) 0%, transparent 70%); }
-    .shard-2 { width: 60vw; height: 60vw; bottom: -15%; right: -5%; background: radial-gradient(circle, var(--accent-cyan) 0%, transparent 70%); }
+    body {
+      background: var(--bg-dark) url('/aura_ultimate_bg.png') no-repeat center center fixed;
+      background-size: cover;
+      color: var(--text-main);
+      font-family: var(--font-inter);
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* ── Main Holographic Panel ───────────────────────── */
+    .hologram-frame {
+      width: 95vw;
+      height: 90vh;
+      max-width: 1600px;
+      max-height: 900px;
+      background: var(--glass-bg);
+      backdrop-filter: blur(40px) saturate(180%);
+      -webkit-backdrop-filter: blur(40px) saturate(180%);
+      border: 1px solid var(--glass-border);
+      border-radius: 40px;
+      display: flex;
+      box-shadow: var(--shadow), inset 0 0 40px rgba(255, 255, 255, 0.02);
+      position: relative;
+      animation: zoomIn 1s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes zoomIn {
+      from { transform: scale(0.95); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    /* ── Side Navigation ──────────────────────────────── */
+    .sidebar {
+      width: 80px;
+      border-right: 1px solid var(--glass-border);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 0;
+      gap: 30px;
+    }
+
+    .side-item {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-dim);
+      transition: all 0.3s;
+      cursor: pointer;
+    }
+
+    .side-item:hover, .side-item.active {
+      color: var(--accent-cyan);
+      background: rgba(0, 229, 255, 0.1);
+      box-shadow: 0 0 20px rgba(0, 229, 255, 0.2);
+    }
+
+    .side-item i { width: 20px; }
+
+    /* ── Content Area ────────────────────────────────── */
+    .content-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 40px;
+    }
+
+    /* ── Top Navigation ──────────────────────────────── */
+    .top-nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 40px;
+    }
+
+    .pill-nav {
+      background: rgba(0, 0, 0, 0.3);
+      padding: 6px;
+      border-radius: 20px;
+      display: flex;
+      gap: 5px;
+      border: 1px solid var(--glass-border);
+    }
+
+    .pill-item {
+      padding: 10px 24px;
+      border-radius: 15px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-dim);
+      cursor: pointer;
+      transition: 0.3s;
+    }
+
+    .pill-item:hover, .pill-item.active {
+      background: rgba(255, 255, 255, 0.08);
+      color: #fff;
+    }
+
+    .user-pill {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+
+    .avatar-ring {
+      width: 45px;
+      height: 45px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent-pink), var(--accent-purple));
+      padding: 2px;
+    }
+
+    .avatar-ring img {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid #000;
+    }
+
+    /* ── Dashboard Grid ──────────────────────────────── */
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      grid-template-rows: auto auto;
+      gap: 25px;
+      flex: 1;
+    }
+
+    .card {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--glass-border);
+      border-radius: 28px;
+      padding: 30px;
+      position: relative;
+      overflow: hidden;
+      backdrop-filter: blur(10px);
+    }
+
+    .card h3 { font-size: 16px; font-weight: 700; margin-bottom: 5px; }
+    .card p.sub { font-size: 11px; color: var(--text-dim); margin-bottom: 20px; text-transform: uppercase; letter-spacing: 1px; }
+
+    /* ── Sections ── */
+    .overview-card { grid-row: span 1; }
+    .side-stats { display: flex; flex-direction: column; gap: 20px; }
+
+    /* --- Wave Chart --- */
+    .wave-container {
+      height: 140px;
+      width: 100%;
+      position: relative;
+      margin: 20px 0;
+    }
     
-    @keyframes drift { 0% { transform: translate(0,0) scale(1); } 100% { transform: translate(5%, 10%) scale(1.1); } }
+    .wave-svg { width: 100%; height: 100%; }
 
-    header {
-      position: fixed; top: 32px; left: 50%; transform: translateX(-50%); width: calc(100% - 64px); max-width: 1400px;
-      height: 90px; background: var(--glass-heavy); backdrop-filter: blur(80px); -webkit-backdrop-filter: blur(80px);
-      border: 1px solid var(--glass-border); border-radius: 24px; display: flex; align-items: center; justify-content: space-between;
-      padding: 0 40px; z-index: 2000; box-shadow: var(--shadow);
+    /* --- Stats Row --- */
+    .stats-row { display: flex; gap: 40px; margin-bottom: 10px; }
+    .stat-box .val { font-size: 28px; font-family: var(--font-outfit); font-weight: 800; }
+    .stat-box .lbl { font-size: 11px; color: var(--text-dim); margin-top: 5px; }
+
+    /* --- Gauges --- */
+    .gauge-ring {
+       width: 100px; height: 100px;
+       border-radius: 50%;
+       border: 8px solid rgba(0, 229, 255, 0.1);
+       border-top-color: var(--accent-cyan);
+       display: flex; align-items: center; justify-content: center;
+       position: relative;
+       animation: spin 30s linear infinite;
+    }
+    @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+    .gauge-inner {
+      width: 60px; height: 60px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      transform: rotate(-30s); /* negate spin */
+      animation: spinCounter 30s linear infinite;
+    }
+    @keyframes spinCounter { from { transform: rotate(0deg); } to { transform: rotate(-360deg); } }
+
+    /* ── Bottom Strip ────────────────────────────────── */
+    .bottom-strip {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 25px;
+      margin-top: 25px;
     }
 
-    .brand { display: flex; align-items: center; gap: 16px; }
-    .brand-core { width: 50px; height: 50px; border-radius: 14px; overflow: hidden; border: 1px solid var(--glass-border); }
-    .brand-core img { width: 100%; height: 100%; object-fit: cover; }
-
-    .nav-cluster { display: flex; background: rgba(0,0,0,0.3); padding: 6px; border-radius: 20px; gap: 4px; border: 1px solid rgba(255,255,255,0.05); }
-    .nav-btn { padding: 10px 20px; border-radius: 14px; text-decoration: none; color: var(--secondary); font-weight: 700; font-size: 13px; transition: var(--transition); cursor: pointer; display: flex; align-items: center; gap: 10px; }
-    .nav-btn:hover { color: #fff; background: rgba(255,255,255,0.05); }
-    .nav-btn.active { color: #fff; background: rgba(255,255,255,0.08); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.1); }
-    .nav-btn.active i { color: var(--accent-cyan); filter: drop-shadow(0 0 10px var(--accent-cyan)); }
-
-    .main-wrap { max-width: 1400px; margin: 0 auto; padding: 180px 32px 80px; }
-    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 32px; }
-
-    .aura-card {
-      background: var(--glass); backdrop-filter: blur(60px); -webkit-backdrop-filter: blur(60px);
-      border: 1px solid var(--glass-border); border-radius: 24px; padding: 40px; transition: var(--transition);
-      position: relative; overflow: hidden; box-shadow: 0 4px 60px rgba(0,0,0,0.5);
+    .status-badge {
+      font-size: 24px;
+      font-weight: 800;
+      color: #27c93f;
+      text-shadow: 0 0 20px rgba(39, 201, 63, 0.5);
+      font-family: var(--font-outfit);
     }
-    .aura-card:hover { transform: translateY(-8px); background: rgba(255,255,255,0.05); }
 
-    .neural-core { position: relative; width: 300px; height: 300px; margin: 0 auto 60px; display: flex; align-items: center; justify-content: center; }
-    .core-pulse {
-      width: 180px; height: 180px; background: radial-gradient(circle, var(--accent-pink) 0%, transparent 80%);
-      border-radius: 50%; filter: blur(30px); opacity: 0.6; animation: pulsar 3s infinite alternate;
+    .tech-bar {
+      width: 100%;
+      height: 6px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 10px;
+      margin-top: 15px;
+      position: relative;
+      overflow: hidden;
     }
-    @keyframes pulsar { 0% { transform: scale(1); opacity: 0.4; } 100% { transform: scale(1.4); opacity: 0.8; } }
+    .tech-bar-fill {
+      width: 60%;
+      height: 100%;
+      background: #27c93f;
+      border-radius: 10px;
+      box-shadow: 0 0 15px #27c93f;
+    }
 
-    .badge-dev { padding: 6px 12px; border-radius: 10px; font-size: 10px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; border: 1px solid rgba(255,255,255,0.1); }
-    .btn { padding: 12px 28px; border-radius: 14px; font-weight: 800; font-size: 13px; cursor: pointer; border: none; transition: var(--transition); display: flex; align-items: center; justify-content: center; gap: 10px; }
-    .btn-aura { background: linear-gradient(135deg, var(--accent-pink), #8E54E9); color: #fff; box-shadow: 0 10px 30px rgba(255, 45, 85, 0.3); }
-    .btn-ghost { background: rgba(255,255,255,0.03); color: #fff; border: 1px solid var(--glass-border); }
-    .btn:hover { transform: scale(1.05); opacity: 0.9; }
+    .btn-manage {
+      background: rgba(255,255,255,0.08);
+      border: 1px solid var(--glass-border);
+      padding: 10px 20px;
+      border-radius: 12px;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+    .btn-manage:hover { background: rgba(255,255,255,0.15); }
 
-    .section { display: none; }
-    .section.active { display: block; animation: fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1); }
-    @keyframes fadeInUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+    /* ── List Elements ───────────────────────────────── */
+    .list-item {
+       display: flex; justify-content: space-between; align-items: center;
+       padding: 8px 0;
+       border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+    .list-item:last-child { border: none; }
+    .list-item .meta { font-size: 11px; color: var(--text-dim); }
 
-    .tech-font { font-family: 'Fira Code', monospace; }
-    .hidden { display: none; }
+    .glow-cyan { border-top: 4px solid var(--accent-cyan); }
+    .glow-pink { border-top: 4px solid var(--accent-pink); }
+    .glow-purple { border-top: 4px solid var(--accent-purple); }
+
   </style>
 </head>
 
 <body>
-  <div class="nebula">
-    <div class="shard shard-1"></div>
-    <div class="shard shard-2"></div>
-    <div class="shard shard-3"></div>
-  </div>
+  <div class="hologram-frame">
+    <!-- Sidebar -->
+    <nav class="sidebar">
+      <div class="side-item active"><i data-lucide="layout-grid"></i></div>
+      <div class="side-item"><i data-lucide="users"></i></div>
+      <div class="side-item"><i data-lucide="monitor"></i></div>
+      <div class="side-item"><i data-lucide="bar-chart-2"></i></div>
+      <div class="side-item"><i data-lucide="pie-chart"></i></div>
+      <div class="side-item"><i data-lucide="settings"></i></div>
+      <div style="flex: 1;"></div>
+      <div class="side-item"><i data-lucide="log-out"></i></div>
+    </nav>
 
-  <header>
-    <div class="brand">
-      <div class="brand-core"><img src="/aura_ultimate_mockup_logo_1776499981759.png"></div>
-      <span style="font-size: 1.5rem; font-weight: 800; letter-spacing: -2px;">AURA<span style="color: var(--accent-pink);">.</span></span>
-    </div>
-
-    <div class="nav-cluster">
-      <a class="nav-btn active" onclick="showSection('dashboard', this)"><i data-lucide="layout-dashboard"></i> Dashboard</a>
-      <a class="nav-btn" onclick="showSection('guilds', this)"><i data-lucide="share-2"></i> Nexus</a>
-      <a class="nav-btn" onclick="showSection('ecosystem', this)"><i data-lucide="codesandbox"></i> Shards</a>
-      <a class="nav-btn" onclick="showSection('plans', this)"><i data-lucide="sparkles"></i> Singularity</a>
-      <div id="leninNav" class="hidden">
-        <a class="nav-btn" onclick="showSection('devtools', this)" style="color: #00FFCC;"><i data-lucide="terminal"></i> System</a>
-      </div>
-    </div>
-
-    <div style="display: flex; align-items: center; gap: 24px;">
-      <div id="themeToggle" onclick="toggleTheme()" style="cursor: pointer; color: var(--secondary);"><i data-lucide="moon" id="themeIcon"></i></div>
-      <div id="userProfile">
-         <!-- Profile inject -->
-         <button class="btn btn-aura" style="padding: 12px 24px; font-size: 13px;" onclick="location.href='/auth/discord'">Authorize Link</button>
-      </div>
-    </div>
-  </header>
-
-    <main class="main-wrap">
-      <div id="welcomeHeader" style="margin-bottom: 120px; text-align: center; position: relative;">
-        <div class="neural-core">
-          <div class="core-pulse"></div>
-          <img src="/aura_ultimate_mockup_logo_1776499981759.png" style="position: absolute; width: 140px; height: 140px; border-radius: 50%; filter: drop-shadow(0 0 50px var(--accent-pink)); animation: float 6s infinite ease-in-out;">
-        </div>
-        <h1 style="font-size: 6rem; font-weight: 800; letter-spacing: -5px; line-height: 0.85; margin-top: -20px;">Autonomous<br><span style="background: linear-gradient(135deg, var(--accent-pink), #8E54E9); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0 0 30px rgba(255,45,85,0.4));">Intelligence.</span></h1>
-        <p style="color: var(--secondary); margin-top: 40px; letter-spacing: 12px; font-weight: 800; font-size: 0.7rem; text-transform: uppercase;">AURA SYSTEM v3.0 // ULTIMATE SYNC ACTIVE</p>
-      </div>
-
-      <style>
-        @keyframes float { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-20px) rotate(5deg); } }
-      </style>
-
-    <!-- Dashboard -->
-    <section id="dashboard" class="section active">
-      <div class="grid">
-        <div class="aura-card" style="border-top: 4px solid var(--accent-cyan);">
-          <div class="metric-tag" style="color: var(--accent-cyan);">Global Guilds</div>
-          <div class="metric-val tech-font" id="statGuilds" style="font-size: 3.5rem; font-weight: 800;">0</div>
-          <p style="font-size: 11px; color: var(--secondary);">Unified neural network active</p>
-        </div>
-        <div class="aura-card" style="border-top: 4px solid var(--accent-pink);">
-          <div class="metric-tag" style="color: var(--accent-pink);">Identity Nodes</div>
-          <div class="metric-val tech-font" id="statUsers" style="font-size: 3.5rem; font-weight: 800;">0</div>
-          <p style="font-size: 11px; color: var(--secondary);">Verified user synchronization</p>
-        </div>
-        <div class="aura-card" style="border-top: 4px solid var(--accent-yellow);">
-          <div class="metric-tag" style="color: var(--accent-yellow);">Uptime Constant</div>
-          <div class="metric-val tech-font" id="statUptime" style="font-size: 3.5rem; font-weight: 800;">0h 0m</div>
-          <p style="font-size: 11px; color: var(--secondary);">Core stability: 99.98%</p>
-        </div>
-      </div>
-
-      <!-- Live Monitoring Hub & Component Builder -->
-      <div style="display: grid; grid-template-columns: 1.5fr 1fr; gap: 32px; margin-top: 32px;">
-         <div class="aura-card" style="padding: 32px; border: 1px solid rgba(0, 229, 255, 0.1);">
-           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
-              <h3 style="font-size: 1.2rem; letter-spacing: -1px;"><i data-lucide="blocks" style="width: 18px; vertical-align: middle; margin-right: 8px;"></i>Component Builder v2</h3>
-              <div class="badge-dev" style="background: var(--holo-grad);">QUANTUM PREVIEW</div>
+    <!-- Content -->
+    <main class="content-area">
+      <!-- Top Nav -->
+      <section class="top-nav">
+        <div style="display: flex; align-items: center; gap: 20px;">
+           <div style="width: 40px; height: 40px; background: rgba(0,229,255,0.1); border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+              <span style="color: var(--accent-cyan); font-weight: 900; font-size: 20px;">A</span>
            </div>
-           
-           <!-- Builder Visualizer -->
-           <div style="background: rgba(0,0,0,0.3); border-radius: 16px; padding: 24px; border: 1px solid var(--glass-border);">
-              <div style="width: 100%; border-left: 4px solid #5865F2; background: #2f3136; border-radius: 4px; padding: 16px; margin-bottom: 20px;">
-                 <p style="font-weight: 600; color: white;">Aura System Message</p>
-                 <p style="color: #dbdee1; font-size: 14px; margin-top: 4px;">Dynamic content rendered via Neural Bridge v2.5</p>
-                 <div style="display: flex; gap: 8px; margin-top: 16px;">
-                    <div style="background: #4e5058; padding: 8px 16px; border-radius: 3px; font-size: 13px; font-weight: 600;">Button Primary</div>
-                    <div style="background: #248046; padding: 8px 16px; border-radius: 3px; font-size: 13px; font-weight: 600;">Confirm Action</div>
+           <h2 style="font-family: var(--font-outfit); font-weight: 800; letter-spacing: -1px; font-size: 24px;">AURA</h2>
+        </div>
+
+        <div class="pill-nav">
+          <div class="pill-item active">Dashboard</div>
+          <div class="pill-item">Servers</div>
+          <div class="pill-item">Analytics</div>
+          <div class="pill-item">Modules</div>
+          <div class="pill-item">Commands</div>
+          <div class="pill-item">Profile</div>
+        </div>
+
+        <div class="user-pill">
+           <i data-lucide="bell" style="color: var(--text-dim); width: 20px; cursor: pointer;"></i>
+           <div id="userProfile">
+              <button class="btn-manage" style="padding: 10px 24px;" onclick="location.href='/auth/discord'">Link Account</button>
+           </div>
+        </div>
+      </section>
+
+      <!-- Dashboard Grid -->
+      <div class="dashboard-grid">
+        
+        <!-- Left Column (Span 1) -->
+        <div class="card overview-card glow-cyan">
+           <div style="display: flex; justify-content: space-between; align-items: start;">
+              <div>
+                 <h3>Aura Overview</h3>
+                 <p class="sub">Real-time stats — online stats</p>
+              </div>
+              <div style="display: flex; gap: 10px;">
+                 <div style="width: 35px; height: 35px; border-radius: 8px; background: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center;"><i data-lucide="layers" style="width: 16px; color: var(--accent-purple);"></i></div>
+                 <div style="width: 35px; height: 35px; border-radius: 8px; background: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center;"><i data-lucide="cpu" style="width: 16px; color: var(--accent-cyan);"></i></div>
+              </div>
+           </div>
+
+           <div class="stats-row">
+              <div class="stat-box">
+                 <div class="val" id="statGuilds">0</div>
+                 <div class="lbl">Active Servers</div>
+              </div>
+              <div class="stat-box">
+                 <div class="val" id="statUsers">0</div>
+                 <div class="lbl">Total Users</div>
+              </div>
+              <div class="stat-box">
+                 <div class="val">89M</div>
+                 <div class="lbl">Commands executed</div>
+              </div>
+           </div>
+
+           <div class="wave-container">
+              <svg class="wave-svg" viewBox="0 0 800 140" preserveAspectRatio="none">
+                 <!-- Wave 1 (Cyan) -->
+                 <path d="M0,80 C150,40 350,120 500,70 C650,20 750,90 800,60 L800,140 L0,140 Z" fill="rgba(0, 229, 255, 0.1)"></path>
+                 <path d="M0,80 C150,40 350,120 500,70 C650,20 750,90 800,60" fill="none" stroke="var(--accent-cyan)" stroke-width="4"></path>
+                 <!-- Wave 2 (Purple) -->
+                 <path d="M0,100 C200,60 400,140 600,90 C800,40 800,100 800,100 L800,140 L0,140 Z" fill="rgba(191, 90, 242, 0.1)"></path>
+                 <path d="M0,100 C200,60 400,140 600,90 C800,40 800,100 800,100" fill="none" stroke="var(--accent-purple)" stroke-width="4"></path>
+                 <!-- Wave 3 (Gold) -->
+                 <path d="M0,120 C100,100 300,130 500,110 C700,90 800,120 800,120" fill="none" stroke="var(--accent-yellow)" stroke-width="2" opacity="0.5"></path>
+              </svg>
+           </div>
+
+           <div style="display: flex; justify-content: space-between; align-items: center;">
+              <div style="display: flex; gap: 15px;">
+                 <i data-lucide="zap" style="color: var(--accent-yellow); width: 18px;"></i>
+                 <i data-lucide="bar-chart-3" style="color: var(--accent-purple); width: 18px;"></i>
+                 <div style="background: rgba(255,184,0,0.1); color: var(--accent-yellow); font-size: 10px; font-weight: 800; padding: 4px 10px; border-radius: 6px;">10W</div>
+              </div>
+              <button class="btn-manage" onclick="botAction('Manage Core')">Manage Server</button>
+           </div>
+        </div>
+
+        <!-- Right Column Stats -->
+        <div class="side-stats">
+           <div class="card glow-purple" style="display: flex; gap: 20px; align-items: center;">
+              <div class="gauge-ring">
+                 <div class="gauge-inner">
+                    <span style="font-weight: 800; font-size: 14px;">120</span>
+                 </div>
+              </div>
+              <div>
+                 <h3>Server Performance</h3>
+                 <p class="sub">Server Analytics</p>
+                 <div style="display: flex; gap: 20px; font-size: 12px;">
+                    <div><span style="color: var(--text-dim);">Latency</span><br><b id="ping">32ms</b></div>
+                    <div><span style="color: var(--text-dim);">Efficiency</span><br><b>18%</b></div>
+                    <button class="btn-manage" style="font-size: 10px; padding: 6px 14px; margin-top: 5px;">Manage</button>
+                 </div>
+              </div>
+           </div>
+
+           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 25px;">
+              <div class="card glow-cyan">
+                 <h3>User Engagement</h3>
+                 <p class="sub">Growth chart</p>
+                 <svg viewBox="0 0 100 40" style="width: 100%; height: 40px;">
+                    <path d="M0,35 Q20,30 40,20 T80,10 T100,5" fill="none" stroke="var(--accent-cyan)" stroke-width="2"></path>
+                    <circle cx="100" cy="5" r="3" fill="var(--accent-cyan)"></circle>
+                 </svg>
+                 <div style="margin-top: 15px;">
+                    <div style="font-size: 14px; font-weight: 800;">1.2B</div>
+                    <p class="sub" style="margin: 0; font-size: 9px;">Messages</p>
                  </div>
               </div>
 
-              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-                 <button class="btn btn-ghost" style="width: 100%; border-radius: 8px; font-size: 12px;"><i data-lucide="plus"></i> Add Embed</button>
-                 <button class="btn btn-ghost" style="width: 100%; border-radius: 8px; font-size: 12px;"><i data-lucide="plus"></i> Add Row</button>
+              <div class="card glow-pink">
+                 <h3>Top Servers</h3>
+                 <p class="sub">Icons, names, online users</p>
+                 <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <div class="list-item">
+                       <div style="display: flex; align-items: center; gap: 8px;"><div style="width:18px; height:18px; border-radius:50%; background: var(--accent-cyan);"></div><span style="font-size: 11px;">Aura Name</span></div>
+                       <i data-lucide="users" style="width: 12px; color: var(--text-dim);"></i>
+                    </div>
+                    <div class="list-item">
+                       <div style="display: flex; align-items: center; gap: 8px;"><div style="width:18px; height:18px; border-radius:50%; background: var(--accent-purple);"></div><span style="font-size: 11px;">Aura Servers</span></div>
+                       <i data-lucide="users" style="width: 12px; color: var(--text-dim);"></i>
+                    </div>
+                 </div>
               </div>
            </div>
-           
-           <div style="margin-top: 24px; display: flex; align-items: center; gap: 12px; color: var(--secondary); font-size: 12px;">
-              <i data-lucide="info" style="width: 14px;"></i>
-              <span>Builder v2 supports rich interactions and image-generation intent.</span>
-           </div>
+        </div>
+
+      </div>
+
+      <!-- Bottom strip -->
+      <div class="bottom-strip">
+         <div class="card glow-cyan">
+            <h3>System Status</h3>
+            <div class="status-badge" id="statusText">OPTIMAL</div>
+            <div class="tech-bar"><div class="tech-bar-fill"></div></div>
          </div>
-
-         <div class="aura-card" style="padding: 32px; background: rgba(5,5,8,0.4);">
-            <h3 style="font-size: 1.2rem; margin-bottom: 24px; letter-spacing: -1px;">Process Telemetry</h3>
-            <div style="display: flex; flex-direction: column; gap: 20px;">
-               <div style="background: rgba(255,255,255,0.02); padding: 20px; border-radius: 12px; border: 1px solid var(--glass-border);">
-                  <div style="display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 11px; font-weight: 800; letter-spacing: 1px;">
-                     <span>GEMINI ENGINE</span>
-                     <span style="color: var(--holo-cyan);">LOAD 14%</span>
-                  </div>
-                  <div style="width: 100%; height: 6px; background: rgba(0,0,0,0.3); border-radius: 10px; overflow: hidden;">
-                     <div style="width: 14%; height: 100%; background: var(--holo-cyan); border-radius: 10px; box-shadow: 0 0 10px var(--holo-cyan);"></div>
-                  </div>
-               </div>
-               <div style="background: rgba(255,255,255,0.02); padding: 20px; border-radius: 12px; border: 1px solid var(--glass-border);">
-                  <div style="display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 11px; font-weight: 800; letter-spacing: 1px;">
-                     <span>UPSTASH MESH</span>
-                     <span style="color: var(--accent-solid);">LATENCY 4ms</span>
-                  </div>
-                  <div style="width: 100%; height: 6px; background: rgba(0,0,0,0.3); border-radius: 10px; overflow: hidden;">
-                     <div style="width: 100%; height: 100%; background: var(--accent-solid); border-radius: 10px; box-shadow: 0 0 10px var(--accent-solid);"></div>
-                  </div>
-               </div>
-               
-               <div style="padding: 20px; border-radius: 12px; background: rgba(0,0,0,0.2); border: 1px solid var(--glass-border);">
-                  <p style="font-size: 11px; color: var(--secondary); margin-bottom: 8px;">SYSTEM STATUS</p>
-                  <p style="font-family: 'Fira Code'; font-size: 12px; color: #00E5FF;"><i data-lucide="check-circle-2" style="width: 14px; vertical-align: middle;"></i> Neural bridge established</p>
-                  <p style="font-family: 'Fira Code'; font-size: 12px; color: #BF5AF2;"><i data-lucide="activity" style="width: 14px; vertical-align: middle;"></i> All shards synchronized</p>
-               </div>
-
-               <div style="display: flex; gap: 12px;">
-                  <button class="btn btn-ghost" style="flex: 1; font-size: 12px;" onclick="botAction('Ping')"><i data-lucide="crosshair"></i> Ping</button>
-                  <button class="btn btn-ghost" style="flex: 1; font-size: 12px;" onclick="botAction('Stat')"><i data-lucide="bar-chart-3"></i> Report</button>
-               </div>
+         <div class="card glow-purple">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+               <h3>Commands</h3>
+               <button class="btn-manage" style="font-size: 9px; padding: 4px 12px;">Configure</button>
+            </div>
+            <div class="list-item">
+               <div style="display: flex; align-items: center; gap: 10px;"><i data-lucide="activity" style="width:12px;"></i><span style="font-size: 12px;">Active Servers</span></div>
+               <span class="meta" id="statGuilds2">3</span>
+            </div>
+            <div class="list-item">
+               <div style="display: flex; align-items: center; gap: 10px;"><i data-lucide="terminal" style="width:12px;"></i><span style="font-size: 12px;">Commands executed</span></div>
+               <span class="meta">89M</span>
+            </div>
+         </div>
+         <div class="card glow-pink">
+            <h3>Events</h3>
+            <p class="sub">Eventing events</p>
+            <div class="list-item">
+               <div style="display: flex; align-items: center; gap: 10px;"><i data-lucide="calendar" style="width:12px;"></i><span style="font-size: 12px;">First Event</span></div>
+               <span class="meta">2 hay ago</span>
+            </div>
+            <div class="list-item">
+               <div style="display: flex; align-items: center; gap: 10px;"><i data-lucide="calendar" style="width:12px;"></i><span style="font-size: 12px;">Event Events</span></div>
+               <span class="meta">3 hay ago</span>
             </div>
          </div>
       </div>
-    </section>
 
-    <!-- Project Ecosystem -->
-    <section id="ecosystem" class="section">
-      <div class="aura-card" style="padding: 100px 60px; text-align: center; background: radial-gradient(circle at center, rgba(255,149,0,0.05), transparent);">
-         <h2 style="font-size: 4rem; margin-bottom: 20px; letter-spacing: -3px; font-weight: 800;">Neural <span style="background: var(--accent); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Singularity.</span></h2>
-         <p style="color: var(--secondary); max-width: 700px; margin: 0 auto 60px; font-size: 1.1rem;">Aura v3 operates on a distributed split-core architecture, utilizing the Master Mix protocol for infinite scalability.</p>
-         
-         <div style="position: relative; height: 350px; margin: 60px 0; display: flex; align-items: center; justify-content: center;">
-            <div style="position: absolute; width: 100%; height: 100%; opacity: 0.1; background-image: radial-gradient(var(--accent-solid) 1px, transparent 1px); background-size: 40px 40px; mask-image: radial-gradient(circle, white, transparent 80%);"></div>
-            
-            <div style="display: flex; justify-content: center; gap: 80px; align-items: center; z-index: 10;">
-               <div class="aura-card" style="padding: 32px; min-width: 220px; border-radius: 20px; border-top: 4px solid var(--accent-cyan);">
-                  <i data-lucide="database" style="color: var(--accent-cyan); margin-bottom: 16px; width: 32px; height: 32px;"></i>
-                  <h4 style="font-size: 16px; font-weight: 800;">NEON-OS</h4>
-                  <p style="font-size: 11px; color: var(--secondary); letter-spacing: 2px;">CORE STORAGE</p>
-               </div>
-               
-               <div class="neural-core" style="width: 140px; height: 140px;">
-                  <div class="core-pulse" style="width: 100px; height: 100px; background: var(--accent-pink);"></div>
-                  <img src="/aura_ultimate_mockup_logo_1776499981759.png" style="position: absolute; width: 90px; height: 90px; border-radius: 50%; filter: drop-shadow(0 0 20px var(--accent-pink));">
-               </div>
-
-               <div class="aura-card" style="padding: 32px; min-width: 220px; border-radius: 20px; border-top: 4px solid #8E54E9;">
-                  <i data-lucide="wind" style="color: #8E54E9; margin-bottom: 16px; width: 32px; height: 32px;"></i>
-                  <h4 style="font-size: 16px; font-weight: 800;">UPSTASH-X</h4>
-                  <p style="font-size: 11px; color: var(--secondary); letter-spacing: 2px;">NEURAL MESH</p>
-               </div>
-            </div>
-         </div>
-         
-         <div style="margin-top: 80px; display: grid; grid-template-columns: 1fr 2fr; gap: 32px;">
-             <div class="aura-card" style="padding: 40px; border: 1px solid var(--glass-border); border-bottom: 4px solid var(--accent-pink);">
-                <h3 style="margin-bottom: 20px;"><i data-lucide="image" style="width: 16px; margin-right: 8px;"></i> Ultimate Logo</h3>
-                <img src="/aura_ultimate_mockup_logo_1776499981759.png" style="width: 100%; border-radius: 20px; box-shadow: var(--shadow);">
-             </div>
-             <div class="aura-card" style="padding: 40px; border: 1px solid var(--glass-border); border-bottom: 4px solid var(--accent-cyan);">
-                <h3 style="margin-bottom: 20px;"><i data-lucide="layout" style="width: 16px; margin-right: 8px;"></i> Ultimate Banner</h3>
-                <img src="/aura_ultimate_mockup_banner_v2_1776499994056.png" style="width: 100%; border-radius: 20px; box-shadow: var(--shadow);">
-             </div>
-         </div>
-      </div>
-    </section>
-
-    <!-- Guilds Section -->
-    <section id="guilds" class="section">
-       <div class="grid" id="guildList">
-          <!-- Injected Servers -->
-       </div>
-    </section>
-
-    <!-- Studio: Aesthetic Greeting Designer -->
-    <section id="studio" class="section">
-       <div class="aura-card" style="padding: 40px;">
-          <h2 style="font-size: 2rem; margin-bottom: 24px;">Aesthetic <span style="color: var(--accent);">Greeting Studio.</span></h2>
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px;">
-             <!-- Preview Pane -->
-             <div id="welcomePreview" style="position: relative; width: 100%; aspect-ratio: 16/9; background: #000; border-radius: 12px; overflow: hidden; border: 1px solid var(--glass-border);">
-                <img id="bgPreview" src="https://wallpapers.com/images/featured/dark-galaxy-background-03w95hps10x6f06a.jpg" style="width: 100%; height: 100%; object-fit: cover; opacity: 0.6;">
-                <div id="avatarPreview" style="position: absolute; top: 50px; left: 50px; width: 80px; height: 80px; border-radius: 50%; border: 3px solid var(--accent); background: url('https://cdn.discordapp.com/embed/avatars/0.png') no-repeat center/cover; cursor: move;"></div>
-                <div id="textPreview" style="position: absolute; top: 150px; left: 50px; color: white; font-weight: 800; font-size: 1.2rem; cursor: move;">Welcome to Aura Server!</div>
-             </div>
-             <!-- Editor Pane -->
-             <div class="editor-pane">
-                <div class="input-group">
-                   <label>Welcome Message</label>
-                   <input type="text" id="welcomeMsg" value="Welcome {user} to {guild}!" class="input-glow">
-                </div>
-                <div class="input-group" style="margin-top: 20px;">
-                   <label>Background Image URL</label>
-                   <input type="text" id="welcomeBg" placeholder="https://..." class="input-glow">
-                </div>
-                <div style="display: flex; gap: 12px; margin-top: 30px;">
-                   <button class="btn btn-aura" onclick="saveWelcomeConfig()" style="flex: 1;">Save Designer</button>
-                   <button class="btn btn-ghost" onclick="resetDeveloper()" style="width: 50px;"><i data-lucide="refresh-cw"></i></button>
-                </div>
-             </div>
-          </div>
-       </div>
-    </section>
-
-    <!-- Staff Office -->
-    <section id="staff-office" class="section">
-       <div class="aura-card" style="padding: 40px;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px;">
-             <h2 style="font-size: 2rem;">Professional <span style="color: var(--holo-purple);">Staff Office.</span></h2>
-             <button class="btn btn-aura" onclick="showModal('promotion')"><i data-lucide="arrow-up-circle"></i> Promote Staff</button>
-          </div>
-          <div class="feed" id="staffList">
-             <!-- Staff stats injected here -->
-             <p style="color: var(--secondary); text-align: center;">Loading staff performance data...</p>
-          </div>
-       </div>
-    </section>
-
-    <!-- Plans -->
-    <section id="plans" class="section">
-       <div class="grid" id="planGrid">
-          <!-- Injected Plans -->
-       </div>
-    </section>
-
-    <!-- Terminal -->
-    <section id="devtools" class="section">
-       <div class="aura-card" style="background: #0a0a0c; border: 1px solid #1a1a1e; font-family: 'Fira Code', monospace;">
-          <div style="display: flex; gap: 8px; margin-bottom: 15px;">
-             <div style="width:12px; height:12px; border-radius:50%; background:#ff5f56"></div>
-             <div style="width:12px; height:12px; border-radius:50%; background:#ffbd2e"></div>
-             <div style="width:12px; height:12px; border-radius:50%; background:#27c93f"></div>
-          </div>
-          <div id="terminal" style="color: #00cec9; font-size: 13px; line-height: 1.6; height: 500px; overflow-y: auto;">
-             <p>[AURA-SYSTEM] Booting Neural Bridge...</p>
-             <p>[AURA-SYSTEM] Connecting to Neon-01... SUCCESS</p>
-             <p>[AURA-SYSTEM] Syncing Upstash-Main... SUCCESS</p>
-             <p>[AURA-SYSTEM] Loading Gemini-1.5-Pro... ACTIVE</p>
-             <p>> ready for telemetry transmission_</p>
-          </div>
-       </div>
-    </section>
-  </main>
-
-  <footer style="margin-top: 100px; padding: 60px 0; border-top: 1px solid var(--glass-border); text-align: center; position: relative;">
-     <div style="font-family: 'Fira Code'; font-size: 11px; color: var(--secondary); opacity: 0.5; margin-bottom: 20px;">
-        [AURA-SYSTEM] Finalizing Telemetry... DONE<br>
-        [AURA-SYSTEM] Integrity Check... PASSED<br>
-        [AURA-SYSTEM] Neural Bridge: PERSISTENT
-     </div>
-     <p style="font-weight: 700; letter-spacing: -1px; font-size: 1.2rem;">AURA<span style="color: var(--accent-solid);">.</span></p>
-     <p style="color: var(--secondary); font-size: 12px; margin-top: 8px;">© 2026 Aura Innovations. Built for the next era of Intelligence.</p>
-  </footer>
+    </main>
+  </div>
 
   <script>
-    // ── Global State ─────────────────────────────────────
-    let currentUser = null;
-    let isLenin = false;
-    let commands = [];
-    let plans = [];
-
-    // ── Init Icons ───────────────────────────────────────
     lucide.createIcons();
 
-    // ── Socket Connection ────────────────────────────────
     const socket = io();
     socket.on('stats', data => {
-      document.getElementById('statGuilds').innerText = data.guilds;
-      document.getElementById('statUsers').innerText = data.users;
+      document.getElementById('statGuilds').innerText = data.guilds.toLocaleString();
+      document.getElementById('statGuilds2').innerText = data.guilds;
+      document.getElementById('statUsers').innerText = (data.users / 1000000).toFixed(1) + 'M';
       document.getElementById('statUptime').innerText = formatUptime(data.uptime);
     });
 
-    socket.on('modLog', data => {
-      const container = document.getElementById('globalModLogs');
-      if (container) updateFeed(container, data);
-    });
-
-    function updateFeed(container, data) {
-      if (container.querySelector('satellite-dish')) container.innerHTML = '';
-      const item = document.createElement('div');
-      item.className = 'feed-item';
-      item.innerHTML = `
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-          <span style="font-weight: 800; font-size: 11px; color: ${data.color || 'var(--accent)'}; letter-spacing: 1px;">${data.type.toUpperCase()}</span>
-          <span style="font-size: 10px; color: var(--secondary);">${new Date().toLocaleTimeString()}</span>
-        </div>
-        <p style="font-size: 13px; color: var(--text);">${data.reason}</p>
-        <p style="font-size: 11px; color: var(--secondary); margin-top: 8px;">Target: ${data.user}</p>
-      `;
-      container.prepend(item);
-      if (container.children.length > 15) container.lastChild.remove();
-    }
-
-    // ── Navigation ──────────────────────────────────────
-    function showSection(id, el) {
-      document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-      document.getElementById(id).classList.add('active');
-      
-      document.querySelectorAll('.nav-btn').forEach(n => n.classList.remove('active'));
-      if (el) el.classList.add('active');
-
-      if (id === 'guilds') fetchGuilds();
-      if (id === 'plans') fetchPlans();
-    }
-
-    // ── Auth ───────────────────────────────────────────
-    async function checkAuth() {
-      try {
-        const res = await fetch('/api/me');
-        if (res.ok) {
-          currentUser = await res.json();
-          renderProfile(currentUser);
-        }
-      } catch {}
-    }
-
-    function renderProfile(user) {
-      const container = document.getElementById('userProfile');
-      const avatarUrl = user.avatar 
-        ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png`
-        : 'https://cdn.discordapp.com/embed/avatars/0.png';
-      
-      container.innerHTML = `
-        <div style="display: flex; align-items: center; gap: 12px;">
-          <div style="text-align: right;">
-            <div style="font-size: 13px; font-weight: 700;">${user.username}</div>
-            <div style="font-size: 9px; color: var(--accent); font-weight: 800;">NEURAL LINK ON</div>
-          </div>
-          <img src="${avatarUrl}" class="avatar pulse-glow" style="width: 38px; height: 38px; border-radius: 50%; border: 2px solid var(--accent); cursor: pointer;" onclick="toggleLenin()">
-        </div>
-      `;
-    }
-
-    // ── Caching & Data ──────────────────────────────────
-    async function fetchPlans() {
-      const res = await fetch('/api/subscriptions');
-      plans = await res.json();
-      const grid = document.getElementById('planGrid');
-      grid.innerHTML = plans.map(p => {
-        if (p.exclusive === 'Lenin' && !isLenin) return '';
-        return `
-          <div class="aura-card plan-box ${p.id === 'premium' ? 'premium' : ''}">
-            <h3 style="color: ${p.color};">${p.name}</h3>
-            <div class="plan-price">${p.price === 'Exclusive' ? '∞' : '$' + p.price}<span>/mo</span></div>
-            <ul style="margin-top: 24px; display: flex; flex-direction: column; gap: 12px; list-style: none;">
-               ${p.features.map(f => ` <li style="font-size: 14px; color: var(--secondary);"><i data-lucide="check" style="width:14px; margin-right:8px; color: var(--accent);"></i> ${f}</li> `).join('')}
-            </ul>
-            <button class="btn btn-aura" style="width: 100%; margin-top: 32px;">${p.price === 'Exclusive' ? 'ENTER DEV' : 'ACTIVATE'}</button>
-          </div>
-        `;
-      }).join('');
-      lucide.createIcons();
-    }
-
-    async function fetchGuilds() {
-      const res = await fetch('/api/guilds');
-      const guilds = await res.json();
-      const list = document.getElementById('guildList');
-      list.innerHTML = guilds.map(g => `
-        <div class="aura-card" style="cursor: pointer;" onclick="botAction('Manage ${g.guildId}')">
-           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-              <i data-lucide="shield" style="color: var(--accent);"></i>
-              <span class="badge-dev">${g.premiumTier > 0 ? 'ELITE' : 'SYNCED'}</span>
-           </div>
-           <p style="font-family: 'Fira Code'; font-size: 14px; color: var(--secondary);">${g.guildId}</p>
-           <h4 style="margin-top: 8px;">Quantum Server</h4>
-        </div>
-      `).join('');
-      lucide.createIcons();
-    }
-
-    // ── Utilities ───────────────────────────────────────
-    function toggleTheme() {
-      const body = document.body;
-      const theme = body.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-      body.setAttribute('data-theme', theme);
-      document.getElementById('themeIcon').setAttribute('data-lucide', theme === 'dark' ? 'moon' : 'sun');
-      lucide.createIcons();
-    }
-
-    function toggleLenin() {
-      isLenin = !isLenin;
-      document.getElementById('leninNav').classList.toggle('hidden', !isLenin);
-      if (currentUser) renderProfile(currentUser);
-      if (document.getElementById('plans').classList.contains('active')) fetchPlans();
+    function botAction(action) {
+      alert(`[AURA-SYSTEM] ${action} Protocol Initialized.`);
     }
 
     function formatUptime(s) {
-      const h = Math.floor(s / 3600);
-      const m = Math.floor((s % 3600) / 60);
-      return `${h}h ${m}m`;
+       const h = Math.floor(s / 3600);
+       const m = Math.floor((s % 3600) / 60);
+       return `${h}h ${m}m`;
     }
 
-    async function saveWelcomeConfig() {
-      const guildId = activeGuildId; // Supposed to be set when selecting a guild
-      if (!guildId) return alert('Select a server first.');
-
-      const config = {
-        welcomeConfig: {
-          enabled: true,
-          message: document.getElementById('welcomeMsg').value,
-          image: document.getElementById('welcomeBg').value,
-          // Extract coordinates if dragging was implemented, else default
-        }
-      };
-
-      const res = await fetch(`/api/guilds/${guildId}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(config)
-      });
-
-      if (res.ok) alert('✨ Neural Bridge Sync Complete: Configuration Saved.');
-      else alert('❌ Sync Failed.');
+    // ── Auth Check ──
+    async function checkAuth() {
+       try {
+          const res = await fetch('/api/me');
+          if (res.ok) {
+             const user = await res.json();
+             const container = document.getElementById('userProfile');
+             const avatarUrl = user.avatar 
+               ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png`
+               : 'https://cdn.discordapp.com/embed/avatars/0.png';
+             
+             container.innerHTML = `
+               <div class="user-pill">
+                 <div style="text-align: right;">
+                    <div style="font-size: 13px; font-weight: 700;">${user.username}</div>
+                    <div style="font-size: 9px; color: var(--accent-cyan); font-weight: 800;">SYNCED</div>
+                 </div>
+                 <div class="avatar-ring">
+                   <img src="${avatarUrl}">
+                 </div>
+               </div>
+             `;
+          }
+       } catch {}
     }
-
     checkAuth();
   </script>
 </body>
