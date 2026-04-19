@@ -64,11 +64,11 @@ export async function sendStaffReport(client, guild, user, report) {
   const { GuildSettings } = client.db.models;
   const settings = await GuildSettings.findOne({ where: { guildId: guild.id } });
   
-  // You might want to add a specific staffLogChannelId to GuildSettings later
-  const logChannelId = settings?.modLogChannelId; 
+  // Specific staff log channel prioritized, then fallback to moderation log
+  const logChannelId = settings?.staffLogChannelId || settings?.modLogChannelId; 
   if (!logChannelId) return;
 
-  const channel = await client.channels.fetch(logChannelId).catch(() => null);
+  const channel = guild.channels.cache.get(logChannelId) || await client.channels.fetch(logChannelId).catch(() => null);
   if (!channel?.isTextBased()) return;
 
   const hours   = Math.floor(report.duration / 3600);

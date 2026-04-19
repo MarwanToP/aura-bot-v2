@@ -54,6 +54,8 @@ const GuildSettings = sequelize.define('GuildSettings', {
   auditLogChannelId:    { type: DataTypes.STRING, allowNull: true },
   levelUpChannelId:     { type: DataTypes.STRING, allowNull: true },
   ticketLogChannelId:   { type: DataTypes.STRING, allowNull: true },
+  staffLogChannelId:    { type: DataTypes.STRING, allowNull: true },
+  voiceLogChannelId:    { type: DataTypes.STRING, allowNull: true },
   birthdayChannelId:    { type: DataTypes.STRING, allowNull: true },
   starboardChannelId:   { type: DataTypes.STRING, allowNull: true },
   welcomeChannelId:     { type: DataTypes.STRING, allowNull: true },

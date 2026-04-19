@@ -52,6 +52,11 @@ export const voice = {
           { name: 'Start', value: 'start' },
           { name: 'Stop', value: 'stop' },
         ))
+      .addChannelOption(o => o
+        .setName('log_channel')
+        .setDescription('Optional text channel to post stop logs')
+        .addChannelTypes(ChannelType.GuildText)
+      )
     ),
 
   guildOnly: true,
@@ -129,6 +134,7 @@ export const voice = {
 
 async function handleVoiceAiSession(client, interaction) {
   const action = interaction.options.getString('action');
+  const explicitLogChannel = interaction.options.getChannel('log_channel');
   const guild = interaction.guild;
   const member = interaction.member;
   const me = guild?.members?.me;
@@ -139,8 +145,8 @@ async function handleVoiceAiSession(client, interaction) {
     });
   }
 
-  const sessionStore = client.voiceSessions ?? new Map();
-  client.voiceSessions = sessionStore;
+  const sessionStore = client.voiceAiSessions ?? new Map();
+  client.voiceAiSessions = sessionStore;
   const connection = getVoiceConnection(interaction.guildId);
 
   if (action === 'stop') {
@@ -151,10 +157,23 @@ async function handleVoiceAiSession(client, interaction) {
     }
 
     try {
+      const session = sessionStore.get(interaction.guildId);
+      const stoppedChannelId = connection?.joinConfig?.channelId || session?.channelId || null;
       connection?.destroy();
       sessionStore.delete(interaction.guildId);
+
+      const auditChannel = await resolveVoiceAiLogChannel(client, interaction, explicitLogChannel);
+      const logResult = await sendVoiceAiStopLog({ interaction, auditChannel, stoppedChannelId, session });
+      const listenedUser = session?.listenedUserId ? `<@${session.listenedUserId}>` : 'Unknown';
+      const stoppedRoom = stoppedChannelId ? `<#${stoppedChannelId}>` : 'Unknown room';
+
       return interaction.editReply({
-        embeds: [buildEmbed({ type: 'success', description: '🛑 Voice AI stopped and disconnected cleanly.' })],
+        embeds: [buildEmbed({
+          type: logResult.logged ? 'success' : 'warning',
+          description: logResult.logged
+            ? `🛑 Voice AI stopped in ${stoppedRoom}.\n👤 Session user: ${listenedUser}\n📋 Stop log sent to ${auditChannel}.`
+            : `🛑 Voice AI stopped and disconnected cleanly.\n⚠️ ${logResult.reason}`,
+        })],
       });
     } catch (err) {
       logger.error('[VoiceAI] Failed to stop session:', err);
@@ -211,6 +230,7 @@ async function handleVoiceAiSession(client, interaction) {
       mode: 'ai',
       channelId: userChannel.id,
       startedBy: interaction.user.id,
+      listenedUserId: member.id,
       startedAt: Date.now(),
     });
 
@@ -234,6 +254,75 @@ async function handleVoiceAiSession(client, interaction) {
       })],
     });
   }
+}
+
+async function resolveVoiceAiLogChannel(client, interaction, explicitLogChannel) {
+  if (explicitLogChannel?.isTextBased()) return explicitLogChannel;
+
+  const { GuildSettings } = client.db.models;
+  const settings = await GuildSettings.findOne({ where: { guildId: interaction.guildId } });
+  const logChannelId = settings?.voiceLogChannelId || settings?.auditLogChannelId || settings?.modLogChannelId;
+  if (!logChannelId) return null;
+
+  return interaction.guild.channels.cache.get(logChannelId)
+    || await client.channels.fetch(logChannelId).catch(() => null);
+}
+
+async function sendVoiceAiStopLog({ interaction, auditChannel, stoppedChannelId, session }) {
+  if (!auditChannel?.isTextBased()) {
+    return { logged: false, reason: 'No valid log channel is configured.' };
+  }
+
+  const permissions = auditChannel.permissionsFor(interaction.guild.members.me);
+  const canSend = permissions?.has(PermissionFlagsBits.ViewChannel)
+    && permissions?.has(PermissionFlagsBits.SendMessages)
+    && permissions?.has(PermissionFlagsBits.EmbedLinks);
+  if (!canSend) {
+    return { logged: false, reason: `I cannot send embeds in ${auditChannel}.` };
+  }
+
+  const startedBy = session?.startedBy ? `<@${session.startedBy}>` : 'Unknown';
+  const listenedUser = session?.listenedUserId ? `<@${session.listenedUserId}>` : 'Unknown';
+  const startedAt = session?.startedAt ? `<t:${Math.floor(session.startedAt / 1000)}:R>` : 'Unknown';
+  const duration = session?.startedAt ? formatSessionDuration(Date.now() - session.startedAt) : 'Unknown';
+  const stoppedRoom = stoppedChannelId ? `<#${stoppedChannelId}>` : 'Unknown';
+  const transcriptLines = session?.transcript?.slice(-10).map(t => `\`[<t:${Math.floor(t.time/1000)}:T>]\` ${t.text}`) || [];
+  const transcriptText = transcriptLines.length ? transcriptLines.join('\n').slice(0, 1000) : '_No activity recorded._';
+
+  try {
+    await auditChannel.send({
+      embeds: [buildEmbed({
+        type: 'info',
+        title: '🛑 Voice AI Session Stopped',
+        description: `**Stopped By:** <@${interaction.user.id}>\n**Voice Room:** ${stoppedRoom}\n**Session User:** ${listenedUser}\n**Session Started By:** ${startedBy}\n**Session Started:** ${startedAt}\n**Session Duration:** ${duration}`,
+        fields: [
+          { name: '📝 Recent Transcript', value: transcriptText }
+        ],
+        footer: `Guild: ${interaction.guildId}${session?.transcript?.length > 10 ? ' • Showing last 10 lines' : ''}`,
+        timestamp: true,
+      })],
+    });
+
+    logger.info(`[VoiceAI] Stop log sent in guild ${interaction.guildId} by ${interaction.user.id} for channel ${stoppedChannelId || 'unknown'}`);
+    return { logged: true };
+  } catch (err) {
+    logger.error('[VoiceAI] Failed to send stop log:', err);
+    return { logged: false, reason: 'Failed to send the stop log message.' };
+  }
+}
+
+function formatSessionDuration(durationMs) {
+  const totalSeconds = Math.max(1, Math.floor(durationMs / 1000));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  const parts = [];
+
+  if (hours) parts.push(`${hours}h`);
+  if (minutes) parts.push(`${minutes}m`);
+  if (seconds || parts.length === 0) parts.push(`${seconds}s`);
+
+  return parts.join(' ');
 }
 
 export default voice;

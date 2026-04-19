@@ -25,6 +25,11 @@ export const settings = {
       .addBooleanOption(o => o.setName('card').setDescription('Show welcome card'))
     )
     .addSubcommand(s => s
+      .setName('farewell').setDescription('Configure farewell system')
+      .addBooleanOption(o => o.setName('enabled').setDescription('Enable/disable'))
+      .addChannelOption(o => o.setName('channel').setDescription('Farewell channel'))
+    )
+    .addSubcommand(s => s
       .setName('modlog').setDescription('Set mod log channel')
       .addChannelOption(o => o.setName('channel').setDescription('Channel').setRequired(true))
     )
@@ -66,6 +71,14 @@ export const settings = {
     .addSubcommand(s => s
       .setName('invitetrack').setDescription('Enable invite tracking')
       .addBooleanOption(o => o.setName('enabled').setDescription('Enable/disable').setRequired(true))
+    )
+    .addSubcommand(s => s
+      .setName('stafflog').setDescription('Set staff activity log channel')
+      .addChannelOption(o => o.setName('channel').setDescription('Channel').setRequired(true))
+    )
+    .addSubcommand(s => s
+      .setName('voicelog').setDescription('Set voice AI session log channel')
+      .addChannelOption(o => o.setName('channel').setDescription('Channel').setRequired(true))
     ),
   userPermissions: [PermissionFlagsBits.ManageGuild], guildOnly: true, cooldown: 3000,
   async execute(client, interaction) {
@@ -81,6 +94,7 @@ export const settings = {
           { name: '🌐 Language',    value: settings.language === 'ar' ? '🇸🇦 Arabic' : '🇬🇧 English', inline: true },
           { name: '⭐ Premium',     value: `Tier ${settings.premiumTier}`,                             inline: true },
           { name: '📥 Welcome',     value: settings.welcomeEnabled ? `✅ <#${settings.welcomeChannelId}>` : '❌', inline: true },
+          { name: '📤 Farewell',    value: settings.farewellEnabled ? `✅ <#${settings.farewellChannelId}>` : '❌', inline: true },
           { name: '📈 Leveling',    value: settings.levelingEnabled ? '✅' : '❌',                     inline: true },
           { name: '🛡️ Anti-Nuke',  value: settings.antiNukeEnabled ? '✅' : '❌',                     inline: true },
           { name: '🎫 Tickets',     value: settings.ticketEnabled   ? `✅ Cat: ${settings.ticketCategoryId ? `<#${settings.ticketCategoryId}>` : '❌'}` : '❌', inline: true },
@@ -88,6 +102,8 @@ export const settings = {
           { name: '💬 AI Chat',     value: settings.aiChatChannelId ? `✅ <#${settings.aiChatChannelId}>` : '❌', inline: true },
           { name: '📋 Mod Log',     value: settings.modLogChannelId ? `<#${settings.modLogChannelId}>` : 'Not set', inline: true },
           { name: '📋 Audit Log',   value: settings.auditLogChannelId ? `<#${settings.auditLogChannelId}>` : 'Not set', inline: true },
+          { name: '📋 Staff Log',   value: settings.staffLogChannelId ? `<#${settings.staffLogChannelId}>` : 'Not set', inline: true },
+          { name: '📋 Voice Log',   value: settings.voiceLogChannelId ? `<#${settings.voiceLogChannelId}>` : 'Not set', inline: true },
           { name: '🎭 Auto Role',   value: settings.autoRoleId ? `<@&${settings.autoRoleId}>` : 'Not set', inline: true },
           { name: '📨 Inv. Track',  value: settings.inviteTrackEnabled ? '✅' : '❌', inline: true },
           { name: '🔧 Tkt Support', value: (settings.ticketSupportRoles || []).length ? (settings.ticketSupportRoles || []).map(r => `<@&${r}>`).join(', ') : 'Not set', inline: false },
@@ -98,6 +114,7 @@ export const settings = {
     const updates = {};
     if (sub === 'language')    { updates.language = interaction.options.getString('lang'); await client.redis.del(`guild:lang:${interaction.guildId}`); }
     if (sub === 'welcome')     { const ch = interaction.options.getChannel('channel'), en = interaction.options.getBoolean('enabled'), card = interaction.options.getBoolean('card'); if (ch !== null) updates.welcomeChannelId = ch.id; if (en !== null) updates.welcomeEnabled = en; if (card !== null) updates.welcomeCard = card; }
+    if (sub === 'farewell')    { const ch = interaction.options.getChannel('channel'), en = interaction.options.getBoolean('enabled'); if (ch !== null) updates.farewellChannelId = ch.id; if (en !== null) updates.farewellEnabled = en; }
     if (sub === 'modlog')      { updates.modLogChannelId   = interaction.options.getChannel('channel').id; await client.redis.del(`logchan:${interaction.guildId}`); }
     if (sub === 'auditlog')    { updates.auditLogChannelId = interaction.options.getChannel('channel').id; await client.redis.del(`logchan:${interaction.guildId}`); }
     if (sub === 'leveling')    { const en = interaction.options.getBoolean('enabled'), ch = interaction.options.getChannel('channel'), mul = interaction.options.getNumber('multiplier'); if (en !== null) updates.levelingEnabled = en; if (ch !== null) updates.levelUpChannelId = ch.id; if (mul !== null) updates.xpMultiplier = mul; }
@@ -121,6 +138,8 @@ export const settings = {
       }
     }
     if (sub === 'invitetrack') { updates.inviteTrackEnabled = interaction.options.getBoolean('enabled'); }
+    if (sub === 'stafflog')    { updates.staffLogChannelId = interaction.options.getChannel('channel').id; }
+    if (sub === 'voicelog')    { updates.voiceLogChannelId = interaction.options.getChannel('channel').id; }
 
     await settings.update(updates);
     return interaction.editReply({ embeds: [buildEmbed({ type: 'success', description: `✅ Settings updated successfully.` })] });

@@ -70,6 +70,13 @@ function subscribeToMember(client, connection, receiver, member, channel) {
 
       logger.info(`[AVA] Transcribed: "${transcription}"`);
 
+      // Store in session transcript
+      const session = client.voiceAiSessions?.get(channel.guild.id);
+      if (session) {
+        if (!session.transcript) session.transcript = [];
+        session.transcript.push({ time: Date.now(), text: transcription });
+      }
+
       // Check for wake word "Aura"
       if (!transcription.toLowerCase().includes('aura')) {
         logger.debug('[AVA] Wake word not found. Ignoring.');
