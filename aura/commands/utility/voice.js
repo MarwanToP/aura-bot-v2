@@ -4,6 +4,14 @@
 import { SlashCommandBuilder, PermissionFlagsBits, ChannelType } from 'discord.js';
 import { buildEmbed } from '../../../shared/utils/embedBuilder.js';
 import logger from '../../../shared/utils/logger.js';
+import { getVoiceConnection } from '@discordjs/voice';
+import { startListening } from '../../../shared/systems/voice/voiceAI.js';
+
+const VOICE_AI_REQUIRED_PERMISSIONS = [
+  PermissionFlagsBits.ViewChannel,
+  PermissionFlagsBits.Connect,
+  PermissionFlagsBits.Speak,
+];
 
 export const voice = {
   data: new SlashCommandBuilder()
@@ -32,6 +40,18 @@ export const voice = {
       .setName('limit')
       .setDescription('Set user limit')
       .addIntegerOption(o => o.setName('limit').setDescription('Max users (0 = unlimited)').setMinValue(0).setMaxValue(99).setRequired(true))
+    )
+    .addSubcommand(s => s
+      .setName('ai')
+      .setDescription('Control Aura conversational Voice AI in your channel')
+      .addStringOption(o => o
+        .setName('action')
+        .setDescription('Start or stop the Voice AI session')
+        .setRequired(true)
+        .addChoices(
+          { name: 'Start', value: 'start' },
+          { name: 'Stop', value: 'stop' },
+        ))
     ),
 
   guildOnly: true,
@@ -41,6 +61,10 @@ export const voice = {
     await interaction.deferReply({ ephemeral: true });
     const sub = interaction.options.getSubcommand();
     const { GuildSettings, TempChannel } = client.db.models;
+
+    if (sub === 'ai') {
+      return handleVoiceAiSession(client, interaction);
+    }
 
     // ─── setup (Admin) ──────────────────────────────────────────
     if (sub === 'setup') {
@@ -102,5 +126,114 @@ export const voice = {
     }
   },
 };
+
+async function handleVoiceAiSession(client, interaction) {
+  const action = interaction.options.getString('action');
+  const guild = interaction.guild;
+  const member = interaction.member;
+  const me = guild?.members?.me;
+
+  if (!guild || !member || !me) {
+    return interaction.editReply({
+      embeds: [buildEmbed({ type: 'error', description: '❌ Unable to initialize a voice session in this server right now.' })],
+    });
+  }
+
+  const sessionStore = client.voiceSessions ?? new Map();
+  client.voiceSessions = sessionStore;
+  const connection = getVoiceConnection(interaction.guildId);
+
+  if (action === 'stop') {
+    if (!connection && !sessionStore.has(interaction.guildId)) {
+      return interaction.editReply({
+        embeds: [buildEmbed({ type: 'info', description: 'ℹ️ No active Voice AI session to stop.' })],
+      });
+    }
+
+    try {
+      connection?.destroy();
+      sessionStore.delete(interaction.guildId);
+      return interaction.editReply({
+        embeds: [buildEmbed({ type: 'success', description: '🛑 Voice AI stopped and disconnected cleanly.' })],
+      });
+    } catch (err) {
+      logger.error('[VoiceAI] Failed to stop session:', err);
+      return interaction.editReply({
+        embeds: [buildEmbed({ type: 'error', description: '❌ Failed to stop Voice AI cleanly. Please try again.' })],
+      });
+    }
+  }
+
+  const userChannel = member.voice?.channel;
+  if (!userChannel) {
+    return interaction.editReply({
+      embeds: [buildEmbed({ type: 'warning', description: '❌ You must be in a voice channel to start Voice AI.' })],
+    });
+  }
+
+  if (userChannel.userLimit > 0 && userChannel.members.size >= userChannel.userLimit && !userChannel.members.has(me.id)) {
+    return interaction.editReply({
+      embeds: [buildEmbed({ type: 'error', description: `❌ ${userChannel} is full right now.` })],
+    });
+  }
+
+  const permissions = userChannel.permissionsFor(me);
+  const missing = VOICE_AI_REQUIRED_PERMISSIONS.filter((perm) => !permissions?.has(perm));
+  if (missing.length) {
+    return interaction.editReply({
+      embeds: [buildEmbed({
+        type: 'error',
+        description: `❌ I need **View Channel**, **Connect**, and **Speak** permissions in ${userChannel}.`,
+      })],
+    });
+  }
+
+  if (connection) {
+    const connectedChannelId = connection.joinConfig?.channelId;
+    if (connectedChannelId === userChannel.id && sessionStore.get(interaction.guildId)?.mode === 'ai') {
+      return interaction.editReply({
+        embeds: [buildEmbed({ type: 'info', description: `ℹ️ Voice AI is already active in ${userChannel}.` })],
+      });
+    }
+
+    return interaction.editReply({
+      embeds: [buildEmbed({
+        type: 'warning',
+        description: `⚠️ I am already connected in <#${connectedChannelId}>. Use \`/voice ai action:stop\` first.`,
+      })],
+    });
+  }
+
+  try {
+    await startListening(client, member, userChannel);
+
+    sessionStore.set(interaction.guildId, {
+      mode: 'ai',
+      channelId: userChannel.id,
+      startedBy: interaction.user.id,
+      startedAt: Date.now(),
+    });
+
+    return interaction.editReply({
+      embeds: [buildEmbed({
+        type: 'success',
+        title: '🎙️ Voice AI session started',
+        description: `Connected to ${userChannel} and listening for voice requests.\nUse \`/voice ai action:stop\` to disconnect.`,
+      })],
+    });
+  } catch (err) {
+    logger.error('[VoiceAI] Failed to start session:', err);
+    try {
+      getVoiceConnection(interaction.guildId)?.destroy();
+    } catch {}
+    sessionStore.delete(interaction.guildId);
+    return interaction.editReply({
+      embeds: [buildEmbed({
+        type: 'error',
+        description: '❌ Failed to start Voice AI. Check voice permissions and AI configuration, then try again.',
+      })],
+    });
+  }
+}
 
 export default voice;

@@ -10,7 +10,11 @@
     "deploy": "node shared/scripts/deploy-commands.js",
     "deploy:guild": "node shared/scripts/deploy-commands.js --guild",
     "db:migrate": "node shared/scripts/migrate.js",
-    "dashboard": "node website/server.js"
+    "dashboard": "node website/server.js",
+    "lint:syntax": "node shared/scripts/check-syntax.js",
+    "test:smoke:commands": "node shared/scripts/smoke-bot-commands.js",
+    "test:smoke:website": "node shared/scripts/smoke-website-health.js",
+    "test:smoke": "npm run lint:syntax && npm run test:smoke:commands && npm run test:smoke:website"
   },
   "dependencies": {
     "@discordjs/voice": "^0.17.0",

@@ -1,5 +1,5 @@
 // ================================================================
-//  Event Handler — loads all events from src/events/
+//  Event Handler — loads all events from aura/events/
 // ================================================================
 import { readdirSync } from 'fs';
 import { join, dirname } from 'path';

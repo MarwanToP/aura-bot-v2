@@ -15,26 +15,16 @@ export default {
   name: 'interactionCreate',
   async execute(client, interaction) {
     try {
-      // 1. Resolve language ONCE per interaction lifecycle
-      const lang = await client.i18n.resolveLanguage(client, interaction.user.id, interaction.guildId);
-      
       if (interaction.isChatInputCommand()) {
-        // Enforce Neural Blacklists & Restrictions
-        if (interaction.guildId) {
-          const isRestricted = await customization.isCommandRestricted(client, interaction.guildId, interaction.channelId, interaction.commandName);
-          if (isRestricted) {
-            return interaction.reply({ 
-              embeds: [buildEmbed({ type: 'error', description: '❌ This command is restricted in this channel or has been disabled globally by administrators.' })], 
-              ephemeral: true 
-            });
-          }
-        }
-        return handleSlash(client, interaction, lang);
+        return handleSlash(client, interaction);
       }
       if (interaction.isButton())                return handleButton(client, interaction);
       if (interaction.isStringSelectMenu() || interaction.isUserSelectMenu()) return handleSelect(client, interaction);
       if (interaction.type === InteractionType.ModalSubmit) return handleModal(client, interaction);
-      if (interaction.isContextMenuCommand())    return handleContextMenu(client, interaction, lang);
+      if (interaction.isContextMenuCommand()) {
+        const lang = await resolveLanguageFast(client, interaction.user.id, interaction.guildId);
+        return handleContextMenu(client, interaction, lang);
+      }
       if (interaction.isAutocomplete())          return handleAutocomplete(client, interaction);
     } catch (err) {
       logger.error('[InteractionCreate]', err);
@@ -57,7 +47,7 @@ export default {
 };
 
 // ── Slash Commands ────────────────────────────────────────────
-async function handleSlash(client, interaction, lang) {
+async function handleSlash(client, interaction) {
   const command = client.commands.get(interaction.commandName);
   if (!command) {
     return interaction.reply({
@@ -67,15 +57,18 @@ async function handleSlash(client, interaction, lang) {
   }
 
   const coolKey = `cd:${interaction.user.id}:${interaction.commandName}`;
+  const [lang, remaining, isRestricted] = await Promise.all([
+    resolveLanguageFast(client, interaction.user.id, interaction.guildId),
+    getCooldownRemainingFast(client, coolKey),
+    checkRestrictionFast(client, interaction),
+  ]);
 
-  // Optimized Cooldown Check with Timeout (Fallback to no cooldown on lag)
-  let remaining = -1;
-  try {
-    remaining = await Promise.race([
-      client.redis.pttl(coolKey),
-      new Promise(resolve => setTimeout(() => resolve(-1), 1000))
-    ]);
-  } catch {}
+  if (isRestricted) {
+    return interaction.reply({
+      embeds: [buildEmbed({ type: 'error', description: '❌ This command is restricted in this channel or has been disabled globally by administrators.' })],
+      ephemeral: true,
+    }).catch(() => {});
+  }
 
   if (remaining > 0) {
     const secs = (remaining / 1000).toFixed(1);
@@ -159,6 +152,40 @@ async function getGuildPremiumTier(client, guildId) {
     return tier;
   } catch {
     return 0; // Fallback to free tier on DB error
+  }
+}
+
+async function resolveLanguageFast(client, userId, guildId) {
+  try {
+    return await Promise.race([
+      client.i18n.resolveLanguage(client, userId, guildId),
+      new Promise(resolve => setTimeout(() => resolve('en'), 800)),
+    ]);
+  } catch {
+    return 'en';
+  }
+}
+
+async function getCooldownRemainingFast(client, coolKey) {
+  try {
+    return await Promise.race([
+      client.redis.pttl(coolKey),
+      new Promise(resolve => setTimeout(() => resolve(-1), 800)),
+    ]);
+  } catch {
+    return -1;
+  }
+}
+
+async function checkRestrictionFast(client, interaction) {
+  if (!interaction.guildId) return false;
+  try {
+    return await Promise.race([
+      customization.isCommandRestricted(client, interaction.guildId, interaction.channelId, interaction.commandName),
+      new Promise(resolve => setTimeout(() => resolve(false), 800)),
+    ]);
+  } catch {
+    return false;
   }
 }
 

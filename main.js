@@ -21,6 +21,9 @@ if (!allowedModes.has(MODE)) {
 
 const shouldRunDashboard = ['DASHBOARD', 'BOTH'].includes(MODE);
 const shouldRunBot       = ['BOT', 'BOTH'].includes(MODE);
+let shardingManager      = null;
+let healthCheckServer    = null;
+let isShuttingDown       = false;
 
 const requiredEnvVars = new Set();
 if (shouldRunBot) requiredEnvVars.add('DISCORD_TOKEN');
@@ -46,7 +49,7 @@ if (shouldRunDashboard) {
   monitor.startAlertLoop();
 
   import('./website/server.js').catch(err => {
-    logger.error('[Dashboard] Critical failure during startup:', err.message);
+    logger.error('[Dashboard] Critical failure during startup:', err);
     if (!shouldRunBot) {
       process.exit(1);
     }
@@ -66,7 +69,7 @@ if (shouldRunBot) {
    * Required for Render.com when running in BOT-only mode to prevent deployment timeouts.
    */
   if (MODE === 'BOT' && process.env.PORT) {
-    const server = http.createServer((req, res) => {
+    healthCheckServer = http.createServer((req, res) => {
       if (req.url === '/api/health') {
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ status: 'ok', mode: 'BOT', uptime: process.uptime() }));
@@ -77,7 +80,7 @@ if (shouldRunBot) {
       res.end('Aura Bot Status: Online');
     });
     
-    server.on('error', (err) => {
+    healthCheckServer.on('error', (err) => {
       if (err.code === 'EADDRINUSE') {
         logger.warn(`[HealthCheck] Port ${process.env.PORT} is already in use. Skipping dedicated bot HTTP server.`);
       } else {
@@ -85,9 +88,11 @@ if (shouldRunBot) {
       }
     });
 
-    server.listen(process.env.PORT, '0.0.0.0', () => {
+    healthCheckServer.listen(process.env.PORT, '0.0.0.0', () => {
       logger.info(`[HealthCheck] Binding heartbeat to port ${process.env.PORT}`);
     });
+  } else if (MODE === 'BOT') {
+    logger.info('[HealthCheck] BOT mode running without HTTP listener (valid for worker services).');
   }
 
   // Handle Sharding based on environment constraints (e.g., Discloud 100MB limit, Render Free 512MB)
@@ -102,7 +107,7 @@ if (shouldRunBot) {
       }
     });
   } else {
-    initializeSharding();
+    shardingManager = initializeSharding();
   }
 }
 
@@ -139,26 +144,106 @@ function initializeSharding() {
 
 // ── 4. Error Handling & Telegram Alerts ──────────────────────────
 let isFatalShutdownScheduled = false;
+const formatErrorDetail = (value) => {
+  if (value instanceof Error) {
+    return value.stack || value.message;
+  }
+  if (typeof value === 'object' && value !== null) {
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return String(value);
+    }
+  }
+  return String(value);
+};
+
 const scheduleFatalRestart = async (type, detail) => {
   if (isFatalShutdownScheduled) return;
   isFatalShutdownScheduled = true;
 
-  await monitor.sendAlert(
-    `🚨 **[CRITICAL] Aura Bot Crash** 🚨\n\n**Type**: ${type}\n**Details**: ${detail}\n\n*Server is attempting to restart...*`,
-  );
+  const alertMessage = `🚨 **[CRITICAL] Aura Bot Crash** 🚨\n\n**Type**: ${type}\n**Details**: ${detail}\n\n*Server is attempting to restart...*`;
+  const alertAttempt = monitor.sendAlert(alertMessage).catch((alertErr) => {
+    logger.error('[System] Failed to send crash alert:', alertErr);
+  });
 
-  // Delay exit to allow alert delivery before platform auto-restart.
-  setTimeout(() => process.exit(1), 2000);
+  await Promise.race([
+    alertAttempt,
+    new Promise((resolve) => setTimeout(resolve, 2000)),
+  ]);
+
+  process.exit(1);
 };
 
 process.on('unhandledRejection', async (reason) => {
   logger.error('Unhandled Promise Rejection:', reason);
-  const reasonText = reason instanceof Error ? reason.message : String(reason);
+  const reasonText = formatErrorDetail(reason);
   await scheduleFatalRestart('Unhandled Rejection', reasonText);
 });
 
 process.on('uncaughtException', async (error) => {
   logger.error('Uncaught Exception:', error);
-  const errorText = error instanceof Error ? error.message : String(error);
+  const errorText = formatErrorDetail(error);
   await scheduleFatalRestart('Uncaught Exception', errorText);
 });
+
+const closeHealthCheckServer = async () => {
+  if (!healthCheckServer?.listening) return;
+
+  await new Promise((resolve, reject) => {
+    healthCheckServer.close((err) => {
+      if (err) return reject(err);
+      resolve();
+    });
+  });
+};
+
+const stopShards = async () => {
+  if (!shardingManager) return;
+
+  const results = await Promise.allSettled(
+    [...shardingManager.shards.values()].map(async (shard) => {
+      try {
+        shard.kill();
+      } catch (err) {
+        logger.error(`[Shard ${shard.id}] Failed to stop cleanly:`, err);
+        throw err;
+      }
+    }),
+  );
+
+  if (results.some((result) => result.status === 'rejected')) {
+    throw new Error('One or more shards failed to stop cleanly.');
+  }
+};
+
+const shutdown = async (signal) => {
+  if (isShuttingDown) return;
+  isShuttingDown = true;
+  logger.info(`[System] ${signal} received — graceful shutdown initiated.`);
+
+  let exitCode = 0;
+
+  try {
+    await closeHealthCheckServer();
+  } catch (err) {
+    exitCode = 1;
+    logger.error('[System] Failed to close health check server:', err);
+  }
+
+  try {
+    await stopShards();
+  } catch {
+    exitCode = 1;
+  }
+
+  if (!shouldRunDashboard) {
+    process.exit(exitCode);
+    return;
+  }
+
+  setTimeout(() => process.exit(exitCode), 15000).unref();
+};
+
+process.on('SIGTERM', () => void shutdown('SIGTERM'));
+process.on('SIGINT', () => void shutdown('SIGINT'));

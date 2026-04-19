@@ -22,9 +22,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Check syntax (node --check)
-        run: |
-          find src -name "*.js" | xargs -I{} node --input-type=module --check < {} 2>/dev/null || true
+      - name: Check syntax (project JS)
+        run: npm run lint:syntax
 
   # ── 2. Build & Push Docker Image to GHCR (used by Railway/Render) ─
   docker:

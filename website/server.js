@@ -686,7 +686,8 @@ const start = async () => {
     
     httpServer.on('error', (err) => {
       if (err.code === 'EADDRINUSE') {
-        logger.warn(`[Dashboard] Port ${PORT} is already in use. Dashboard may be running in another process.`);
+        logger.error(`[Dashboard] Port ${PORT} is already in use. Exiting to avoid unhealthy process state.`);
+        process.exit(1);
       } else {
         logger.error(`[Dashboard] Server error: ${err.message}`);
       }
