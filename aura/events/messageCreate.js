@@ -123,6 +123,9 @@ async function handleAutoMod(client, message) {
 
 // ─── AI Chat Channel ──────────────────────────────────────────
 async function handleAIChatChannel(client, message) {
+  let inAiChannel = false;
+  let isMentioned = false;
+
   try {
     if (!client.ai.isAvailable()) return;
 
@@ -130,8 +133,8 @@ async function handleAIChatChannel(client, message) {
     const settings = await GuildSettings.findOne({ where: { guildId: message.guild.id } });
 
     // Only respond in designated AI chat channel OR when mentioned
-    const inAiChannel = settings?.aiChatChannelId === message.channel.id;
-    const isMentioned = message.mentions.has(client.user.id);
+    inAiChannel = settings?.aiChatChannelId === message.channel.id;
+    isMentioned = message.mentions.has(client.user.id);
 
     if (!inAiChannel && !isMentioned) return;
     if (!settings?.aiChatEnabled) return;

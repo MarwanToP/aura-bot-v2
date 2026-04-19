@@ -1,19 +1,16 @@
 # Aura Bot v2.0 — Render Unified Infrastructure
 services:
   # ── Discord Bot Core ─────────────────────────────────────
-  - type: web
+  - type: worker
     name: aura-bot-core
     runtime: docker
     dockerfilePath: ./Dockerfile
-    plan: free
+    plan: starter
     branch: main
     autoDeploy: true
-    healthCheckPath: /api/health
     envVars:
       - key: MODE
         value: BOT
-      - key: PORT
-        value: "3000"
       - key: DATABASE_URL
         sync: false
       - key: REDIS_URL
@@ -26,21 +23,23 @@ services:
         sync: false
       - key: DISCORD_CLIENT_SECRET
         sync: false
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_CHAT_ID
+        sync: false
 
   # ── Intelligence Dashboard ──────────────────────────────
   - type: web
     name: aura-bot-dashboard
     runtime: docker
     dockerfilePath: ./Dockerfile
-    plan: free
+    plan: starter
     branch: main
     autoDeploy: true
     healthCheckPath: /api/health
     envVars:
       - key: MODE
         value: DASHBOARD
-      - key: PORT
-        value: "10000"
       - key: DASHBOARD_URL
         value: "https://aura-dashboard-1czd.onrender.com"
 
@@ -55,6 +54,10 @@ services:
       - key: DISCORD_CLIENT_ID
         sync: false
       - key: DISCORD_CLIENT_SECRET
+        sync: false
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_CHAT_ID
         sync: false
       - key: SESSION_SECRET
         generateValue: true

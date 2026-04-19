@@ -1,17 +1,23 @@
 // ================================================================
 //  AURA BOT v2.0 — Aura Voice Assistant (AVA)
 // ================================================================
-import { joinVoiceChannel, VoiceReceiver, EndBehaviorType } from '@discordjs/voice';
+import { joinVoiceChannel, EndBehaviorType } from '@discordjs/voice';
 import prism from 'prism-media';
 import OpenAI from 'openai';
 import logger from '../../utils/logger.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { Readable } from 'stream';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const openai    = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+let openai = null;
+
+function getOpenAI() {
+  if (openai) return openai;
+  if (!process.env.OPENAI_API_KEY) return null;
+  openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  return openai;
+}
 
 /**
  * The Aura Voice Assistant (AVA)
@@ -31,7 +37,10 @@ export async function startListening(client, member, channel) {
   // We listen to the specific member who called the bot
   const receiver = connection.receiver;
   
-  // Create a listener for when the user speaks
+  subscribeToMember(client, connection, receiver, member, channel);
+}
+
+function subscribeToMember(client, connection, receiver, member, channel) {
   const audioStream = receiver.subscribe(member.id, {
     end: {
       behavior: EndBehaviorType.AfterSilence,
@@ -78,7 +87,7 @@ export async function startListening(client, member, channel) {
 
     // Re-subscribe to keep listening if we are still in the channel
     if (connection.state.status !== 'destroyed') {
-      startListening(client, member, channel);
+      subscribeToMember(client, connection, receiver, member, channel);
     }
   });
 }
@@ -90,6 +99,9 @@ import * as economy from '../economy/economySystem.js';
  * Convert raw PCM buffer to Whisper transcription (with WAV Header)
  */
 async function transcribeAudio(buffer) {
+  const ai = getOpenAI();
+  if (!ai) return null;
+
   const tempFile = path.join(__dirname, `temp_voice_${Date.now()}.wav`);
   
   // Create WAV header
@@ -111,7 +123,7 @@ async function transcribeAudio(buffer) {
   fs.writeFileSync(tempFile, Buffer.concat([wavHeader, buffer]));
   
   try {
-    const response = await openai.audio.transcriptions.create({
+    const response = await ai.audio.transcriptions.create({
       file: fs.createReadStream(tempFile),
       model: 'whisper-1',
     });

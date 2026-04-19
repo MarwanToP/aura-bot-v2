@@ -1,18 +1,17 @@
 // ================================================================
 //  AURA BOT v2.0 — Economy Commands (Aura Credits)
 // ================================================================
-import { SlashCommandBuilder } from 'discord.js';
 import * as economy from '../../../shared/systems/economy/economySystem.js';
 
 /**
  * /credits — Main economy profile
  */
 export const credits = {
-  data: economy.credits.data,
+  data: economy.balance.data,
   guildOnly: true,
   cooldown: 3000,
   async execute(client, interaction) {
-    return economy.credits.execute(client, interaction);
+    return economy.balance.execute(client, interaction);
   }
 };
 

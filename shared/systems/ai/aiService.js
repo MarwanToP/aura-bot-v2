@@ -3,6 +3,7 @@
 //  All AI features powered by Gemini 1.5 Flash
 // ================================================================
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import OpenAI from 'openai';
 import config    from '../../config/config.js';
 import logger    from '../../utils/logger.js';
 
@@ -11,6 +12,7 @@ class AIService {
     this.gemini   = null;
     this.model    = null;
     this.enabled  = process.env.AI_ENABLED !== 'false';
+    this.openai   = null;
   }
 
   /**
@@ -183,6 +185,47 @@ class AIService {
     const key      = `ai:ctx:${guildId}:${userId}`;
     const historical = messages.slice(-(config.ai?.maxHistory || 10));
     await redis.setJSON(key, { messages: historical }, config.cache?.aiContextTTL || 3600);
+  }
+
+  async clearContext(redis, userId, guildId) {
+    const key = `ai:ctx:${guildId}:${userId}`;
+    await redis.del(key);
+  }
+
+  async generateResponse(text, system = '') {
+    return this.prompt(text, system ? { system } : {});
+  }
+
+  _getOpenAI() {
+    if (this.openai) return this.openai;
+    if (!process.env.OPENAI_API_KEY) return null;
+    this.openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    return this.openai;
+  }
+
+  async generateImage(prompt, { size = '1024x1024', style = 'vivid' } = {}) {
+    const ai = this._getOpenAI();
+    if (!ai) {
+      throw new Error('Image generation requires OPENAI_API_KEY.');
+    }
+
+    const response = await ai.images.generate({
+      model: process.env.AI_IMAGE_MODEL || 'dall-e-3',
+      prompt,
+      size,
+      style,
+    });
+
+    const image = response?.data?.[0];
+    if (!image?.url) {
+      throw new Error('Image provider returned no URL.');
+    }
+
+    return {
+      url: image.url,
+      revisedPrompt: image.revised_prompt || prompt,
+      provider: 'openai',
+    };
   }
 
   // ── High-level Utilities ─────────────────────────────────────

@@ -15,16 +15,18 @@ export async function loadEvents(client) {
   for (const file of files) {
     try {
       const mod = await import(pathToFileURL(join(eventsPath, file)).href);
+      const seen = new Set();
 
       // Default export
       if (mod.default?.name && mod.default?.execute) {
         const handler = (...args) => mod.default.execute(client, ...args);
         mod.default.once ? client.once(mod.default.name, handler) : client.on(mod.default.name, handler);
+        seen.add(mod.default);
       }
 
       // Named exports (multiple events per file)
       for (const [key, evt] of Object.entries(mod)) {
-        if (key === 'default' || !evt?.name || !evt?.execute) continue;
+        if (key === 'default' || !evt?.name || !evt?.execute || seen.has(evt)) continue;
         const handler = (...args) => evt.execute(client, ...args);
         evt.once ? client.once(evt.name, handler) : client.on(evt.name, handler);
       }

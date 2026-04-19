@@ -38,6 +38,20 @@ export default {
       if (interaction.isAutocomplete())          return handleAutocomplete(client, interaction);
     } catch (err) {
       logger.error('[InteractionCreate]', err);
+
+      if (interaction.isAutocomplete()) {
+        await interaction.respond([]).catch(() => {});
+        return;
+      }
+
+      if (!interaction.isRepliable()) return;
+      const fallback = {
+        embeds: [buildEmbed({ type: 'error', description: '❌ Something went wrong while handling this interaction.' })],
+        ephemeral: true
+      };
+
+      if (interaction.replied || interaction.deferred) await interaction.followUp(fallback).catch(() => {});
+      else await interaction.reply(fallback).catch(() => {});
     }
   },
 };
@@ -143,7 +157,7 @@ async function getHandler(prefix) {
     poll:     '../../shared/systems/polls/pollSystem.js',
     apply:    '../../shared/systems/applications/applicationSystem.js',
     economy:  '../../shared/systems/economy/economySystem.js',
-    games:    '../../shared/systems/games/gameCommands.js',
+    games:    '../commands/games/gameCommands.js',
     staff:    '../commands/management/staff.js',
   };
 

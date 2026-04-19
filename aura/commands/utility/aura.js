@@ -31,6 +31,21 @@ export const aura = {
         return interaction.reply({ embeds: [buildEmbed({ type: 'warning', description: '❌ You must be in a voice channel first.' })], ephemeral: true });
       }
 
+      const me = interaction.guild?.members?.me;
+      if (!me) {
+        return interaction.reply({ embeds: [buildEmbed({ type: 'error', description: '❌ Unable to validate bot permissions in this server.' })], ephemeral: true });
+      }
+
+      const perms = channel.permissionsFor(me);
+      const needed = [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.Connect, PermissionFlagsBits.Speak];
+      const missing = needed.filter(p => !perms?.has(p));
+      if (missing.length) {
+        return interaction.reply({
+          embeds: [buildEmbed({ type: 'error', description: `❌ I need **View Channel, Connect, and Speak** permissions in ${channel}.` })],
+          ephemeral: true
+        });
+      }
+
       await interaction.reply({ embeds: [buildEmbed({ 
         type: 'premium', 
         title: '🎙️ Aura Voice Assistant',
@@ -39,7 +54,14 @@ export const aura = {
       })] });
 
       // Start the AI listening system
-      await startListening(client, interaction.member, channel);
+      try {
+        await startListening(client, interaction.member, channel);
+      } catch (err) {
+        await interaction.followUp({
+          embeds: [buildEmbed({ type: 'error', description: '❌ Failed to start voice listening. Please verify voice permissions and try again.' })],
+          ephemeral: true
+        }).catch(() => {});
+      }
     }
 
     if (sub === 'leave') {

@@ -27,10 +27,22 @@ State-of-the-Art Discord Intelligence and Management Platform.
 - **Discord OAuth2**: Secure user authentication for the dashboard.
 
 ## 📦 Project Structure
-- `src/bot/` — Discord bot logic, commands, and events.
-- `src/web/` — Web dashboard, API, and frontend assets.
-- `src/shared/` — Common database models, AI service, and monitoring.
-- `src/utils/` — Utility functions and professional logging.
+- `aura/` — Discord bot logic, commands, and events.
+- `website/` — Web dashboard, API, and frontend assets.
+- `shared/` — Common database models, AI service, and monitoring.
+
+## 🧭 Recommended Free 24/7 Hosting
+- Best practical option: **Oracle Cloud Always Free**.
+- Run bot and dashboard as **separate services on the same VM** (better stability than one combined process).
+- Use `docker-compose.oracle.yml` for production-style split deployment.
+
+### Quick deploy on Oracle VM (Ubuntu)
+1. Install Docker + Compose plugin.
+2. Clone this repo and create `.env`.
+3. Start stack:
+   `docker compose -f docker-compose.oracle.yml up -d --build`
+4. Deploy slash commands once:
+   `docker compose -f docker-compose.oracle.yml exec aura-bot node shared/scripts/deploy-commands.js`
 
 ## 🧪 Monitoring & Health
 Aura implements a dedicated `MonitorService` that tracks heartbeats for:

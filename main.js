@@ -13,9 +13,14 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // ── 1. Configuration & Validation ──────────────────────────────
 const MODE = process.env.MODE || 'BOTH';
-const REQUIRED_ENV_VARS = ['DISCORD_TOKEN', 'DISCORD_CLIENT_ID'];
+const shouldRunDashboard = ['DASHBOARD', 'BOTH'].includes(MODE);
+const shouldRunBot       = ['BOT', 'BOTH'].includes(MODE);
 
-const missingVars = REQUIRED_ENV_VARS.filter(key => !process.env[key]);
+const requiredEnvVars = new Set();
+if (shouldRunBot) requiredEnvVars.add('DISCORD_TOKEN');
+if (shouldRunDashboard) requiredEnvVars.add('DISCORD_CLIENT_ID');
+
+const missingVars = [...requiredEnvVars].filter(key => !process.env[key]);
 if (missingVars.length) {
   logger.error(`[System] Missing required environment variables: ${missingVars.join(', ')}`);
   process.exit(1);
@@ -23,11 +28,7 @@ if (missingVars.length) {
 
 logger.info(`[System] Initializing Aura Core | Mode: ${MODE}`);
 
-// ── 2. Helper: Mode Checks ──────────────────────────────────────
-const shouldRunDashboard = ['DASHBOARD', 'BOTH'].includes(MODE);
-const shouldRunBot       = ['BOT', 'BOTH'].includes(MODE);
-
-// ── 3. Dashboard Initialization ─────────────────────────────────
+// ── 2. Dashboard Initialization ─────────────────────────────────
 if (shouldRunDashboard) {
   logger.info('[Dashboard] Starting Intelligence Engine...');
   monitor.startHeartbeat('dashboard');
@@ -43,7 +44,7 @@ if (shouldRunDashboard) {
   monitor.startPulse();
 }
 
-// ── 4. Bot Initialization ───────────────────────────────────────
+// ── 3. Bot Initialization ───────────────────────────────────────
 if (shouldRunBot) {
   logger.info('[Bot] Starting Logic Core...');
   monitor.startHeartbeat('bot');
@@ -54,7 +55,13 @@ if (shouldRunBot) {
    */
   if (MODE === 'BOT' && process.env.PORT) {
     const server = http.createServer((req, res) => {
-      res.writeHead(200);
+      if (req.url === '/api/health') {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ status: 'ok', mode: 'BOT', uptime: process.uptime() }));
+        return;
+      }
+
+      res.writeHead(200, { 'Content-Type': 'text/plain' });
       res.end('Aura Bot Status: Online');
     });
     
@@ -103,10 +110,11 @@ function initializeSharding() {
   });
 }
 
-// ── 5. Error Handling & Telegram Alerts ──────────────────────────
+// ── 4. Error Handling & Telegram Alerts ──────────────────────────
 process.on('unhandledRejection', async (reason) => {
   logger.error('Unhandled Promise Rejection:', reason);
-  await monitor.sendAlert(`🚨 **[CRITICAL] Aura Bot Crash** 🚨\n\n**Type**: Unhandled Rejection\n**Reason**: ${reason.message || reason}`);
+  const reasonText = reason instanceof Error ? reason.message : String(reason);
+  await monitor.sendAlert(`🚨 **[CRITICAL] Aura Bot Crash** 🚨\n\n**Type**: Unhandled Rejection\n**Reason**: ${reasonText}`);
 });
 
 process.on('uncaughtException', async (error) => {

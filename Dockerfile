@@ -26,8 +26,8 @@ USER aura
 # Port for the web dashboard
 EXPOSE 3000
 
-# Health check — Railway uses this to confirm the service is alive
+# Health check for web services; skip when running BOT worker without PORT binding.
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-  CMD wget -qO- http://localhost:3000/api/health || exit 1
+  CMD sh -c 'if [ "${MODE:-}" = "BOT" ] && [ -z "${PORT:-}" ]; then exit 0; fi; wget -qO- "http://localhost:${PORT:-3000}/api/health" >/dev/null || exit 1'
 
 CMD ["node", "main.js"]

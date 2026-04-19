@@ -2,10 +2,11 @@ version: '3.9'
 services:
   aura-bot:
     build: .
-    container_name: aura-bot-v2
+    container_name: aura-bot-oracle
     restart: unless-stopped
     env_file: .env
     environment:
+      - MODE=BOT
       - DATABASE_URL=postgresql://${DB_USER:-aura}:${DB_PASSWORD}@postgres:5432/${DB_NAME:-aura_bot}
       - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/${REDIS_DB:-0}
     volumes:
@@ -15,9 +16,28 @@ services:
       redis:    { condition: service_healthy }
     networks: [aura]
 
+  aura-dashboard:
+    build: .
+    container_name: aura-dashboard-oracle
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      - MODE=DASHBOARD
+      - PORT=3000
+      - DATABASE_URL=postgresql://${DB_USER:-aura}:${DB_PASSWORD}@postgres:5432/${DB_NAME:-aura_bot}
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/${REDIS_DB:-0}
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./logs:/app/logs
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis:    { condition: service_healthy }
+    networks: [aura]
+
   postgres:
     image: postgres:16-alpine
-    container_name: aura-postgres
+    container_name: aura-postgres-oracle
     restart: unless-stopped
     environment:
       POSTGRES_DB:       ${DB_NAME:-aura_bot}
@@ -26,7 +46,7 @@ services:
     ports:
       - "5433:5432"
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      - postgres-data-oracle:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-aura}"]
       interval: 10s
@@ -36,13 +56,13 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: aura-redis
+    container_name: aura-redis-oracle
     restart: unless-stopped
     command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
     ports:
       - "16379:6379"
     volumes:
-      - redis-data:/data
+      - redis-data-oracle:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -51,8 +71,8 @@ services:
     networks: [aura]
 
 volumes:
-  postgres-data:
-  redis-data:
+  postgres-data-oracle:
+  redis-data-oracle:
 
 networks:
   aura:

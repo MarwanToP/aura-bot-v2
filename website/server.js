@@ -28,6 +28,19 @@ const io        = new SocketIO(httpServer, { cors: { origin: '*' } });
 
 const PORT = parseInt(process.env.PORT || '3000');
 let commandCache = null; // Memory cache for command list
+const configuredDiscordCallbackUrl = process.env.DISCORD_CALLBACK_URL?.trim();
+const trustProxy = process.env.TRUST_PROXY === 'true' || process.env.NODE_ENV === 'production';
+
+if (trustProxy) {
+  app.set('trust proxy', 1);
+}
+
+const buildDiscordCallback = (req) => {
+  if (configuredDiscordCallbackUrl) return configuredDiscordCallbackUrl;
+  const host = req.get('host');
+  const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+  return `${protocol}://${host}/auth/discord/callback`;
+};
 
 // ── Middleware ────────────────────────────────────────────────
 app.use(helmet({ contentSecurityPolicy: false }));
@@ -36,10 +49,8 @@ app.use(express.json());
 app.use(express.static(join(__dirname, 'public')));
 
 // ── Session ──────────────────────────────────────────────────
-const redisStore = new RedisStore({ client: redis, prefix: 'aura:sess:' });
-
-app.use(session({
-  store:             redisStore,
+const useRedisSession = process.env.NODE_ENV === 'production' || process.env.DASHBOARD_USE_REDIS_SESSION === 'true';
+const sessionOptions = {
   secret:            process.env.SESSION_SECRET || 'aura-dashboard-secret-change-me',
   resave:            false,
   saveUninitialized: false,
@@ -48,7 +59,15 @@ app.use(session({
     maxAge: 7 * 24 * 60 * 60 * 1000,
     sameSite: 'lax' 
   },
-}));
+};
+
+if (useRedisSession) {
+  sessionOptions.store = new RedisStore({ client: redis, prefix: 'aura:sess:' });
+} else {
+  logger.warn('[Dashboard] Using in-memory session store (development fallback).');
+}
+
+app.use(session(sessionOptions));
 
 // ── Passport Initialization ──────────────────────────────────
 app.use(passport.initialize());
@@ -71,22 +90,114 @@ const ensureAuth = (req, res, next) => {
   res.status(401).json({ error: 'Authentication required' });
 };
 
+const hasGuildAdminPermission = (guild, guildId) =>
+  guild.id === guildId && (parseInt(guild.permissions, 10) & 0x8) === 0x8;
+
+const getAuthorizedGuild = (req, guildId) =>
+  req.user.guilds.find((guild) => hasGuildAdminPermission(guild, guildId));
+
+const allowedGuildSettingKeys = new Set([
+  'language',
+  'prefix',
+  'timezone',
+  'hijriDates',
+  'modLogChannelId',
+  'auditLogChannelId',
+  'levelUpChannelId',
+  'ticketLogChannelId',
+  'birthdayChannelId',
+  'starboardChannelId',
+  'welcomeChannelId',
+  'farewellChannelId',
+  'statsChannelId',
+  'muteRoleId',
+  'autoRoleId',
+  'autoRoleDelay',
+  'birthdayRoleId',
+  'verificationRoleId',
+  'welcomeEnabled',
+  'welcomeMessage',
+  'welcomeCard',
+  'farewellEnabled',
+  'farewellMessage',
+  'birthdayEnabled',
+  'birthdayMessage',
+  'levelingEnabled',
+  'levelUpMessage',
+  'xpMultiplier',
+  'autoModEnabled',
+  'aiModEnabled',
+  'aiModSensitivity',
+  'ticketEnabled',
+  'ticketCategoryId',
+  'ticketSupportRoles',
+  'antiNukeEnabled',
+  'antiRaidEnabled',
+  'verificationEnabled',
+  'tempVoiceEnabled',
+  'tempVoiceCreatorId',
+  'tempVoiceCategoryId',
+  'tempVoiceNameTemplate',
+  'starboardEnabled',
+  'starboardThreshold',
+  'starboardEmoji',
+  'statsEnabled',
+  'statsMemberChannelId',
+  'statsOnlineChannelId',
+  'statsBotChannelId',
+  'inviteTrackEnabled',
+  'aiChatEnabled',
+  'aiChatChannelId',
+  'socialAlertsConfig',
+  'welcomeConfig',
+  'commandAliases',
+  'commandBlacklist',
+  'disabledChannels',
+]);
+
+const sanitizeGuildUpdates = (payload) => {
+  if (!payload || typeof payload !== 'object') return {};
+
+  const updates = {};
+  for (const [key, value] of Object.entries(payload)) {
+    if (!allowedGuildSettingKeys.has(key) || value === undefined) continue;
+    updates[key] = value;
+  }
+
+  if (Array.isArray(updates.ticketSupportRoles)) {
+    updates.ticketSupportRoles = updates.ticketSupportRoles
+      .map((roleId) => String(roleId).trim())
+      .filter(Boolean);
+  }
+  if (Array.isArray(updates.commandBlacklist)) {
+    updates.commandBlacklist = updates.commandBlacklist
+      .map((entry) => String(entry).trim())
+      .filter(Boolean);
+  }
+  if (Array.isArray(updates.disabledChannels)) {
+    updates.disabledChannels = updates.disabledChannels
+      .map((channelId) => String(channelId).trim())
+      .filter(Boolean);
+  }
+  if (updates.aiModSensitivity && !['low', 'medium', 'high'].includes(updates.aiModSensitivity)) {
+    updates.aiModSensitivity = 'medium';
+  }
+
+  return updates;
+};
+
 // ── Authentication Routes ────────────────────────────────────
 app.get('/auth/discord', (req, res, next) => {
-  const host = req.get('host');
-  const protocol = req.headers['x-forwarded-proto'] || req.protocol;
-  const dynamicCallback = `${protocol}://${host}/auth/discord/callback`;
+  const callbackURL = buildDiscordCallback(req);
   
-  passport.authenticate('discord', { callbackURL: dynamicCallback })(req, res, next);
+  passport.authenticate('discord', { callbackURL })(req, res, next);
 });
 
 app.get('/auth/discord/callback', (req, res, next) => {
-  const host = req.get('host');
-  const protocol = req.headers['x-forwarded-proto'] || req.protocol;
-  const dynamicCallback = `${protocol}://${host}/auth/discord/callback`;
+  const callbackURL = buildDiscordCallback(req);
 
   passport.authenticate('discord', { 
-    callbackURL: dynamicCallback, 
+    callbackURL,
     failureRedirect: '/' 
   })(req, res, next);
 }, (req, res) => res.redirect('/'));
@@ -132,14 +243,29 @@ app.get('/api/stats', async (req, res) => {
 // User's Authorized Guilds
 app.get('/api/guilds', ensureAuth, async (req, res) => {
   try {
-    const adminGuildIds = req.user.guilds
-      .filter(g => (parseInt(g.permissions) & 0x8) === 0x8)
-      .map(g => g.id);
+    const adminGuilds = req.user.guilds
+      .filter((g) => (parseInt(g.permissions, 10) & 0x8) === 0x8);
+    const adminGuildIds = adminGuilds.map((g) => g.id);
 
     const activeGuilds = await database.models.GuildSettings.findAll({
-      where: { guildId: adminGuildIds }
+      where: { guildId: adminGuildIds },
     });
-    res.json(activeGuilds);
+    const settingsMap = new Map(activeGuilds.map((settings) => [settings.guildId, settings]));
+
+    const merged = adminGuilds.map((guild) => {
+      const settings = settingsMap.get(guild.id);
+      return {
+        guildId: guild.id,
+        name: guild.name,
+        icon: guild.icon,
+        owner: guild.owner,
+        permissions: guild.permissions,
+        isConfigured: Boolean(settings),
+        premiumTier: settings?.premiumTier || 0,
+      };
+    });
+
+    res.json(merged);
   } catch (err) {
     logger.error(`[Dashboard API] Guilds error: ${err.message}`);
     res.status(500).json({ error: 'Internal server error' });
@@ -149,13 +275,20 @@ app.get('/api/guilds', ensureAuth, async (req, res) => {
 // Specific Guild Config
 app.get('/api/guilds/:guildId', ensureAuth, async (req, res) => {
   const { guildId } = req.params;
-  const isAdmin = req.user.guilds.some(g => g.id === guildId && (parseInt(g.permissions) & 0x8) === 0x8);
-  if (!isAdmin) return res.status(403).json({ error: 'Forbidden' });
+  const authorizedGuild = getAuthorizedGuild(req, guildId);
+  if (!authorizedGuild) return res.status(403).json({ error: 'Forbidden' });
 
   try {
-    const settings = await database.models.GuildSettings.findByPk(guildId);
-    if (!settings) return res.status(404).json({ error: 'Guild not found' });
-    res.json(settings);
+    const [settings] = await database.models.GuildSettings.findOrCreate({ where: { guildId } });
+    res.json({
+      ...settings.toJSON(),
+      guildMeta: {
+        id: authorizedGuild.id,
+        name: authorizedGuild.name,
+        icon: authorizedGuild.icon,
+        owner: authorizedGuild.owner,
+      },
+    });
   } catch (err) {
     res.status(500).json({ error: 'Error fetching guild settings' });
   }
@@ -164,8 +297,7 @@ app.get('/api/guilds/:guildId', ensureAuth, async (req, res) => {
 // Guild Staff List
 app.get('/api/guilds/:guildId/staff', ensureAuth, async (req, res) => {
   const { guildId } = req.params;
-  const isAdmin = req.user.guilds.some(g => g.id === guildId && (parseInt(g.permissions) & 0x8) === 0x8);
-  if (!isAdmin) return res.status(403).json({ error: 'Forbidden' });
+  if (!getAuthorizedGuild(req, guildId)) return res.status(403).json({ error: 'Forbidden' });
 
   try {
     const staff = await database.models.StaffDuty.findAll({
@@ -180,8 +312,10 @@ app.get('/api/guilds/:guildId/staff', ensureAuth, async (req, res) => {
 });
 
 // Economy Leaderboard
-app.get('/api/guilds/:guildId/leaderboard', async (req, res) => {
+app.get('/api/guilds/:guildId/leaderboard', ensureAuth, async (req, res) => {
   const { guildId } = req.params;
+  if (!getAuthorizedGuild(req, guildId)) return res.status(403).json({ error: 'Forbidden' });
+
   try {
     const top = await database.models.Economy.findAll({
       where: { guildId },
@@ -197,8 +331,7 @@ app.get('/api/guilds/:guildId/leaderboard', async (req, res) => {
 // Ticket Panels API
 app.get('/api/guilds/:guildId/ticket-panels', ensureAuth, async (req, res) => {
   const { guildId } = req.params;
-  const isAdmin = req.user.guilds.some(g => g.id === guildId && (parseInt(g.permissions) & 0x8) === 0x8);
-  if (!isAdmin) return res.status(403).json({ error: 'Forbidden' });
+  if (!getAuthorizedGuild(req, guildId)) return res.status(403).json({ error: 'Forbidden' });
 
   try {
     const panels = await database.models.TicketPanel.findAll({ where: { guildId } });
@@ -210,8 +343,7 @@ app.get('/api/guilds/:guildId/ticket-panels', ensureAuth, async (req, res) => {
 
 app.post('/api/guilds/:guildId/ticket-panels', ensureAuth, async (req, res) => {
   const { guildId } = req.params;
-  const isAdmin = req.user.guilds.some(g => g.id === guildId && (parseInt(g.permissions) & 0x8) === 0x8);
-  if (!isAdmin) return res.status(403).json({ error: 'Forbidden' });
+  if (!getAuthorizedGuild(req, guildId)) return res.status(403).json({ error: 'Forbidden' });
 
   try {
     const [panel, created] = await database.models.TicketPanel.findOrCreate({ 
@@ -232,15 +364,19 @@ app.post('/api/guilds/:guildId/ticket-panels', ensureAuth, async (req, res) => {
 // Update Guild Settings (Dashboard Sync)
 app.post('/api/guilds/:guildId', ensureAuth, async (req, res) => {
   const { guildId } = req.params;
-  const isAdmin = req.user.guilds.some(g => g.id === guildId && (parseInt(g.permissions) & 0x8) === 0x8);
-  if (!isAdmin) return res.status(403).json({ error: 'Forbidden' });
+  if (!getAuthorizedGuild(req, guildId)) return res.status(403).json({ error: 'Forbidden' });
 
   try {
+    const updates = sanitizeGuildUpdates(req.body);
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ error: 'No valid settings provided' });
+    }
+
     const [settings] = await database.models.GuildSettings.findOrCreate({ where: { guildId } });
-    await settings.update(req.body);
+    await settings.update(updates);
     
     // Notify the bot through Redis
-    redis.publish('aura:config_update', JSON.stringify({ guildId, updates: req.body }));
+    redis.publish('aura:config_update', JSON.stringify({ guildId, updates }));
     
     res.json({ success: true, settings });
   } catch (err) {
@@ -307,16 +443,19 @@ io.on('connection', (socket) => {
 });
 
 // ── Redis ModLog Subscription ────────────────────────────────
-const modSub = process.env.REDIS_URL 
-  ? new Redis(process.env.REDIS_URL, { ...(process.env.REDIS_TLS === 'true' && { tls: { rejectUnauthorized: false } }) })
-  : new Redis();
-
-modSub.subscribe('aura:modlogs');
-modSub.on('message', (channel, message) => {
-  if (channel === 'aura:modlogs') {
-    try { io.emit('modLog', JSON.parse(message)); } catch {}
-  }
-});
+let modSub = null;
+if (process.env.REDIS_URL) {
+  modSub = new Redis(process.env.REDIS_URL, { ...(process.env.REDIS_TLS === 'true' && { tls: { rejectUnauthorized: false } }) });
+  modSub.on('error', (err) => logger.warn(`[Dashboard] ModLog Redis subscriber error: ${err.message}`));
+  modSub.subscribe('aura:modlogs').catch((err) => logger.warn(`[Dashboard] Failed to subscribe modlogs: ${err.message}`));
+  modSub.on('message', (channel, message) => {
+    if (channel === 'aura:modlogs') {
+      try { io.emit('modLog', JSON.parse(message)); } catch {}
+    }
+  });
+} else {
+  logger.warn('[Dashboard] REDIS_URL missing; live modlog stream disabled.');
+}
 
 // ── Catch-all & Error Handling ──────────────────────────────
 app.get('*', (req, res) => res.sendFile(join(__dirname, 'public', 'index.html')));
@@ -329,8 +468,31 @@ app.use((err, req, res, next) => {
 // ── Start ───────────────────────────────────────────────────
 const start = async () => {
   try {
-    await database.authenticate();
-    await redis.ping();
+    const strictStartup = process.env.DASHBOARD_STRICT_STARTUP === 'true';
+    let dbReady = false;
+    let redisReady = false;
+
+    try {
+      await database.authenticate();
+      dbReady = true;
+    } catch (err) {
+      logger.error(`[Dashboard] Database unavailable: ${err.message}`);
+    }
+
+    try {
+      await redis.ping();
+      redisReady = true;
+    } catch (err) {
+      logger.error(`[Dashboard] Redis unavailable: ${err.message}`);
+    }
+
+    if (strictStartup && (!dbReady || !redisReady)) {
+      throw new Error('Strict startup failed: dependencies unavailable');
+    }
+
+    if (!dbReady || !redisReady) {
+      logger.warn('[Dashboard] Starting in degraded mode. Set DASHBOARD_STRICT_STARTUP=true to enforce hard-fail.');
+    }
     
     httpServer.on('error', (err) => {
       if (err.code === 'EADDRINUSE') {
