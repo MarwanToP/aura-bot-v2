@@ -1,6 +1,12 @@
 // ================================================================
 //  AURA BOT v2.0 — Economy System (Premium: 300 items)
 // ================================================================
+//
+//  NOTE: Command consolidation — duplicate exports removed.
+//  /balance, /daily, /work, /transfer, /richlist, /rep, /shop, /points, /bank
+//  are now exported exclusively from aura/commands/premium/economy.js.
+//  This file exports the implementation layer only; wrappers define registration.
+//  See aura/commands/premium/economy.js for command definitions.
 
 import { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import { buildEmbed } from '../../utils/embedBuilder.js';
