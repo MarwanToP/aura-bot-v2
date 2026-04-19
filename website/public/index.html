@@ -663,10 +663,41 @@
     const settingsForm = document.getElementById('settingsForm');
     const logoutBtn = document.getElementById('logoutBtn');
     const topLoginBtn = document.getElementById('topLoginBtn');
+    const reloadGuildBtn = document.getElementById('reloadGuildBtn');
+    const savePanelBtn = document.getElementById('savePanelBtn');
 
     function setStatus(message, type) {
       statusEl.className = `status${type ? ` ${type}` : ''}`;
       statusEl.textContent = message;
+    }
+
+    function setAuthenticatedUI(isAuthenticated) {
+      if (isAuthenticated) {
+        landingView.classList.add('hidden');
+        dashboardView.classList.remove('hidden');
+        topLoginBtn.classList.add('hidden');
+        logoutBtn.classList.remove('hidden');
+        return;
+      }
+
+      dashboardView.classList.add('hidden');
+      landingView.classList.remove('hidden');
+      topLoginBtn.classList.remove('hidden');
+      logoutBtn.classList.add('hidden');
+    }
+
+    function handleApiError(error, fallbackMessage = 'Something went wrong while loading data.') {
+      const message = error?.message || fallbackMessage;
+      const status = Number(error?.status || 0);
+      if (status === 401 || status === 403 || /Authentication required|Forbidden/i.test(message)) {
+        state.me = null;
+        state.guilds = [];
+        state.selectedGuildId = null;
+        setAuthenticatedUI(false);
+        setStatus('Your session expired or access was denied. Please sign in again.', 'err');
+        return;
+      }
+      setStatus(message, 'err');
     }
 
     function formatUptime(totalSeconds) {
@@ -696,11 +727,13 @@
     }
 
     async function apiFetch(url, options = {}) {
-      const response = await fetch(url, options);
+      const response = await fetch(url, { credentials: 'same-origin', ...options });
       const contentType = response.headers.get('content-type') || '';
       const payload = contentType.includes('application/json') ? await response.json() : null;
       if (!response.ok) {
-        throw new Error(payload?.error || `Request failed (${response.status})`);
+        const error = new Error(payload?.error || `Request failed (${response.status})`);
+        error.status = response.status;
+        throw error;
       }
       return payload;
     }
@@ -842,7 +875,7 @@
         renderPanels(panels);
         setStatus(`Editing ${settings.guildMeta?.name || guildId}`, 'ok');
       } catch (error) {
-        setStatus(error.message, 'err');
+        handleApiError(error, 'Failed to load selected guild data.');
       }
     }
 
@@ -887,24 +920,18 @@
 
       try {
         state.me = await apiFetch('/api/me');
-        landingView.classList.add('hidden');
-        dashboardView.classList.remove('hidden');
-        topLoginBtn.classList.add('hidden');
-        logoutBtn.classList.remove('hidden');
+        setAuthenticatedUI(true);
         renderUser();
         await loadDashboard();
-      } catch {
-        dashboardView.classList.add('hidden');
-        landingView.classList.remove('hidden');
-        topLoginBtn.classList.remove('hidden');
-        logoutBtn.classList.add('hidden');
+      } catch (error) {
+        setAuthenticatedUI(false);
         setStatus('Sign in with Discord to unlock the full server control panel.', '');
       }
     }
 
     guildSelect.addEventListener('change', () => loadGuildData(guildSelect.value));
 
-    document.getElementById('reloadGuildBtn').addEventListener('click', () => {
+    reloadGuildBtn.addEventListener('click', () => {
       if (state.selectedGuildId) loadGuildData(state.selectedGuildId);
     });
 
@@ -915,6 +942,7 @@
         return;
       }
       try {
+        settingsForm.querySelector('button[type="submit"]').disabled = true;
         const payload = collectSettingsFormPayload();
         await apiFetch(`/api/guilds/${state.selectedGuildId}`, {
           method: 'POST',
@@ -923,30 +951,45 @@
         });
         setStatus('Settings saved successfully.', 'ok');
       } catch (error) {
-        setStatus(error.message, 'err');
+        handleApiError(error, 'Failed to save settings.');
+      } finally {
+        settingsForm.querySelector('button[type="submit"]').disabled = false;
       }
     });
 
-    document.getElementById('savePanelBtn').addEventListener('click', async () => {
+    savePanelBtn.addEventListener('click', async () => {
       if (!state.selectedGuildId) {
         setStatus('Please select a guild first.', 'err');
         return;
       }
       const panelId = document.getElementById('panelId').value.trim();
-      if (!panelId) {
-        setStatus('Panel ID is required.', 'err');
+      if (!/^[a-zA-Z0-9_-]{2,64}$/.test(panelId)) {
+        setStatus('Panel ID must be 2-64 chars using letters, numbers, "_" or "-".', 'err');
         return;
       }
 
+      const panelCategoryLabel = document.getElementById('panelCategory').value.trim() || 'Support';
+      const panelCategoryName = panelCategoryLabel
+        .toLowerCase()
+        .replace(/[^a-z0-9_-]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .slice(0, 64) || 'support';
+      const supportRoles = toArrayFromCsv(document.getElementById('panelSupportRoles').value);
       const panelPayload = {
         panelId,
         title: document.getElementById('panelTitle').value.trim() || 'Support Center',
         description: document.getElementById('panelDescription').value.trim() || 'Open a ticket to contact support.',
-        category: document.getElementById('panelCategory').value.trim() || 'Support',
-        supportRoles: toArrayFromCsv(document.getElementById('panelSupportRoles').value),
+        categories: [
+          {
+            name: panelCategoryName,
+            label: panelCategoryLabel,
+            roleId: supportRoles[0] || null,
+          },
+        ],
       };
 
       try {
+        savePanelBtn.disabled = true;
         await apiFetch(`/api/guilds/${state.selectedGuildId}/ticket-panels`, {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
@@ -955,7 +998,9 @@
         setStatus('Ticket panel saved.', 'ok');
         await loadGuildData(state.selectedGuildId);
       } catch (error) {
-        setStatus(error.message, 'err');
+        handleApiError(error, 'Failed to save ticket panel.');
+      } finally {
+        savePanelBtn.disabled = false;
       }
     });
 

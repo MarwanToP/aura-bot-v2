@@ -121,8 +121,10 @@ export const bank = {
   },
 };
 
-export const points  = { ...aura, data: new SlashCommandBuilder().setName('points').setDescription('Check your Aura Points').addUserOption(o => o.setName('user').setDescription('User to check')) };
-export const balance = { ...aura, data: new SlashCommandBuilder().setName('balance').setDescription('Check your Aura Points').addUserOption(o => o.setName('user').setDescription('User to check')) };
+// NOTE: /balance, /daily, /work, /transfer, /richlist, /rep, /shop, /points, /bank
+// are now exported from aura/commands/premium/economy.js as command wrappers.
+// They delegate to these implementations. Only /aura is used directly from here.
+// Keep /aura here for backward compatibility with shared/systems/economy UI.
 
 // ─── /daily ──────────────────────────────────────────────────
 export const daily = {
@@ -484,4 +486,4 @@ async function checkPremium(client, guildId) {
   } catch { return false; }
 }
 
-export default balance;
+export default aura;
