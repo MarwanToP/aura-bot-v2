@@ -28,7 +28,36 @@ export const clan = {
         new ButtonBuilder().setCustomId('clan_kick').setLabel('Kick Member').setStyle(ButtonStyle.Danger).setEmoji('👢'),
         new ButtonBuilder().setCustomId('clan_upgrades').setLabel('Purchases/Upgrades').setStyle(ButtonStyle.Success).setEmoji('💰')
       );
-      await interaction.reply({ embeds: [embed], components: [row] });
+      const msg = await interaction.reply({ embeds: [embed], components: [row], fetchReply: true });
+      const collector = msg.createMessageComponentCollector({
+        filter: i => i.user.id === interaction.user.id,
+        time: 120000,
+      });
+
+      collector.on('collect', async i => {
+        const action = i.customId.replace('clan_', '');
+        const actionLabel = action === 'invite'
+          ? 'Invite Member'
+          : action === 'kick'
+            ? 'Kick Member'
+            : action === 'upgrades'
+              ? 'Purchases / Upgrades'
+              : null;
+
+        if (!actionLabel) return i.deferUpdate();
+        await i.reply({
+          embeds: [buildEmbed({
+            type: 'info',
+            title: '🛡️ Clan Dashboard',
+            description: `**${actionLabel}** workflow is not available yet in this build.`,
+          })],
+          ephemeral: true,
+        });
+      });
+
+      collector.on('end', async () => {
+        await interaction.editReply({ components: [] }).catch(() => {});
+      });
     }
   }
 };

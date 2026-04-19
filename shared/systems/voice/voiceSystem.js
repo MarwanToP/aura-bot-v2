@@ -81,9 +81,7 @@ export async function handleVoiceUpdate(client, oldState, newState) {
             await leaveChannel.permissionOverwrites.edit(nextOwner.id, {
               ManageChannels: true, MoveMembers: true, MuteMembers: true
             });
-            await leaveChannel.send({ 
-              content: `👑 تم نقل ملكية الغرفة إلى <@${nextOwner.id}> بسبب مغادرة المالك السابق.` 
-            });
+            logger.info(`[TempVoice] Ownership transferred to ${nextOwner.id} for channel ${leaveChannel.id}`);
           }
         }
       }
@@ -167,7 +165,7 @@ export async function handleTempVoiceInteraction(client, interaction) {
     
     case 'rename':
       // Trigger rename command reply or modal
-      return interaction.reply({ content: '🛠️ يرجى استخدام أمر `/voice rename` لتغيير اسم الروم.', ephemeral: true });
+      return interaction.reply({ content: '🛠️ يرجى استخدام أمر `/voice name` لتغيير اسم الروم.', ephemeral: true });
 
     case 'cancel':
       await interaction.reply({ content: '🗑️ يتم الآن حذف الروم...', ephemeral: true });

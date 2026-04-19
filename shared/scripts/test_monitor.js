@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import monitor from '../src/systems/monitor/monitorService.js';
+import monitor from '../systems/monitor/monitorService.js';
 
 async function test() {
     console.log("Sending test alert to Telegram...");

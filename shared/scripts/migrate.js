@@ -1,6 +1,6 @@
 import 'dotenv/config';
-import database from '../src/database/index.js';
-import logger from '../src/utils/logger.js';
+import database from '../database/index.js';
+import logger from '../utils/logger.js';
 
 async function migrate() {
   try {

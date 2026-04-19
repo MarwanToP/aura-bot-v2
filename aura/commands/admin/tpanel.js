@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder } from 'discord.js';
+import { SlashCommandBuilder, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import { buildEmbed } from '../../../shared/utils/embedBuilder.js';
 
 export const tpanel = {
@@ -23,7 +23,37 @@ export const tpanel = {
       new ButtonBuilder().setCustomId('tpanel_delete').setLabel('Delete Category').setStyle(ButtonStyle.Danger).setEmoji('🗑️')
     );
 
-    await interaction.reply({ embeds: [embed], components: [row] });
+    const msg = await interaction.reply({ embeds: [embed], components: [row], fetchReply: true });
+
+    const collector = msg.createMessageComponentCollector({
+      filter: i => i.user.id === interaction.user.id,
+      time: 120000,
+    });
+
+    collector.on('collect', async i => {
+      const action = i.customId.replace('tpanel_', '');
+      const actionLabel = action === 'add'
+        ? 'Add Category'
+        : action === 'edit'
+          ? 'Edit Category'
+          : action === 'delete'
+            ? 'Delete Category'
+            : null;
+
+      if (!actionLabel) return i.deferUpdate();
+      await i.reply({
+        embeds: [buildEmbed({
+          type: 'info',
+          title: '🎫 Ticket Configurator',
+          description: `**${actionLabel}** is not wired to persistent storage yet.\nUse \`/settings\` to configure ticket system values for now.`,
+        })],
+        ephemeral: true,
+      });
+    });
+
+    collector.on('end', async () => {
+      await interaction.editReply({ components: [] }).catch(() => {});
+    });
   }
 };
 

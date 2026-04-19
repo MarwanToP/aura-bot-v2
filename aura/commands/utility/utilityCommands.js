@@ -232,6 +232,12 @@ export const help = {
     };
     if (category) {
       const cat = cats[category];
+      if (!cat) {
+        return interaction.reply({
+          embeds: [buildEmbed({ type: 'warning', description: '⚠️ Unknown help category. Please choose one from the command options.' })],
+          ephemeral: true
+        });
+      }
       return interaction.reply({ embeds: [buildEmbed({ type: 'primary', title: `${cat.emoji} ${cat.title}`, description: cat.cmds.map(c => `\`${c}\``).join(' • '), footer: 'Aura Bot v2.0 • /help for overview' })], ephemeral: true });
     }
     return interaction.reply({ embeds: [buildEmbed({ type: 'primary', title: '✨ Aura Bot v2.0 — Help', description: 'Enterprise Discord Bot with AI\n\nUse `/help category:` for details.', thumbnail: client.user.displayAvatarURL({ size: 256 }), fields: Object.values(cats).map(c => ({ name: c.emoji+' '+c.title, value: `${c.cmds.length} commands`, inline: true })), footer: `Aura v${config.version} • ${client.guilds.cache.size} servers`, timestamp: true })], ephemeral: true });
@@ -298,7 +304,7 @@ export const ticket = {
     const lang = await client.i18n.resolveLanguage(client, interaction.user.id, interaction.guildId);
 
     if (sub === 'open') {
-      const { createTicket } = await import('../../systems/tickets/ticketSystem.js');
+      const { createTicket } = await import('../../../shared/systems/tickets/ticketSystem.js');
       const result = await createTicket(client, interaction.guild, interaction.user, {
         category: interaction.options.getString('category'),
         subject:  interaction.options.getString('subject') || '',
@@ -311,7 +317,7 @@ export const ticket = {
     if (sub === 'panel') {
       const channel = interaction.options.getChannel('channel');
       const image = interaction.options.getString('image');
-      const { sendTicketPanel } = await import('../../systems/tickets/ticketSystem.js');
+      const { sendTicketPanel } = await import('../../../shared/systems/tickets/ticketSystem.js');
       await sendTicketPanel(client, channel, image);
       return interaction.editReply({ embeds: [buildEmbed({ type: 'success', description: `✅ Ticket panel sent to <#${channel.id}>` })] });
     }
@@ -320,7 +326,7 @@ export const ticket = {
       const { Ticket } = client.db.models;
       const t = await Ticket.findOne({ where: { channelId: interaction.channel.id, guildId: interaction.guildId } });
       if (!t) return interaction.editReply({ embeds: [buildEmbed({ type: 'error', description: client.i18n.t('tickets.notTicket', {}, lang) })] });
-      const { closeTicket } = await import('../../systems/tickets/ticketSystem.js');
+      const { closeTicket } = await import('../../../shared/systems/tickets/ticketSystem.js');
       const result = await closeTicket(client, t.ticketId, interaction.guildId, interaction.user);
       return interaction.editReply({ embeds: [buildEmbed({ type: result.error ? 'error' : 'success', description: result.error || client.i18n.t('tickets.closed', { id: t.ticketId }, lang) })] });
     }

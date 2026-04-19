@@ -11,6 +11,8 @@ services:
     envVars:
       - key: MODE
         value: BOT
+      - key: NODE_ENV
+        value: production
       - key: DATABASE_URL
         sync: false
       - key: REDIS_URL
@@ -27,6 +29,10 @@ services:
         sync: false
       - key: TELEGRAM_CHAT_ID
         sync: false
+      - key: SHARD_COUNT
+        value: "1"
+      - key: LOG_LEVEL
+        value: info
 
   # ── Intelligence Dashboard ──────────────────────────────
   - type: web
@@ -40,8 +46,14 @@ services:
     envVars:
       - key: MODE
         value: DASHBOARD
+      - key: NODE_ENV
+        value: production
+      - key: TRUST_PROXY
+        value: "true"
       - key: DASHBOARD_URL
-        value: "https://aura-dashboard-1czd.onrender.com"
+        sync: false
+      - key: DISCORD_CALLBACK_URL
+        sync: false
 
       - key: DATABASE_URL
         sync: false
@@ -63,7 +75,5 @@ services:
         generateValue: true
       - key: JWT_SECRET
         generateValue: true
-      - key: SHARD_COUNT
-        value: "1"
       - key: LOG_LEVEL
         value: info

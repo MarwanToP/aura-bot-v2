@@ -18,7 +18,10 @@ const shouldRunBot       = ['BOT', 'BOTH'].includes(MODE);
 
 const requiredEnvVars = new Set();
 if (shouldRunBot) requiredEnvVars.add('DISCORD_TOKEN');
-if (shouldRunDashboard) requiredEnvVars.add('DISCORD_CLIENT_ID');
+if (shouldRunDashboard) {
+  requiredEnvVars.add('DISCORD_CLIENT_ID');
+  requiredEnvVars.add('DISCORD_CLIENT_SECRET');
+}
 
 const missingVars = [...requiredEnvVars].filter(key => !process.env[key]);
 if (missingVars.length) {
@@ -93,9 +96,19 @@ if (shouldRunBot) {
  * Initializes the Discord.js ShardingManager for high-availability.
  */
 function initializeSharding() {
+  const shardConfig = process.env.SHARD_COUNT?.trim();
+  const totalShards = !shardConfig || shardConfig.toLowerCase() === 'auto'
+    ? 'auto'
+    : Number.parseInt(shardConfig, 10);
+
+  if (totalShards !== 'auto' && !Number.isFinite(totalShards)) {
+    logger.error('[System] Invalid SHARD_COUNT. Use a number or "auto".');
+    process.exit(1);
+  }
+
   const manager = new ShardingManager(join(__dirname, 'aura/bot.js'), {
     token:       process.env.DISCORD_TOKEN,
-    totalShards: parseInt(process.env.SHARD_COUNT || '1'),
+    totalShards,
     respawn:     true,
   });
 

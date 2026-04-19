@@ -59,7 +59,12 @@ export default {
 // ── Slash Commands ────────────────────────────────────────────
 async function handleSlash(client, interaction, lang) {
   const command = client.commands.get(interaction.commandName);
-  if (!command) return;
+  if (!command) {
+    return interaction.reply({
+      embeds: [buildEmbed({ type: 'error', description: '❌ This command is not loaded on the bot. Re-deploy slash commands and try again.' })],
+      ephemeral: true
+    }).catch(() => {});
+  }
 
   const coolKey = `cd:${interaction.user.id}:${interaction.commandName}`;
 
@@ -157,6 +162,7 @@ async function getHandler(prefix) {
     poll:     '../../shared/systems/polls/pollSystem.js',
     apply:    '../../shared/systems/applications/applicationSystem.js',
     economy:  '../../shared/systems/economy/economySystem.js',
+    ai:       '../commands/ai/aiCommands.js',
     games:    '../commands/games/gameCommands.js',
     staff:    '../commands/management/staff.js',
   };

@@ -1,5 +1,5 @@
 // ================================================================
-//  Command: /aura analyze (Neural Summary & Proactive Protection)
+//  Command: /neural analyze (Neural Summary & Proactive Protection)
 // ================================================================
 
 import { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } from 'discord.js';
@@ -8,7 +8,7 @@ import config         from '../../../shared/config/config.js';
 
 export default {
   data: new SlashCommandBuilder()
-    .setName('aura')
+    .setName('neural')
     .setDescription('Access the Aura Neural Control Center')
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .addSubcommand(s => s

@@ -2,9 +2,18 @@
 //  Commands: /ask /chat /imagine /translate /summarize /aimod
 // ================================================================
 
-import { SlashCommandBuilder, PermissionFlagsBits, AttachmentBuilder } from 'discord.js';
+import {
+  SlashCommandBuilder,
+  PermissionFlagsBits,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  PermissionsBitField,
+} from 'discord.js';
 import { buildEmbed } from '../../../shared/utils/embedBuilder.js';
-import config         from '../../../shared/config/config.js';
+
+const PERMISSION_PROPOSAL_TTL_SECONDS = 900;
+const AI_PERMISSION_STORE_PREFIX = 'ai:perm:proposal:';
 
 // ── /ask — Single AI question ──────────────────────────────
 export const ask = {
@@ -335,6 +344,7 @@ export const aimod = {
 
     try {
       const result = await client.ai.moderateContent(message, { context: depth });
+      const suggestedAction = getSuggestedModerationAction(result);
 
       const severityColors = { low: 'success', medium: 'warning', high: 'error', critical: 'error' };
       const severityEmoji  = { low: '🟢', medium: '🟡', high: '🔴', critical: '💀' };
@@ -350,6 +360,7 @@ export const aimod = {
             { name: '⚡ Severity',      value: `${severityEmoji[result.severity] || '⚪'} ${result.severity || 'N/A'}`, inline: true },
             { name: '🎯 Confidence',    value: `${result.confidence || 0}%`,                             inline: true },
             { name: '🔍 Analysis Source', value: result.source || 'N/A',                                inline: true },
+            { name: '🧭 Suggested Action', value: suggestedAction,                                       inline: true },
             { name: '📋 Reason',        value: result.reason || 'No issues found',                      inline: false },
           ],
           footer:    `Analyzed with ${depth} mode`,
@@ -384,28 +395,65 @@ export const aiPermissions = {
 
     const role    = interaction.options.getRole('role');
     const purpose = interaction.options.getString('purpose') || 'Unspecified';
-    const lang    = await client.i18n.resolveLanguage(client, interaction.user.id, interaction.guildId);
 
     try {
       // Get role permissions
       const perms = role.permissions.toArray();
       
       const analysis = await client.ai.suggestPermissions(role.name, perms, purpose);
+      const suggestions = normalizePermissionSuggestions(analysis?.suggestions || []);
+      const toAdd = suggestions.filter((perm) => !role.permissions.has(PermissionFlagsBits[perm]));
+      const alreadyIncluded = suggestions.filter((perm) => role.permissions.has(PermissionFlagsBits[perm]));
+
+      const proposalId = interaction.id;
+      const proposalKey = `${AI_PERMISSION_STORE_PREFIX}${proposalId}`;
+      await client.redis.setJSON(proposalKey, {
+        guildId: interaction.guildId,
+        roleId: role.id,
+        roleName: role.name,
+        requesterId: interaction.user.id,
+        suggestions,
+        createdAt: Date.now(),
+      }, PERMISSION_PROPOSAL_TTL_SECONDS);
       
       const embed = buildEmbed({
         type:  analysis.dangerZone ? 'warning' : 'ai',
         title: `🤖 Neural Role Analysis — ${role.name}`,
         description: `**AI Rationale:** ${analysis.rationale}`,
         fields: [
-          { name: '📋 Suggested Permissions', value: analysis.suggestions.length ? analysis.suggestions.map(p => `\`${p}\``).join(', ') : 'No changes suggested.', inline: false },
+          { name: '📋 Suggested Permissions', value: suggestions.length ? suggestions.map((p) => `\`${p}\``).join(', ') : 'No valid permission suggestions.', inline: false },
+          { name: '➕ New Permissions',       value: toAdd.length ? toAdd.map((p) => `\`${p}\``).join(', ') : 'No new permissions to add.', inline: false },
+          { name: '✅ Already Granted',       value: alreadyIncluded.length ? alreadyIncluded.map((p) => `\`${p}\``).join(', ') : 'None.', inline: false },
           { name: '🛡️ Vulnerability Status',  value: analysis.dangerZone ? '🟠 **Caution**: High-level permissions suggested.' : '🟢 **Secure**: Standards mapping applied.', inline: true },
         ],
         footer: 'Powered by Aura Neural Logic Core',
         timestamp: true,
       });
 
-      // TODO: Add buttons for Apply (In a real implementation, we would handle the button interaction)
-      return interaction.editReply({ embeds: [embed] });
+      const components = [];
+      if (suggestions.length > 0) {
+        components.push(
+          new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+              .setCustomId(`ai:perm:apply:${proposalId}`)
+              .setLabel('Apply Suggested Permissions')
+              .setStyle(ButtonStyle.Danger)
+              .setEmoji('🛠️'),
+            new ButtonBuilder()
+              .setCustomId(`ai:perm:diff:${proposalId}`)
+              .setLabel('Show Diff')
+              .setStyle(ButtonStyle.Secondary)
+              .setEmoji('📋'),
+            new ButtonBuilder()
+              .setCustomId(`ai:perm:cancel:${proposalId}`)
+              .setLabel('Dismiss')
+              .setStyle(ButtonStyle.Secondary)
+              .setEmoji('🗑️'),
+          ),
+        );
+      }
+
+      return interaction.editReply({ embeds: [embed], components });
     } catch (err) {
       client.logger.error('[AI] Permissions audit failed:', err);
       return interaction.editReply({ embeds: [buildEmbed({ type: 'error', description: '❌ AI analysis failed.' })] });
@@ -413,7 +461,156 @@ export const aiPermissions = {
   },
 };
 
+export async function handleButton(client, interaction, actionRaw) {
+  const [scope, action, proposalId] = (actionRaw || '').split(':');
+  if (scope !== 'perm' || !action || !proposalId) return;
+
+  const proposalKey = `${AI_PERMISSION_STORE_PREFIX}${proposalId}`;
+  const proposal = await client.redis.getJSON(proposalKey);
+
+  if (!proposal) {
+    return interaction.reply({
+      embeds: [buildEmbed({ type: 'warning', description: '⚠️ This AI permission proposal has expired. Run `/ai-permissions` again.' })],
+      ephemeral: true,
+    }).catch(() => {});
+  }
+
+  if (proposal.requesterId !== interaction.user.id) {
+    return interaction.reply({
+      embeds: [buildEmbed({ type: 'error', description: '❌ Only the staff member who generated this proposal can apply it.' })],
+      ephemeral: true,
+    }).catch(() => {});
+  }
+
+  if (!interaction.guildId || interaction.guildId !== proposal.guildId) {
+    return interaction.reply({
+      embeds: [buildEmbed({ type: 'error', description: '❌ This proposal is bound to a different server.' })],
+      ephemeral: true,
+    }).catch(() => {});
+  }
+
+  if (action === 'cancel') {
+    await client.redis.del(proposalKey);
+    return interaction.update({
+      embeds: [buildEmbed({ type: 'info', title: 'AI Permission Proposal Closed', description: 'This recommendation has been dismissed.' })],
+      components: [],
+    }).catch(() => {});
+  }
+
+  if (action === 'diff') {
+    const role = await interaction.guild.roles.fetch(proposal.roleId).catch(() => null);
+    if (!role) {
+      await client.redis.del(proposalKey);
+      return interaction.reply({
+        embeds: [buildEmbed({ type: 'error', description: '❌ Target role no longer exists.' })],
+        ephemeral: true,
+      }).catch(() => {});
+    }
+
+    const suggestions = normalizePermissionSuggestions(proposal.suggestions || []);
+    const toAdd = suggestions.filter((perm) => !role.permissions.has(PermissionFlagsBits[perm]));
+    const alreadyIncluded = suggestions.filter((perm) => role.permissions.has(PermissionFlagsBits[perm]));
+
+    return interaction.reply({
+      embeds: [buildEmbed({
+        type: 'info',
+        title: `📋 Permission Diff — ${role.name}`,
+        fields: [
+          { name: '➕ To Add', value: toAdd.length ? toAdd.map((p) => `\`${p}\``).join(', ') : 'No new permissions.', inline: false },
+          { name: '✅ Already Present', value: alreadyIncluded.length ? alreadyIncluded.map((p) => `\`${p}\``).join(', ') : 'None.', inline: false },
+        ],
+      })],
+      ephemeral: true,
+    }).catch(() => {});
+  }
+
+  if (action !== 'apply') return;
+
+  if (!interaction.member.permissions.has(PermissionFlagsBits.ManageRoles)) {
+    return interaction.reply({
+      embeds: [buildEmbed({ type: 'error', description: '❌ You need `Manage Roles` permission to apply this proposal.' })],
+      ephemeral: true,
+    }).catch(() => {});
+  }
+
+  await interaction.deferUpdate();
+
+  const role = await interaction.guild.roles.fetch(proposal.roleId).catch(() => null);
+  if (!role) {
+    await client.redis.del(proposalKey);
+    return interaction.followUp({
+      embeds: [buildEmbed({ type: 'error', description: '❌ Target role no longer exists.' })],
+      ephemeral: true,
+    }).catch(() => {});
+  }
+
+  const suggestions = normalizePermissionSuggestions(proposal.suggestions || []);
+  const toAdd = suggestions.filter((perm) => !role.permissions.has(PermissionFlagsBits[perm]));
+  const alreadyIncluded = suggestions.filter((perm) => role.permissions.has(PermissionFlagsBits[perm]));
+
+  if (!role.editable) {
+    return interaction.followUp({
+      embeds: [buildEmbed({ type: 'error', description: '❌ I cannot edit this role (check role hierarchy and bot permissions).' })],
+      ephemeral: true,
+    }).catch(() => {});
+  }
+
+  const updatedPermissions = new PermissionsBitField(role.permissions.bitfield);
+  for (const permissionName of toAdd) {
+    updatedPermissions.add(PermissionFlagsBits[permissionName]);
+  }
+
+  await role.setPermissions(
+    updatedPermissions,
+    `AI permissions applied by ${interaction.user.tag} (${interaction.user.id})`,
+  );
+
+  await client.redis.del(proposalKey);
+  return interaction.editReply({
+    embeds: [buildEmbed({
+      type: 'success',
+      title: `✅ AI Permissions Applied — ${role.name}`,
+      fields: [
+        { name: '➕ Added', value: toAdd.length ? toAdd.map((p) => `\`${p}\``).join(', ') : 'Nothing new was required.', inline: false },
+        { name: 'ℹ️ Already Present', value: alreadyIncluded.length ? alreadyIncluded.map((p) => `\`${p}\``).join(', ') : 'None.', inline: false },
+      ],
+      footer: `Applied by ${interaction.user.tag}`,
+      timestamp: true,
+    })],
+    components: [],
+  }).catch(() => {});
+}
+
 // ── Utility ──────────────────────────────────────────────────
+function normalizePermissionSuggestions(suggestions) {
+  if (!Array.isArray(suggestions)) return [];
+
+  const validPermissionKeys = new Set(Object.keys(PermissionFlagsBits));
+  const mapped = suggestions
+    .map((permission) => String(permission).trim())
+    .filter(Boolean)
+    .map((permission) => permission.replace(/\s+/g, ''));
+
+  return Array.from(new Set(mapped.filter((permission) => validPermissionKeys.has(permission))));
+}
+
+function getSuggestedModerationAction(result) {
+  if (!result?.violation) return 'No immediate action needed.';
+
+  switch (result.severity) {
+    case 'critical':
+      return 'Immediate escalation to senior moderation + consider instant timeout/ban.';
+    case 'high':
+      return 'Delete content and apply strong action (timeout), then escalate if repeated.';
+    case 'medium':
+      return 'Remove/warn and monitor repeat behavior.';
+    case 'low':
+      return 'Soft warning and track user behavior.';
+    default:
+      return 'Manual moderator review recommended.';
+  }
+}
+
 async function checkPremium(client, guildId) {
   try {
     const { GuildSettings } = client.db.models;

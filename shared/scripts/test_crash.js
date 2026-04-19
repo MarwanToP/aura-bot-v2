@@ -1,6 +1,6 @@
 import 'dotenv/config';
-import monitor from '../src/systems/monitor/monitorService.js';
-import redis from '../src/database/redis.js';
+import monitor from '../systems/monitor/monitorService.js';
+import redis from '../database/redis.js';
 
 async function simulateCrash() {
     console.log("Simulating a bot crash in Redis...");

@@ -3,7 +3,7 @@ import { buildEmbed } from '../../../shared/utils/embedBuilder.js';
 
 export const staff = {
   data: new SlashCommandBuilder()
-    .setName('staff')
+    .setName('modstaff')
     .setDescription('Staff Performance Analytics & Shift Tracker')
     .addSubcommand(sub => sub.setName('shift').setDescription('Start or end your moderation shift').addStringOption(opt => opt.setName('action').setDescription('Start or End').setRequired(true).addChoices({ name: 'Start', value: 'start' }, { name: 'End', value: 'end' })))
     .addSubcommand(sub => sub.setName('stats').setDescription('View staff moderation analytics'))
