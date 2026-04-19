@@ -177,7 +177,7 @@ async function executeIntent(client, member, channel, intent) {
       break;
 
     case 'balance':
-      const wallet = await economy.credits.execute(client, { user: member.user, guildId: guild.id, deferReply: () => {}, editReply: (obj) => channel.send(obj) });
+      await economy.aura.execute(client, { user: member.user, guildId: guild.id, deferReply: () => {}, editReply: (obj) => channel.send(obj) });
       return; // Handled by standard command
 
     case 'work':

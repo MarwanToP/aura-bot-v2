@@ -45,6 +45,7 @@ async function loadDir(client, dirPath, allowOverwrite = true, audit) {
 
       const register = (command, exportLabel) => {
         if (!command || typeof command !== 'object') return;
+        if (command.register === false) return;
         const hasData = Object.prototype.hasOwnProperty.call(command, 'data');
         const hasExecute = Object.prototype.hasOwnProperty.call(command, 'execute');
         if (!hasData && !hasExecute) return;

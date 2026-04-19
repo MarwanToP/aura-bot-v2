@@ -1,64 +1,32 @@
-# Aura Bot v2.0 — Render Unified Infrastructure
+# Aura Bot v2.0 — Render Unified Free Infrastructure
 services:
-  # ── Discord Bot Core ─────────────────────────────────────
-  - type: worker
-    name: aura-bot-core
-    runtime: docker
-    dockerfilePath: ./Dockerfile
-    plan: starter
-    branch: main
-    autoDeploy: true
-    envVars:
-      - key: MODE
-        value: BOT
-      - key: NODE_ENV
-        value: production
-      - key: DATABASE_URL
-        sync: false
-      - key: REDIS_URL
-        sync: false
-      - key: GEMINI_API_KEY
-        sync: false
-      - key: DISCORD_TOKEN
-        sync: false
-      - key: DISCORD_CLIENT_ID
-        sync: false
-      - key: DISCORD_CLIENT_SECRET
-        sync: false
-      - key: TELEGRAM_BOT_TOKEN
-        sync: false
-      - key: TELEGRAM_CHAT_ID
-        sync: false
-      - key: SHARD_COUNT
-        value: "1"
-      - key: LOG_LEVEL
-        value: info
-
-  # ── Intelligence Dashboard ──────────────────────────────
+  # ── Unified Core (Bot + Dashboard) ───────────────────────
   - type: web
-    name: aura-bot-dashboard
+    name: aura-unified-core
     runtime: docker
     dockerfilePath: ./Dockerfile
-    plan: starter
+    plan: free
     branch: main
     autoDeploy: true
     healthCheckPath: /api/health
     envVars:
       - key: MODE
-        value: DASHBOARD
+        value: BOTH
       - key: NODE_ENV
         value: production
       - key: TRUST_PROXY
         value: "true"
       - key: DASHBOARD_URL
-        value: "https://aura-bot-dashboard.onrender.com"
+        # Replace with your actual Render URL later, or leave dynamic if codebase supports it.
+        value: "https://aura-unified-core.onrender.com"
       - key: DISCORD_CALLBACK_URL
-        value: "https://aura-bot-dashboard.onrender.com/auth/discord/callback"
+        value: "https://aura-unified-core.onrender.com/auth/discord/callback"
       - key: DASHBOARD_CORS_ORIGIN
         sync: false
       - key: DASHBOARD_COOKIE_SECURE
         value: "true"
-
+      
+      # Secrets (Set these manually in the Render Dashboard)
       - key: DATABASE_URL
         sync: false
       - key: REDIS_URL

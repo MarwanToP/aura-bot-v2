@@ -83,7 +83,11 @@ export const poll = {
       const duration   = interaction.options.getString('duration');
       const anonymous  = interaction.options.getBoolean('anonymous') ?? false;
       const ms_        = await import('ms');
-      const endsAt     = duration ? new Date(Date.now() + ms_.default(duration)) : null;
+      const durationMs = duration ? ms_.default(duration) : null;
+      if (duration && (!durationMs || Number.isNaN(durationMs) || durationMs <= 0)) {
+        return interaction.editReply({ embeds: [buildEmbed({ type: 'error', description: '❌ Invalid duration format. Examples: `30m`, `2h`, `1d`.' })] });
+      }
+      const endsAt     = durationMs ? new Date(Date.now() + durationMs) : null;
 
       // Build embed
       const optionLines = options.map((opt, i) => `${POLL_EMOJIS[i]} **${opt}** — 0 votes`);
@@ -149,7 +153,11 @@ export const poll = {
         return `${POLL_EMOJIS[i]} **${opt}**\n${bar} ${pct}% (${count} votes)`;
       });
 
-      if (sub === 'end' && interaction.member.permissions.has(PermissionFlagsBits.ManageMessages)) {
+      if (sub === 'end' && !interaction.member.permissions.has(PermissionFlagsBits.ManageMessages)) {
+        return interaction.editReply({ embeds: [buildEmbed({ type: 'error', description: '❌ You need `Manage Messages` permission to end polls.' })] });
+      }
+
+      if (sub === 'end') {
         await client.redis.del(`poll:${msgId}`);
       }
 

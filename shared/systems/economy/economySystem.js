@@ -39,6 +39,7 @@ async function removeCoins(client, userId, guildId, amount) {
 
 // ─── /aura (Profile Card) ────────────────────────────────────
 export const aura = {
+  register: false,
   data: new SlashCommandBuilder()
     .setName('aura')
     .setDescription('View your premium Aura Profile Card & Points')
@@ -134,6 +135,7 @@ export const bank = {
 
 // ─── /daily ──────────────────────────────────────────────────
 export const daily = {
+  register: false,
   data: new SlashCommandBuilder()
     .setName('daily')
     .setDescription('Claim your daily Aura Credits reward'),
@@ -197,6 +199,7 @@ export const daily = {
 
 // ─── /work ───────────────────────────────────────────────────
 export const work = {
+  register: false,
   data: new SlashCommandBuilder()
     .setName('work')
     .setDescription('Work to earn coins (4hr cooldown)'),
@@ -362,6 +365,7 @@ export const shop = {
 
 // ─── /transfer ───────────────────────────────────────────────
 export const transfer = {
+  register: false,
   data: new SlashCommandBuilder()
     .setName('transfer')
     .setDescription('Transfer coins to another user')
@@ -394,6 +398,7 @@ export const transfer = {
 
 // ─── /rep (Reputation) ───────────────────────────────────────
 export const rep = {
+  register: false,
   data: new SlashCommandBuilder()
     .setName('rep')
     .setDescription('Give a reputation point to another user')
@@ -436,6 +441,7 @@ export const rep = {
 
 // ─── Economy Leaderboard ─────────────────────────────────────
 export const richlist = {
+  register: false,
   data: new SlashCommandBuilder()
     .setName('richlist')
     .setDescription('View the richest members in the server'),

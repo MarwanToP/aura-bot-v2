@@ -1,11 +1,8 @@
 // ================================================================
 //  AURA BOT v2.0 — Fun & Social
 // ================================================================
-import { 
-  SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder 
-} from 'discord.js';
+import { SlashCommandBuilder } from 'discord.js';
 import { buildEmbed } from '../../../shared/utils/embedBuilder.js';
-import { rep as systemRep } from '../../../shared/systems/economy/economySystem.js';
 
 // ─── /avatar ──────────────────────────────────────────────────
 export const avatar = {
@@ -32,9 +29,6 @@ export const avatar = {
     return interaction.reply({ embeds: [embed] });
   },
 };
-
-// ─── /rep ─────────────────────────────────────────────────────
-export const rep = systemRep;
 
 // ─── /meme ─────────────────────────────────────────────────────
 export const meme = {

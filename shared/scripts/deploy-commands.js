@@ -28,7 +28,10 @@ const audit = {
   importFailures: 0,
 };
 
-function registerCommand(command, allowOverwrite, sourceLabel, moduleSeenNames) {
+function registerCommand(commandExport, allowOverwrite, sourceLabel, moduleSeenNames) {
+  if (!commandExport || typeof commandExport !== 'object') return;
+  if (commandExport.register === false) return;
+  const command = commandExport.data;
   if (!command || typeof command.toJSON !== 'function') return;
 
   let json;
@@ -76,9 +79,9 @@ async function loadCommands(dir, allowOverwrite = true) {
       const mod = await import(pathToFileURL(full).href);
       audit.modulesLoaded += 1;
       const moduleSeenNames = new Set();
-      if (mod.default?.data) registerCommand(mod.default.data, allowOverwrite, `${full}#default`, moduleSeenNames);
+      if (mod.default) registerCommand(mod.default, allowOverwrite, `${full}#default`, moduleSeenNames);
       for (const [k, v] of Object.entries(mod)) {
-        if (k !== 'default' && v?.data) registerCommand(v.data, allowOverwrite, `${full}#${k}`, moduleSeenNames);
+        if (k !== 'default') registerCommand(v, allowOverwrite, `${full}#${k}`, moduleSeenNames);
       }
     } catch (err) {
       audit.importFailures += 1;

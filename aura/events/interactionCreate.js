@@ -97,6 +97,16 @@ async function handleSlash(client, interaction, lang) {
       return interaction.reply({ embeds: [buildEmbed({ type: 'error', description: client.i18n.t('common.noPermission', {}, lang) })], ephemeral: true });
     }
   }
+  if (command.botPermissions?.length) {
+    const botPerms = interaction.guild?.members?.me?.permissionsIn(interaction.channel);
+    const missingBot = command.botPermissions.filter(p => !botPerms?.has(p));
+    if (missingBot.length) {
+      return interaction.reply({
+        embeds: [buildEmbed({ type: 'error', description: '❌ I am missing required permissions to run this command in this channel.' })],
+        ephemeral: true,
+      }).catch(() => {});
+    }
+  }
 
   // Premium Tier Verification (Optimized with Timeout fallback)
   if (command.premiumTier > 0 && interaction.guildId) {
