@@ -24,8 +24,13 @@ export const staffCommand = {
 
   async execute(client, interaction) {
     try {
-      // Only allow members with a certain role or ManageMessages permission
-      if (!interaction.member.permissions.has(PermissionFlagsBits.ManageMessages)) {
+      const { GuildSettings } = client.db.models;
+      const settings = await GuildSettings.findOne({ where: { guildId: interaction.guildId } });
+
+      const hasPermission = interaction.member.permissions.has(PermissionFlagsBits.ManageMessages);
+      const hasStaffRole = (settings?.staffRoleIds || []).some(id => interaction.member.roles.cache.has(id));
+
+      if (!hasPermission && !hasStaffRole) {
         return interaction.reply({
           embeds: [buildEmbed({ type: 'error', description: '❌ Access Denied: Staff only.' })],
           ephemeral: true,

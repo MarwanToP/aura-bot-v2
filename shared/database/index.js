@@ -140,6 +140,10 @@ const GuildSettings = sequelize.define('GuildSettings', {
       color: '#FFFFFF'
     }
   },
+  // Staff System
+  staffSystemEnabled:   { type: DataTypes.BOOLEAN, defaultValue: false },
+  staffRoleIds:         { type: DataTypes.ARRAY(DataTypes.STRING), defaultValue: [] },
+
   // Customization & Restrictions
   commandAliases:       { type: DataTypes.JSONB, defaultValue: {} }, // e.g. { "profile": "p" }
   commandBlacklist:     { type: DataTypes.ARRAY(DataTypes.STRING), defaultValue: [] }, // e.g. ["games"]
@@ -478,6 +482,22 @@ const StaffDuty = sequelize.define('StaffDuty', {
   promotionHistory:   { type: DataTypes.JSONB,   defaultValue: [] },
 }, { tableName: 'staff_duty', timestamps: true });
 
+// ── 27. Staff Fingerprint Logs (History) ───────────────────
+const StaffFingerprint = sequelize.define('StaffFingerprint', {
+  id:           { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
+  guildId:      { type: DataTypes.STRING, allowNull: false },
+  userId:       { type: DataTypes.STRING, allowNull: false },
+  type:         { type: DataTypes.ENUM('on', 'off'), allowNull: false },
+  timestamp:    { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
+  duration:     { type: DataTypes.INTEGER, allowNull: true }, // Duration in seconds (only for 'off')
+  tickets:      { type: DataTypes.INTEGER, defaultValue: 0 },
+  messages:     { type: DataTypes.INTEGER, defaultValue: 0 },
+}, { 
+  tableName: 'staff_fingerprints', 
+  timestamps: false,
+  indexes: [{ fields: ['guildId', 'userId'] }]
+});
+
 // ── Register all models ───────────────────────────────────────
 const models = {
   GuildSettings, UserProfile, ModerationCase, Warning, Ticket,
@@ -486,6 +506,7 @@ const models = {
   ReactionRole, StarboardEntry, InviteTrack, GuildCounter,
   Automation, TimedMessage, Achievement, UserAchievement, TempChannel,
   ApplicationForm, TicketPanel, StaffApplication, StaffDuty,
+  StaffFingerprint,
 };
 
 Object.entries(models).forEach(([name, model]) => {

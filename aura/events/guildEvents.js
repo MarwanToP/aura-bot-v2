@@ -66,10 +66,23 @@ export const messageUpdate = {
 export const voiceStateUpdate = {
   name: 'voiceStateUpdate',
   async execute(client, oldState, newState) {
+    const userId = newState.member.id || oldState.member.id;
+    const guildId = newState.guild.id;
+
+    // Join / Leave logic for staff tracking
+    if (!oldState.channelId && newState.channelId) {
+      await trackActivity(client, guildId, userId, 'voice_join');
+    } else if (oldState.channelId && !newState.channelId) {
+      await trackActivity(client, guildId, userId, 'voice_leave');
+    } else if (oldState.channelId && newState.channelId && oldState.channelId !== newState.channelId) {
+      // Switched channels
+      await trackActivity(client, guildId, userId, 'voice_leave');
+      await trackActivity(client, guildId, userId, 'voice_join');
+    }
+
     await Promise.allSettled([
       importAndRun('../systems/logging/loggingSystem.js', 'logVoiceUpdate', client, oldState, newState),
       importAndRun('../systems/voice/voiceSystem.js', 'handleVoiceUpdate', client, oldState, newState),
-      trackActivity(client, newState.guild.id, newState.id, 'voice'),
     ]);
   },
 };

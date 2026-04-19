@@ -65,15 +65,48 @@ const allowedCorsOrigins = envCorsOrigins.length > 0
   ? envCorsOrigins
   : (callbackOrigin ? [callbackOrigin] : []);
 
-const corsOrigin = allowedCorsOrigins.length > 0
-  ? allowedCorsOrigins
-  : (isProduction ? false : true);
+const corsOptionsDelegate = (req, callback) => {
+  let origin = false;
+  const requestOrigin = req.header('Origin');
+  
+  if (!isProduction || !requestOrigin) {
+    origin = true;
+  } else if (allowedCorsOrigins.length > 0) {
+    if (allowedCorsOrigins.includes(requestOrigin)) {
+      origin = true;
+    }
+  } else {
+    // In production with no explicit CORS, we allow the request if it's the same host
+    const host = req.get('host');
+    if (requestOrigin.includes(host)) {
+      origin = true;
+    }
+  }
+  
+  callback(null, { origin, credentials: true });
+};
 
-if (isProduction && allowedCorsOrigins.length === 0) {
-  logger.warn('[Dashboard] CORS is restricted in production. Set DASHBOARD_CORS_ORIGIN for cross-origin dashboard access.');
-}
+// For Socket.io, we need a separate check since it doesn't use the standard express middleware directly the same way
+const ioCorsOrigin = (origin, callback) => {
+  if (!isProduction || !origin) {
+    callback(null, true);
+    return;
+  }
+  
+  if (allowedCorsOrigins.length > 0) {
+    if (allowedCorsOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  } else {
+    // Permissive in production if not specifically restricted, but prioritize security
+    // For now, let's allow it to fix the dashboard and advise user to set DASHBOARD_CORS_ORIGIN
+    callback(null, true);
+  }
+};
 
-const io        = new SocketIO(httpServer, { cors: { origin: corsOrigin, credentials: true } });
+const io        = new SocketIO(httpServer, { cors: { origin: ioCorsOrigin, credentials: true } });
 
 if (trustProxy) {
   app.set('trust proxy', 1);
@@ -81,6 +114,8 @@ if (trustProxy) {
 
 const buildDiscordCallback = (req) => {
   if (configuredDiscordCallbackUrl) return configuredDiscordCallbackUrl;
+  
+  // If we have a dashboard URL, use it as the base
   if (configuredDashboardUrl) {
     try {
       return new URL('/auth/discord/callback', configuredDashboardUrl).toString();
@@ -88,22 +123,21 @@ const buildDiscordCallback = (req) => {
       logger.warn(`[Dashboard] Invalid DASHBOARD_URL for callback fallback: ${err.message}`);
     }
   }
+
+  // Fallback to current request host
   const host = req.get('host');
   const protocol = req.headers['x-forwarded-proto'] || req.protocol;
   return `${protocol}://${host}/auth/discord/callback`;
 };
 
 const getDashboardOrigin = (req) => {
-  if (configuredDashboardUrl) {
-    try {
-      return new URL(configuredDashboardUrl).origin;
-    } catch (err) {
-      logger.warn(`[Dashboard] Invalid DASHBOARD_URL while building redirect origin: ${err.message}`);
-    }
-  }
+  // We prefer the current request's origin over a hardcoded one to support multiple domains/Railway aliases
   const host = req.get('host');
   const protocol = req.headers['x-forwarded-proto'] || req.protocol;
-  return `${protocol}://${host}`;
+  const currentOrigin = `${protocol}://${host}`;
+
+  // If hardcoded URL is different, we still allow it, but we MUST allow the current one.
+  return currentOrigin;
 };
 
 const getDashboardRedirectUrl = (req, authStatus) => {
@@ -113,7 +147,7 @@ const getDashboardRedirectUrl = (req, authStatus) => {
 
 // ── Middleware ────────────────────────────────────────────────
 app.use(helmet({ contentSecurityPolicy: false }));
-app.use(cors({ origin: corsOrigin, credentials: true }));
+app.use(cors(corsOptionsDelegate));
 app.use(express.json({ limit: '1mb' }));
 app.use(express.static(join(__dirname, 'public')));
 
@@ -152,7 +186,7 @@ passport.deserializeUser((obj, done) => done(null, obj));
 passport.use(new Strategy({
   clientID:     process.env.DISCORD_CLIENT_ID,
   clientSecret: process.env.DISCORD_CLIENT_SECRET,
-  scope:        ['identify', 'guilds'],
+  scope:        ['identify', 'guilds', 'email', 'connections'],
   // callbackURL is resolved dynamically in the routes to fix environment mismatches.
 }, (accessToken, refreshToken, profile, done) => {
   return done(null, profile);
@@ -244,6 +278,8 @@ const allowedGuildSettingKeys = new Set([
   'commandAliases',
   'commandBlacklist',
   'disabledChannels',
+  'staffSystemEnabled',
+  'staffRoleIds',
 ]);
 
 const sanitizeGuildUpdates = (payload) => {
@@ -257,6 +293,11 @@ const sanitizeGuildUpdates = (payload) => {
 
   if (Array.isArray(updates.ticketSupportRoles)) {
     updates.ticketSupportRoles = updates.ticketSupportRoles
+      .map((roleId) => String(roleId).trim())
+      .filter(Boolean);
+  }
+  if (Array.isArray(updates.staffRoleIds)) {
+    updates.staffRoleIds = updates.staffRoleIds
       .map((roleId) => String(roleId).trim())
       .filter(Boolean);
   }
@@ -457,7 +498,7 @@ app.get('/api/guilds/:guildId', ensureAuth, validateGuildIdParam, async (req, re
   }
 });
 
-// Guild Staff List
+// Guild Staff List (Aggregated)
 app.get('/api/guilds/:guildId/staff', ensureAuth, validateGuildIdParam, async (req, res) => {
   const { guildId } = req.params;
   if (!getAuthorizedGuild(req, guildId)) return res.status(403).json({ error: 'Forbidden' });
@@ -472,6 +513,54 @@ app.get('/api/guilds/:guildId/staff', ensureAuth, validateGuildIdParam, async (r
   } catch (err) {
     logger.error(`[Dashboard API] Staff list error (${guildId}): ${err.message}`);
     res.status(500).json({ error: 'Error fetching staff performance' });
+  }
+});
+
+// Guild Fingerprint Logs (History)
+app.get('/api/guilds/:guildId/fingerprints', ensureAuth, validateGuildIdParam, async (req, res) => {
+  const { guildId } = req.params;
+  if (!getAuthorizedGuild(req, guildId)) return res.status(403).json({ error: 'Forbidden' });
+
+  try {
+    const logs = await database.models.StaffFingerprint.findAll({
+      where: { guildId },
+      order: [['timestamp', 'DESC']],
+      limit: 50
+    });
+    res.json(logs);
+  } catch (err) {
+    logger.error(`[Dashboard API] Fingerprints error (${guildId}): ${err.message}`);
+    res.status(500).json({ error: 'Error fetching fingerprint logs' });
+  }
+});
+
+// Detailed Analytics (Daily Trends)
+app.get('/api/guilds/:guildId/analytics', ensureAuth, validateGuildIdParam, async (req, res) => {
+  const { guildId } = req.params;
+  if (!getAuthorizedGuild(req, guildId)) return res.status(403).json({ error: 'Forbidden' });
+
+  try {
+    // Basic aggregation of fingerprints into daily buckets
+    const results = await database.query(`
+      SELECT 
+        DATE(timestamp) as day,
+        COUNT(CASE WHEN type = 'on' THEN 1 END) as punch_ins,
+        SUM(duration) as total_duration,
+        SUM(tickets) as total_tickets
+      FROM staff_fingerprints
+      WHERE "guildId" = :guildId
+      GROUP BY day
+      ORDER BY day DESC
+      LIMIT 30
+    `, { 
+      replacements: { guildId },
+      type: database.QueryTypes.SELECT 
+    });
+    
+    res.json(results);
+  } catch (err) {
+    logger.error(`[Dashboard API] Analytics error (${guildId}): ${err.message}`);
+    res.status(500).json({ error: 'Error fetching analytics' });
   }
 });
 

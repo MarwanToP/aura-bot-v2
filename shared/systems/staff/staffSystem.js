@@ -5,26 +5,38 @@ import { buildEmbed } from '../../utils/embedBuilder.js';
 import logger from '../../utils/logger.js';
 
 /**
- * Toggles duty status for a staff member
+ * Toggles duty status for a staff member (Fingerprint System)
  */
 export async function toggleDuty(client, guildId, userId) {
-  const { StaffDuty } = client.db.models;
-  const [duty] = await StaffDuty.findOrCreate({ where: { guildId, userId } });
+  const { StaffDuty, StaffFingerprint } = client.db.models;
+  const [duty] = await StaffDuty.findOrCreate({ 
+    where: { guildId, userId },
+    defaults: { guildId, userId, isOnDuty: false }
+  });
+
+  const now = new Date();
 
   if (!duty.isOnDuty) {
-    // START DUTY
+    // START DUTY (Punch In)
     await duty.update({
       isOnDuty: true,
-      lastDutyStart: new Date(),
-      // Reset current shift counters
+      lastDutyStart: now,
       messagesSent: 0,
       voiceTime: 0,
       ticketsHandled: 0
     });
+
+    // Create Fingerprint Log
+    await StaffFingerprint.create({
+      guildId, userId,
+      type: 'on',
+      timestamp: now
+    });
+
     return { status: 'on', data: duty };
   } else {
-    // END DUTY
-    const shiftSeconds = Math.floor((Date.now() - new Date(duty.lastDutyStart).getTime()) / 1000);
+    // END DUTY (Punch Out)
+    const shiftSeconds = Math.floor((now.getTime() - new Date(duty.lastDutyStart).getTime()) / 1000);
     const updatedTotalTime = (duty.totalDutyTime || 0) + shiftSeconds;
 
     const report = {
@@ -34,15 +46,28 @@ export async function toggleDuty(client, guildId, userId) {
       tickets: duty.ticketsHandled
     };
 
+    // Update Duty State
     await duty.update({
       isOnDuty: false,
       totalDutyTime: updatedTotalTime,
       lastDutyStart: null
     });
 
+    // Create Fingerprint Log
+    await StaffFingerprint.create({
+      guildId, userId,
+      type: 'off',
+      timestamp: now,
+      duration: shiftSeconds,
+      tickets: report.tickets,
+      messages: report.messages
+    });
+
     return { status: 'off', report, data: duty };
   }
 }
+
+const voiceSessions = new Map(); // key: userId-guildId, value: startTime
 
 /**
  * Global tracker for activity
@@ -53,8 +78,20 @@ export async function trackActivity(client, guildId, userId, type, value = 1) {
   if (!duty) return;
 
   if (type === 'message') await duty.increment('messagesSent', { by: value });
-  if (type === 'voice')   await duty.increment('voiceTime', { by: value });
   if (type === 'ticket')  await duty.increment('ticketsHandled', { by: value });
+
+  if (type === 'voice_join') {
+    voiceSessions.set(`${userId}-${guildId}`, Date.now());
+  }
+
+  if (type === 'voice_leave') {
+    const start = voiceSessions.get(`${userId}-${guildId}`);
+    if (start) {
+      const durationSeconds = Math.floor((Date.now() - start) / 1000);
+      await duty.increment('voiceTime', { by: durationSeconds });
+      voiceSessions.delete(`${userId}-${guildId}`);
+    }
+  }
 }
 
 /**

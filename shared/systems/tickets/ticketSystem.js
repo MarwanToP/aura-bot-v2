@@ -76,7 +76,7 @@ export async function createTicket(client, guild, user, { category = 'Other', su
       ],
     });
 
-    await Ticket.create({ ticketId, guildId: guild.id, userId: user.id, channelId: channel.id, category, subject, priority, status: 'open' });
+    const ticket = await Ticket.create({ ticketId, guildId: guild.id, userId: user.id, channelId: channel.id, category, subject, priority, status: 'open' });
 
     const lang = await client.i18n.resolveLanguage(client, user.id, guild.id);
     const pEmoji = { Low: '🟢', Medium: '🟡', High: '🟠', Critical: '🔴' };
@@ -87,6 +87,40 @@ export async function createTicket(client, guild, user, { category = 'Other', su
     );
 
     await channel.send({ content: `<@${user.id}>`, embeds: [buildEmbed({ type: 'primary', title: `${config.emojis.ticket} ${ticketId} — ${category}`, description: `Welcome, <@${user.id}>!\n\nPlease describe your issue in detail.${subject ? `\n\n**Subject:** ${subject}` : ''}`, fields: [ { name: '📋 Category', value: category, inline: true }, { name: '⚡ Priority', value: `${pEmoji[priority]} ${priority}`, inline: true } ], footer: ticketId, timestamp: true })], components: [row] });
+
+    // --- AUTO-REPLY SYSTEM ---
+    const categoryAutoReplies = {
+      'Technical': {
+        en: 'Thank you for contacting Technical Support. Please provide your server version and any error logs you have.',
+        ar: 'شكراً لتواصلك مع الدعم الفني. يرجى تزويدنا بإصدار السيرفر وأي سجلات أخطاء تظهر لديك.'
+      },
+      'Member Complaint': {
+        en: 'Your complaint against a member has been received. Please include the Member ID and screenshots of the incident.',
+        ar: 'لقد تم استلام شكواك ضد العضو. يرجى إدراج معرف العضو (ID) ولقطات شاشة للواقعة.'
+      },
+      'Admin Complaint': {
+        en: 'This ticket is private and only visible to High Management. Please describe the incident with the moderator in detail.',
+        ar: 'هذه التذكرة خاصة وتظهر للإدارة العليا فقط. يرجى توضيح الموقف مع الإداري بالتفصيل.'
+      },
+      'Management': {
+        en: 'You are now in direct contact with High Management. Responses here may take longer than usual.',
+        ar: 'أنت الآن في تواصل مباشر مع الإدارة العليا. قد تستغرق الردود هنا وقتاً أطول من المعتاد.'
+      }
+    };
+
+    const replyData = categoryAutoReplies[category];
+    if (replyData) {
+      const autoReplyText = replyData[lang] || replyData['en'];
+      await channel.send({
+        embeds: [buildEmbed({
+          type: 'info',
+          title: '🤖 Aura Assistant',
+          description: autoReplyText,
+          footer: 'Automated Response based on category'
+        })]
+      });
+    }
+    // -------------------------
 
     if (settings.ticketLogChannelId) {
       const logCh = await client.channels.fetch(settings.ticketLogChannelId).catch(() => null);
