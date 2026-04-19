@@ -25,9 +25,14 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const app       = express();
 const httpServer = createServer(app);
 
-const PORT = parseInt(process.env.PORT || '3000');
+const parsedPort = Number.parseInt(process.env.PORT || '3000', 10);
+if (!Number.isInteger(parsedPort) || parsedPort <= 0 || parsedPort > 65535) {
+  throw new Error(`Invalid PORT value: "${process.env.PORT}".`);
+}
+const PORT = parsedPort;
 let commandCache = null; // Memory cache for command list
 const configuredDiscordCallbackUrl = process.env.DISCORD_CALLBACK_URL?.trim();
+const configuredDashboardUrl = process.env.DASHBOARD_URL?.trim();
 const trustProxy = process.env.TRUST_PROXY === 'true' || process.env.NODE_ENV === 'production';
 const dashboardDbSync = process.env.DASHBOARD_DB_SYNC === 'true';
 const dashboardDbAlter = process.env.DASHBOARD_DB_ALTER === 'true';
@@ -74,6 +79,13 @@ if (trustProxy) {
 
 const buildDiscordCallback = (req) => {
   if (configuredDiscordCallbackUrl) return configuredDiscordCallbackUrl;
+  if (configuredDashboardUrl) {
+    try {
+      return new URL('/auth/discord/callback', configuredDashboardUrl).toString();
+    } catch (err) {
+      logger.warn(`[Dashboard] Invalid DASHBOARD_URL for callback fallback: ${err.message}`);
+    }
+  }
   const host = req.get('host');
   const protocol = req.headers['x-forwarded-proto'] || req.protocol;
   return `${protocol}://${host}/auth/discord/callback`;
@@ -91,6 +103,7 @@ const sessionOptions = {
   secret:            configuredSessionSecret || 'aura-dashboard-secret-change-me',
   resave:            false,
   saveUninitialized: false,
+  proxy:             trustProxy,
   cookie:            { 
     secure: isProduction, 
     maxAge: 7 * 24 * 60 * 60 * 1000,

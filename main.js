@@ -12,7 +12,13 @@ import monitor             from './shared/systems/monitor/monitorService.js';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // ── 1. Configuration & Validation ──────────────────────────────
-const MODE = process.env.MODE || 'BOTH';
+const MODE = (process.env.MODE || 'BOTH').trim().toUpperCase();
+const allowedModes = new Set(['BOT', 'DASHBOARD', 'BOTH']);
+if (!allowedModes.has(MODE)) {
+  logger.error(`[System] Invalid MODE "${process.env.MODE}". Use BOT, DASHBOARD, or BOTH.`);
+  process.exit(1);
+}
+
 const shouldRunDashboard = ['DASHBOARD', 'BOTH'].includes(MODE);
 const shouldRunBot       = ['BOT', 'BOTH'].includes(MODE);
 
@@ -41,6 +47,9 @@ if (shouldRunDashboard) {
 
   import('./website/server.js').catch(err => {
     logger.error('[Dashboard] Critical failure during startup:', err.message);
+    if (!shouldRunBot) {
+      process.exit(1);
+    }
   });
 
   // Start the 24/7 Uptime Pulse
@@ -86,7 +95,12 @@ if (shouldRunBot) {
 
   if (isMemoryConstrained) {
     logger.info('[Bot] Memory-Saving Mode: Initializing single instance (No Sharding).');
-    import('./aura/bot.js').catch(err => logger.error('[Bot] Instance failed:', err));
+    import('./aura/bot.js').catch(err => {
+      logger.error('[Bot] Instance failed:', err);
+      if (!shouldRunDashboard) {
+        process.exit(1);
+      }
+    });
   } else {
     initializeSharding();
   }
