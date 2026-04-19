@@ -388,12 +388,11 @@
         <div class="brand-badge" aria-hidden="true">A</div>
         <div>
           <div>Aura Bot Dashboard</div>
-          <small class="muted">Inspired by leading bot panels (Dyno / ProBot patterns)</small>
+          <small class="muted">Private control panel for your Aura instance</small>
         </div>
       </div>
       <div class="hero-actions">
         <a class="btn btn-primary" href="/auth/discord" id="topLoginBtn">Sign in with Discord</a>
-        <a class="btn" href="https://discord.com/oauth2/authorize?client_id=1300530132195491880&permissions=8&scope=bot%20applications.commands" target="_blank" rel="noopener noreferrer">Invite Aura</a>
         <button class="btn btn-danger hidden" id="logoutBtn" type="button">Log out</button>
       </div>
     </header>
@@ -407,7 +406,7 @@
           <h1>Manage Aura from one premium web panel.</h1>
           <p class="hero-sub muted">
             Full Discord OAuth sign-in, server-level module controls, live activity stream, and fast settings sync.
-            Built with the same Aura neon/glass theme and UX patterns used by top Discord bot dashboards.
+            Built for private operation so you can fully control your bot from one place.
           </p>
           <div class="hero-actions">
             <a class="btn btn-primary" href="/auth/discord">Continue with Discord</a>
@@ -433,7 +432,7 @@
       <section id="features" class="grid-3">
         <article class="feature card-sm">
           <h3>Server-first workflow</h3>
-          <p>Pick your server, edit modules, save instantly. Exactly the flow admins expect from Dyno/ProBot-style panels.</p>
+          <p>Pick your server, edit modules, and save instantly from a single private workspace.</p>
         </article>
         <article class="feature card-sm">
           <h3>Module control</h3>
@@ -665,6 +664,7 @@
     const topLoginBtn = document.getElementById('topLoginBtn');
     const reloadGuildBtn = document.getElementById('reloadGuildBtn');
     const savePanelBtn = document.getElementById('savePanelBtn');
+    const authStatus = new URLSearchParams(window.location.search).get('auth');
 
     function setStatus(message, type) {
       statusEl.className = `status${type ? ` ${type}` : ''}`;
@@ -904,6 +904,16 @@
     }
 
     async function init() {
+      if (authStatus === 'failed') {
+        setStatus('Discord login failed. Check your callback URL and try again.', 'err');
+      } else if (authStatus === 'error') {
+        setStatus('Discord login hit a server error. Check logs and try again.', 'err');
+      } else if (authStatus === 'misconfigured') {
+        setStatus('Discord OAuth is not configured correctly on the server. Check DISCORD_CLIENT_ID / DISCORD_CLIENT_SECRET and callback URL settings.', 'err');
+      } else if (authStatus === 'ok') {
+        setStatus('Discord login successful. Loading your dashboard...', 'ok');
+      }
+
       try {
         const stats = await apiFetch('/api/stats');
         updateGlobalStats(stats);
@@ -923,9 +933,15 @@
         setAuthenticatedUI(true);
         renderUser();
         await loadDashboard();
+        if (authStatus) {
+          const cleanUrl = `${window.location.pathname}${window.location.hash || ''}`;
+          window.history.replaceState({}, document.title, cleanUrl);
+        }
       } catch (error) {
         setAuthenticatedUI(false);
-        setStatus('Sign in with Discord to unlock the full server control panel.', '');
+        if (!authStatus) {
+          setStatus('Sign in with Discord to unlock the full server control panel.', '');
+        }
       }
     }
 

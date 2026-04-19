@@ -51,9 +51,13 @@ services:
       - key: TRUST_PROXY
         value: "true"
       - key: DASHBOARD_URL
-        sync: false
+        value: "https://aura-bot-dashboard.onrender.com"
       - key: DISCORD_CALLBACK_URL
+        value: "https://aura-bot-dashboard.onrender.com/auth/discord/callback"
+      - key: DASHBOARD_CORS_ORIGIN
         sync: false
+      - key: DASHBOARD_COOKIE_SECURE
+        value: "true"
 
       - key: DATABASE_URL
         sync: false

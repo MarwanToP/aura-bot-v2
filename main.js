@@ -138,15 +138,27 @@ function initializeSharding() {
 }
 
 // ── 4. Error Handling & Telegram Alerts ──────────────────────────
+let isFatalShutdownScheduled = false;
+const scheduleFatalRestart = async (type, detail) => {
+  if (isFatalShutdownScheduled) return;
+  isFatalShutdownScheduled = true;
+
+  await monitor.sendAlert(
+    `🚨 **[CRITICAL] Aura Bot Crash** 🚨\n\n**Type**: ${type}\n**Details**: ${detail}\n\n*Server is attempting to restart...*`,
+  );
+
+  // Delay exit to allow alert delivery before platform auto-restart.
+  setTimeout(() => process.exit(1), 2000);
+};
+
 process.on('unhandledRejection', async (reason) => {
   logger.error('Unhandled Promise Rejection:', reason);
   const reasonText = reason instanceof Error ? reason.message : String(reason);
-  await monitor.sendAlert(`🚨 **[CRITICAL] Aura Bot Crash** 🚨\n\n**Type**: Unhandled Rejection\n**Reason**: ${reasonText}`);
+  await scheduleFatalRestart('Unhandled Rejection', reasonText);
 });
 
 process.on('uncaughtException', async (error) => {
   logger.error('Uncaught Exception:', error);
-  await monitor.sendAlert(`🚨 **[CRITICAL] Aura Bot Crash** 🚨\n\n**Type**: Uncaught Exception\n**Error**: ${error.message}\n\n*Server is attempting to restart...*`);
-  // Delay exit to allow Telegram alert to send
-  setTimeout(() => process.exit(1), 2000);
+  const errorText = error instanceof Error ? error.message : String(error);
+  await scheduleFatalRestart('Uncaught Exception', errorText);
 });

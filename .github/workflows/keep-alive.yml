@@ -12,7 +12,7 @@ jobs:
     steps:
       - name: Ping Dashboard
         run: |
-          curl -s -o /dev/null -w "%{http_code}" https://aura-dashboard-1czd.onrender.com/api/health
+          curl -s -o /dev/null -w "%{http_code}" https://aura-bot-dashboard.onrender.com/api/health
           echo "Pulse sent to Dashboard"
 
       - name: Ping Bot (if separate)

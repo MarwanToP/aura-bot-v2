@@ -38,6 +38,8 @@ const dashboardDbSync = process.env.DASHBOARD_DB_SYNC === 'true';
 const dashboardDbAlter = process.env.DASHBOARD_DB_ALTER === 'true';
 const isProduction = process.env.NODE_ENV === 'production';
 const configuredSessionSecret = process.env.SESSION_SECRET?.trim();
+const forceSecureCookie = process.env.DASHBOARD_COOKIE_SECURE === 'true';
+const forceInsecureCookie = process.env.DASHBOARD_COOKIE_SECURE === 'false';
 
 if (isProduction && !configuredSessionSecret) {
   throw new Error('SESSION_SECRET is required in production.');
@@ -91,6 +93,24 @@ const buildDiscordCallback = (req) => {
   return `${protocol}://${host}/auth/discord/callback`;
 };
 
+const getDashboardOrigin = (req) => {
+  if (configuredDashboardUrl) {
+    try {
+      return new URL(configuredDashboardUrl).origin;
+    } catch (err) {
+      logger.warn(`[Dashboard] Invalid DASHBOARD_URL while building redirect origin: ${err.message}`);
+    }
+  }
+  const host = req.get('host');
+  const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+  return `${protocol}://${host}`;
+};
+
+const getDashboardRedirectUrl = (req, authStatus) => {
+  const origin = getDashboardOrigin(req);
+  return `${origin}/?auth=${encodeURIComponent(authStatus)}`;
+};
+
 // ── Middleware ────────────────────────────────────────────────
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors({ origin: corsOrigin, credentials: true }));
@@ -99,13 +119,16 @@ app.use(express.static(join(__dirname, 'public')));
 
 // ── Session ──────────────────────────────────────────────────
 const useRedisSession = process.env.NODE_ENV === 'production' || process.env.DASHBOARD_USE_REDIS_SESSION === 'true';
+const secureSessionCookie = forceSecureCookie
+  ? true
+  : (forceInsecureCookie ? false : isProduction);
 const sessionOptions = {
   secret:            configuredSessionSecret || 'aura-dashboard-secret-change-me',
   resave:            false,
   saveUninitialized: false,
   proxy:             trustProxy,
   cookie:            { 
-    secure: isProduction, 
+    secure: secureSessionCookie,
     maxAge: 7 * 24 * 60 * 60 * 1000,
     sameSite: 'lax' 
   },
@@ -295,21 +318,53 @@ const sanitizeTicketPanelPayload = (payload = {}) => {
 
 // ── Authentication Routes ────────────────────────────────────
 app.get('/auth/discord', (req, res, next) => {
+  if (!process.env.DISCORD_CLIENT_ID || !process.env.DISCORD_CLIENT_SECRET) {
+    logger.error('[Dashboard Auth] Missing DISCORD_CLIENT_ID or DISCORD_CLIENT_SECRET.');
+    return res.redirect(getDashboardRedirectUrl(req, 'misconfigured'));
+  }
   const callbackURL = buildDiscordCallback(req);
+  logger.info(`[Dashboard Auth] Starting Discord OAuth with callback: ${callbackURL}`);
   
   passport.authenticate('discord', { callbackURL })(req, res, next);
 });
 
 app.get('/auth/discord/callback', (req, res, next) => {
   const callbackURL = buildDiscordCallback(req);
+  const failUrl = getDashboardRedirectUrl(req, 'failed');
+  const errorUrl = getDashboardRedirectUrl(req, 'error');
+  const successUrl = getDashboardRedirectUrl(req, 'ok');
 
-  passport.authenticate('discord', { 
-    callbackURL,
-    failureRedirect: '/' 
+  passport.authenticate('discord', { callbackURL }, (err, user, info) => {
+    if (err) {
+      logger.error(`[Dashboard Auth] Discord callback error: ${err.message}`);
+      return res.redirect(errorUrl);
+    }
+    if (!user) {
+      logger.warn(`[Dashboard Auth] Discord authentication failed: ${info?.message || 'No user returned'}`);
+      return res.redirect(failUrl);
+    }
+    req.logIn(user, (loginErr) => {
+      if (loginErr) {
+        logger.error(`[Dashboard Auth] Session login failed: ${loginErr.message}`);
+        return res.redirect(errorUrl);
+      }
+      return res.redirect(successUrl);
+    });
   })(req, res, next);
-}, (req, res) => res.redirect('/'));
+});
 
-app.get('/auth/logout', (req, res) => req.logout(() => res.redirect('/')));
+app.get('/auth/logout', (req, res) => {
+  req.logout((err) => {
+    if (err) {
+      logger.error(`[Dashboard Auth] Logout failed: ${err.message}`);
+      return res.redirect(getDashboardRedirectUrl(req, 'error'));
+    }
+    req.session?.destroy(() => {
+      res.clearCookie('connect.sid');
+      res.redirect('/');
+    });
+  });
+});
 
 app.get('/api/me', (req, res) => {
   if (!req.user) return res.status(401).json({ error: 'Not authenticated' });
@@ -647,4 +702,46 @@ const start = async () => {
 };
 
 start();
+
+let isShuttingDown = false;
+const shutdown = async (signal) => {
+  if (isShuttingDown) return;
+  isShuttingDown = true;
+  logger.info(`[Dashboard] ${signal} received — graceful shutdown...`);
+
+  let exitCode = 0;
+
+  io.close();
+
+  try {
+    await new Promise((resolve, reject) => {
+      httpServer.close((err) => {
+        if (err) return reject(err);
+        resolve();
+      });
+    });
+  } catch (err) {
+    exitCode = 1;
+    logger.error(`[Dashboard] HTTP server shutdown error: ${err.message}`);
+  }
+
+  try {
+    await database.close();
+  } catch (err) {
+    exitCode = 1;
+    logger.error(`[Dashboard] Database shutdown error: ${err.message}`);
+  }
+
+  try {
+    await redis.quit();
+  } catch (err) {
+    exitCode = 1;
+    logger.error(`[Dashboard] Redis shutdown error: ${err.message}`);
+  }
+
+  process.exit(exitCode);
+};
+
+process.on('SIGTERM', () => void shutdown('SIGTERM'));
+process.on('SIGINT', () => void shutdown('SIGINT'));
 export { io };
