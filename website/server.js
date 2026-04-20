@@ -13,6 +13,7 @@ import passport      from 'passport';
 import { Strategy }  from 'passport-discord';
 import Redis         from 'ioredis';
 import RedisStore    from 'connect-redis';
+import crypto        from 'crypto';
 import { fileURLToPath, pathToFileURL } from 'url';
 import { dirname, join } from 'path';
 import { readdirSync, statSync } from 'fs';
@@ -40,6 +41,13 @@ const isProduction = process.env.NODE_ENV === 'production';
 const configuredSessionSecret = process.env.SESSION_SECRET?.trim();
 const forceSecureCookie = process.env.DASHBOARD_COOKIE_SECURE === 'true';
 const forceInsecureCookie = process.env.DASHBOARD_COOKIE_SECURE === 'false';
+const DEFAULT_DISCORD_CALLBACK_PATH = '/auth/discord/callback';
+const normalizeCallbackPath = (value) => {
+  const trimmed = String(value || '').trim();
+  if (!trimmed) return DEFAULT_DISCORD_CALLBACK_PATH;
+  return trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+};
+const configuredDiscordCallbackPath = normalizeCallbackPath(process.env.DISCORD_CALLBACK_PATH);
 
 if (isProduction && !configuredSessionSecret) {
   throw new Error('SESSION_SECRET is required in production.');
@@ -52,12 +60,19 @@ const parseOriginList = (value) =>
     .filter(Boolean);
 
 let callbackOrigin = null;
+let callbackPathFromUrl = null;
 if (configuredDiscordCallbackUrl) {
   try {
-    callbackOrigin = new URL(configuredDiscordCallbackUrl).origin;
+    const parsedCallbackUrl = new URL(configuredDiscordCallbackUrl);
+    callbackOrigin = parsedCallbackUrl.origin;
+    callbackPathFromUrl = normalizeCallbackPath(parsedCallbackUrl.pathname);
   } catch (err) {
     logger.warn(`[Dashboard] Invalid DISCORD_CALLBACK_URL, cannot derive CORS origin: ${err.message}`);
   }
+}
+const discordCallbackPath = callbackPathFromUrl || configuredDiscordCallbackPath;
+if (callbackPathFromUrl && process.env.DISCORD_CALLBACK_PATH && callbackPathFromUrl !== configuredDiscordCallbackPath) {
+  logger.warn(`[Dashboard] DISCORD_CALLBACK_URL path (${callbackPathFromUrl}) overrides DISCORD_CALLBACK_PATH (${configuredDiscordCallbackPath}).`);
 }
 
 const envCorsOrigins = parseOriginList(process.env.DASHBOARD_CORS_ORIGIN);
@@ -108,7 +123,9 @@ const ioCorsOrigin = (origin, callback) => {
 
 const io        = new SocketIO(httpServer, { cors: { origin: ioCorsOrigin, credentials: true } });
 
-if (trustProxy) {
+// Railway and cloud proxies require trust proxy settings to handle cookies correctly.
+// We force 'trust proxy' in production to ensure 'secure: true' cookies work.
+if (isProduction || trustProxy) {
   app.set('trust proxy', 1);
 }
 
@@ -118,7 +135,7 @@ const buildDiscordCallback = (req) => {
   // If we have a dashboard URL, use it as the base
   if (configuredDashboardUrl) {
     try {
-      return new URL('/auth/discord/callback', configuredDashboardUrl).toString();
+      return new URL(discordCallbackPath, configuredDashboardUrl).toString();
     } catch (err) {
       logger.warn(`[Dashboard] Invalid DASHBOARD_URL for callback fallback: ${err.message}`);
     }
@@ -126,18 +143,53 @@ const buildDiscordCallback = (req) => {
 
   // Fallback to current request host
   const host = req.get('host');
-  const protocol = req.headers['x-forwarded-proto'] || req.protocol;
-  return `${protocol}://${host}/auth/discord/callback`;
+  const protocol = String(req.headers['x-forwarded-proto'] || req.protocol || 'http')
+    .split(',')[0]
+    .trim();
+  return `${protocol}://${host}${discordCallbackPath}`;
 };
 
 const getDashboardOrigin = (req) => {
   // We prefer the current request's origin over a hardcoded one to support multiple domains/Railway aliases
   const host = req.get('host');
-  const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+  const protocol = String(req.headers['x-forwarded-proto'] || req.protocol || 'http')
+    .split(',')[0]
+    .trim();
   const currentOrigin = `${protocol}://${host}`;
 
   // If hardcoded URL is different, we still allow it, but we MUST allow the current one.
   return currentOrigin;
+};
+
+const OAUTH_STATE_SESSION_KEY = 'discordOAuthState';
+const OAUTH_STATE_TTL_MS = 10 * 60 * 1000;
+
+const issueDiscordOAuthState = (req) => {
+  const value = crypto.randomBytes(32).toString('hex');
+  req.session[OAUTH_STATE_SESSION_KEY] = {
+    value,
+    issuedAt: Date.now(),
+  };
+  return value;
+};
+
+const consumeDiscordOAuthState = (req) => {
+  const state = req.session?.[OAUTH_STATE_SESSION_KEY];
+  if (req.session) {
+    delete req.session[OAUTH_STATE_SESSION_KEY];
+  }
+  return state;
+};
+
+const isValidDiscordOAuthState = (expectedStateRecord, receivedState) => {
+  if (!expectedStateRecord || typeof expectedStateRecord !== 'object') return false;
+  if (typeof expectedStateRecord.value !== 'string' || !expectedStateRecord.value) return false;
+  if (!Number.isFinite(expectedStateRecord.issuedAt)) return false;
+  if ((Date.now() - expectedStateRecord.issuedAt) > OAUTH_STATE_TTL_MS) return false;
+  const expectedBuffer = Buffer.from(expectedStateRecord.value, 'utf8');
+  const receivedBuffer = Buffer.from(String(receivedState || ''), 'utf8');
+  if (expectedBuffer.length !== receivedBuffer.length) return false;
+  return crypto.timingSafeEqual(expectedBuffer, receivedBuffer);
 };
 
 const getDashboardRedirectUrl = (req, authStatus) => {
@@ -147,6 +199,17 @@ const getDashboardRedirectUrl = (req, authStatus) => {
 
 // ── Middleware ────────────────────────────────────────────────
 app.use(helmet({ contentSecurityPolicy: false }));
+
+// Force HTTPS in production to ensure secure cookies are sent
+if (isProduction) {
+  app.use((req, res, next) => {
+    if (req.headers['x-forwarded-proto'] !== 'https') {
+      return res.redirect(`https://${req.get('host')}${req.url}`);
+    }
+    next();
+  });
+}
+
 app.use(cors(corsOptionsDelegate));
 app.use(express.json({ limit: '1mb' }));
 app.use(express.static(join(__dirname, 'public')));
@@ -158,13 +221,15 @@ const secureSessionCookie = forceSecureCookie
   : (forceInsecureCookie ? false : isProduction);
 const sessionOptions = {
   secret:            configuredSessionSecret || 'aura-dashboard-secret-change-me',
-  resave:            false,
+  resave:            false, // Recommended false for Redis to avoid race conditions
   saveUninitialized: false,
-  proxy:             trustProxy,
+  rolling:           false, // Changed to false to prevent frequent cookie churn
+  proxy:             true,  // Required when trust proxy is enabled
   cookie:            { 
     secure: secureSessionCookie,
     maxAge: 7 * 24 * 60 * 60 * 1000,
-    sameSite: 'lax' 
+    sameSite: 'lax',
+    path: '/'
   },
 };
 
@@ -180,13 +245,31 @@ app.use(session(sessionOptions));
 app.use(passport.initialize());
 app.use(passport.session());
 
-passport.serializeUser((user, done) => done(null, user));
+passport.serializeUser((user, done) => {
+  // Prune the user object to only store what we need in the session.
+  // This drastically reduces session size for users in many guilds.
+  const prunedUser = {
+    id: user.id,
+    username: user.username,
+    avatar: user.avatar,
+    guilds: (user.guilds || [])
+      .filter((g) => (Number(g.permissions) & 0x8) === 0x8)
+      .map((g) => ({
+        id: g.id,
+        name: g.name,
+        icon: g.icon,
+        owner: g.owner,
+        permissions: g.permissions,
+      })),
+  };
+  done(null, prunedUser);
+});
 passport.deserializeUser((obj, done) => done(null, obj));
 
 passport.use(new Strategy({
   clientID:     process.env.DISCORD_CLIENT_ID,
   clientSecret: process.env.DISCORD_CLIENT_SECRET,
-  scope:        ['identify', 'guilds', 'email', 'connections'],
+  scope:        ['identify', 'guilds'],
   // callbackURL is resolved dynamically in the routes to fix environment mismatches.
 }, (accessToken, refreshToken, profile, done) => {
   return done(null, profile);
@@ -194,6 +277,7 @@ passport.use(new Strategy({
 
 const ensureAuth = (req, res, next) => {
   if (req.isAuthenticated()) return next();
+  logger.warn(`[Dashboard API] Unauthorized access attempt to ${req.path} (Session ID: ${req.sessionID})`);
   res.status(401).json({ error: 'Authentication required' });
 };
 
@@ -205,8 +289,8 @@ const validateGuildIdParam = (req, res, next) => {
 
 const getUserGuilds = (user) => (Array.isArray(user?.guilds) ? user.guilds : []);
 const hasAdminPermission = (guild) => {
-  const permissions = Number(guild?.permissions) || 0;
-  return (permissions & 0x8) === 0x8;
+  const permissions = BigInt(guild?.permissions || '0');
+  return (permissions & 8n) === 8n;
 };
 const getAdminGuilds = (user) => getUserGuilds(user).filter(hasAdminPermission);
 
@@ -219,6 +303,49 @@ const getAuthorizedGuild = (req, guildId) =>
 const normalizeSnowflake = (value) => {
   const normalized = String(value || '').trim();
   return /^\d{17,20}$/.test(normalized) ? normalized : null;
+};
+
+const normalizeCommandName = (value) => {
+  const normalized = String(value || '').trim().toLowerCase().replace(/^\/+/, '');
+  return /^[a-z0-9][a-z0-9_-]{0,63}$/.test(normalized) ? normalized : null;
+};
+
+const discoverCommands = async () => {
+  const discovered = [];
+  const scanDir = async (dirPath) => {
+    const entries = readdirSync(dirPath);
+    for (const entry of entries) {
+      const fullPath = join(dirPath, entry);
+      if (statSync(fullPath).isDirectory()) {
+        await scanDir(fullPath);
+        continue;
+      }
+      if (!entry.endsWith('.js')) continue;
+
+      try {
+        const { default: cmd } = await import(pathToFileURL(fullPath).href);
+        if (cmd?.data) {
+          discovered.push({
+            name: cmd.data.name,
+            description: cmd.data.description,
+            category: dirPath.split(/[\\/]/).pop(),
+          });
+        }
+      } catch (err) {
+        logger.warn(`[Dashboard API] Skipping command module "${fullPath}": ${err.message}`);
+      }
+    }
+  };
+
+  await scanDir(join(__dirname, '../aura/commands'));
+  return Array.from(new Map(discovered.map((c) => [String(c.name || '').toLowerCase(), c])).values());
+};
+
+const getCommandCatalog = async () => {
+  if (!commandCache) {
+    commandCache = await discoverCommands();
+  }
+  return commandCache;
 };
 
 const allowedGuildSettingKeys = new Set([
@@ -306,6 +433,16 @@ const sanitizeGuildUpdates = (payload) => {
       .map((entry) => String(entry).trim())
       .filter(Boolean);
   }
+  if (updates.commandAliases && typeof updates.commandAliases === 'object' && !Array.isArray(updates.commandAliases)) {
+    const normalizedAliases = {};
+    for (const [rawAlias, rawTarget] of Object.entries(updates.commandAliases).slice(0, 200)) {
+      const alias = String(rawAlias || '').trim().toLowerCase().replace(/^\/+/, '');
+      const target = String(rawTarget || '').trim().toLowerCase().replace(/^\/+/, '');
+      if (!alias || !target) continue;
+      normalizedAliases[alias] = target;
+    }
+    updates.commandAliases = normalizedAliases;
+  }
   if (Array.isArray(updates.disabledChannels)) {
     updates.disabledChannels = updates.disabledChannels
       .map((channelId) => String(channelId).trim())
@@ -364,12 +501,32 @@ app.get('/auth/discord', (req, res, next) => {
     return res.redirect(getDashboardRedirectUrl(req, 'misconfigured'));
   }
   const callbackURL = buildDiscordCallback(req);
+  const state = issueDiscordOAuthState(req);
   logger.info(`[Dashboard Auth] Starting Discord OAuth with callback: ${callbackURL}`);
   
-  passport.authenticate('discord', { callbackURL })(req, res, next);
+  req.session.save((saveErr) => {
+    if (saveErr) {
+      logger.error(`[Dashboard Auth] Failed to persist OAuth state: ${saveErr.message}`);
+      return res.redirect(getDashboardRedirectUrl(req, 'error'));
+    }
+    passport.authenticate('discord', { callbackURL, state })(req, res, next);
+  });
 });
 
-app.get('/auth/discord/callback', (req, res, next) => {
+app.get(discordCallbackPath, (req, res, next) => {
+  const discordAuthError = String(req.query.error || '').trim();
+  if (discordAuthError) {
+    logger.warn(`[Dashboard Auth] Discord denied auth request: ${discordAuthError}`);
+    consumeDiscordOAuthState(req);
+    return res.redirect(getDashboardRedirectUrl(req, 'denied'));
+  }
+
+  const expectedStateRecord = consumeDiscordOAuthState(req);
+  if (!isValidDiscordOAuthState(expectedStateRecord, req.query.state)) {
+    logger.warn('[Dashboard Auth] Invalid or missing OAuth state in callback.');
+    return res.redirect(getDashboardRedirectUrl(req, 'invalid_state'));
+  }
+
   const callbackURL = buildDiscordCallback(req);
   const failUrl = getDashboardRedirectUrl(req, 'failed');
   const errorUrl = getDashboardRedirectUrl(req, 'error');
@@ -389,7 +546,14 @@ app.get('/auth/discord/callback', (req, res, next) => {
         logger.error(`[Dashboard Auth] Session login failed: ${loginErr.message}`);
         return res.redirect(errorUrl);
       }
-      return res.redirect(successUrl);
+      
+      req.session.save((saveErr) => {
+        if (saveErr) {
+          logger.error(`[Dashboard Auth] Session save failed: ${saveErr.message}`);
+          return res.redirect(errorUrl);
+        }
+        return res.redirect(successUrl);
+      });
     });
   })(req, res, next);
 });
@@ -448,12 +612,19 @@ app.get('/api/stats', async (req, res) => {
 app.get('/api/guilds', ensureAuth, async (req, res) => {
   try {
     const adminGuilds = getAdminGuilds(req.user);
-    const adminGuildIds = adminGuilds.map((g) => g.id);
+    if (!adminGuilds || !Array.isArray(adminGuilds) || adminGuilds.length === 0) {
+      return res.json([]);
+    }
+
+    const adminGuildIds = adminGuilds.map((g) => g.id).filter(Boolean);
+    if (adminGuildIds.length === 0) return res.json([]);
 
     const activeGuilds = await database.models.GuildSettings.findAll({
       where: { guildId: adminGuildIds },
+      attributes: ['guildId', 'premiumTier'] // Only fetch what we need to avoid crashes on missing columns
     });
-    const settingsMap = new Map(activeGuilds.map((settings) => [settings.guildId, settings]));
+    
+    const settingsMap = new Map((activeGuilds || []).map((settings) => [settings.guildId, settings]));
 
     const merged = adminGuilds.map((guild) => {
       const settings = settingsMap.get(guild.id);
@@ -470,8 +641,8 @@ app.get('/api/guilds', ensureAuth, async (req, res) => {
 
     res.json(merged);
   } catch (err) {
-    logger.error(`[Dashboard API] Guilds error: ${err.message}`);
-    res.status(500).json({ error: 'Internal server error' });
+    logger.error(`[Dashboard API] Guilds error: ${err.stack || err.message}`);
+    res.status(500).json({ error: 'Internal server error', details: isProduction ? undefined : err.message });
   }
 });
 
@@ -646,40 +817,86 @@ app.post('/api/guilds/:guildId', ensureAuth, validateGuildIdParam, async (req, r
   }
 });
 
-// Command List with Memory Caching
-app.get('/api/commands', async (req, res) => {
-  if (commandCache) return res.json(commandCache);
+app.get('/api/guilds/:guildId/disabled-commands', ensureAuth, validateGuildIdParam, async (req, res) => {
+  const { guildId } = req.params;
+  if (!getAuthorizedGuild(req, guildId)) return res.status(403).json({ error: 'Forbidden' });
 
   try {
-    const discovered = [];
-    const scanDir = async (dirPath) => {
-      const entries = readdirSync(dirPath);
-      for (const entry of entries) {
-        const fullPath = join(dirPath, entry);
-        if (statSync(fullPath).isDirectory()) {
-          await scanDir(fullPath);
-          continue;
-        }
-        if (!entry.endsWith('.js')) continue;
+    const settings = await database.models.GuildSettings.findOne({
+      where: { guildId },
+      attributes: ['commandBlacklist'],
+    });
+    const commandBlacklist = Array.isArray(settings?.commandBlacklist)
+      ? settings.commandBlacklist
+          .map((entry) => normalizeCommandName(entry))
+          .filter(Boolean)
+      : [];
 
-        try {
-          const { default: cmd } = await import(pathToFileURL(fullPath).href);
-          if (cmd?.data) {
-            discovered.push({
-              name:        cmd.data.name,
-              description: cmd.data.description,
-              category:    dirPath.split(/[\\/]/).pop(),
-            });
-          }
-        } catch (err) {
-          logger.warn(`[Dashboard API] Skipping command module "${fullPath}": ${err.message}`);
-        }
-      }
-    };
+    res.json(commandBlacklist);
+  } catch (err) {
+    logger.error(`[Dashboard API] Disabled commands fetch error (${guildId}): ${err.message}`);
+    res.status(500).json({ error: 'Error fetching disabled commands' });
+  }
+});
 
-    await scanDir(join(__dirname, '../aura/commands'));
-    commandCache = Array.from(new Map(discovered.map(c => [c.name, c])).values());
-    res.json(commandCache);
+app.post('/api/guilds/:guildId/commands/:commandName/:action', ensureAuth, validateGuildIdParam, async (req, res) => {
+  const { guildId, action } = req.params;
+  if (!getAuthorizedGuild(req, guildId)) return res.status(403).json({ error: 'Forbidden' });
+
+  const normalizedCommandName = normalizeCommandName(req.params.commandName);
+  if (!normalizedCommandName) {
+    return res.status(400).json({ error: 'Invalid command name format' });
+  }
+
+  if (action !== 'disable' && action !== 'enable') {
+    return res.status(400).json({ error: 'Action must be "disable" or "enable"' });
+  }
+
+  try {
+    const catalog = await getCommandCatalog();
+    const commandExists = catalog.some((cmd) => String(cmd?.name || '').toLowerCase() === normalizedCommandName);
+    if (!commandExists) {
+      return res.status(404).json({ error: 'Command not found' });
+    }
+
+    const [settings] = await database.models.GuildSettings.findOrCreate({ where: { guildId } });
+    const commandBlacklistSet = new Set(
+      (settings.commandBlacklist || [])
+        .map((entry) => normalizeCommandName(entry))
+        .filter(Boolean)
+    );
+
+    if (action === 'disable') {
+      commandBlacklistSet.add(normalizedCommandName);
+    } else {
+      commandBlacklistSet.delete(normalizedCommandName);
+    }
+
+    const commandBlacklist = Array.from(commandBlacklistSet).sort();
+    await settings.update({ commandBlacklist });
+
+    redis.publish('aura:config_update', JSON.stringify({
+      guildId,
+      updates: { commandBlacklist },
+    }));
+
+    res.json({
+      success: true,
+      commandName: normalizedCommandName,
+      disabled: action === 'disable',
+      commandBlacklist,
+    });
+  } catch (err) {
+    logger.error(`[Dashboard API] Command toggle error (${guildId}/${normalizedCommandName}/${action}): ${err.message}`);
+    res.status(500).json({ error: 'Failed to update command state' });
+  }
+});
+
+// Command List with Memory Caching
+app.get('/api/commands', async (req, res) => {
+  try {
+    const catalog = await getCommandCatalog();
+    res.json(catalog);
   } catch (err) {
     logger.error(`[Dashboard API] Command discovery error: ${err.message}`);
     res.status(500).json({ error: 'Discovery failed' });
@@ -780,6 +997,15 @@ const start = async () => {
       } else {
         logger.error(`[Dashboard] Server error: ${err.message}`);
       }
+    });
+
+    // ── Final Error Handler (MUST BE LAST) ──────────────────────────
+    app.use((err, req, res, next) => {
+      logger.error(`[Dashboard Uncaught] ${err.stack || err.message}`);
+      res.status(500).json({
+        error: 'Critical server error',
+        details: process.env.NODE_ENV === 'development' ? err.message : undefined
+      });
     });
 
     httpServer.listen(PORT, '0.0.0.0', () => {

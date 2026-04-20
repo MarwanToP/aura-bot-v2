@@ -33,7 +33,7 @@
     body {
       font-family: Inter, sans-serif;
       color: var(--text);
-      background: var(--bg) url('/aura_ultimate_bg.png') center/cover fixed no-repeat;
+      background: var(--bg) url('/aura_holo_bg.png') center/cover fixed no-repeat;
     }
     .overlay {
       position: fixed;
@@ -63,6 +63,15 @@
       font-family: Outfit, sans-serif;
       font-weight: 800;
       letter-spacing: .2px;
+    }
+    .brand-logo {
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      object-fit: cover;
+      border: 1px solid rgba(138, 244, 255, 0.55);
+      box-shadow: 0 0 18px rgba(0, 229, 255, 0.2);
+      background: rgba(0, 0, 0, 0.2);
     }
     .brand-badge {
       width: 34px;
@@ -352,6 +361,33 @@
     }
     .field.inline input { width: auto; margin: 0; }
     .field.full { grid-column: 1 / -1; }
+    .field .hint { font-size: 11px; color: var(--text-dim); margin-bottom: 4px; }
+
+    .alias-list { display: grid; gap: 8px; margin-top: 4px; }
+    .alias-row { 
+      display: grid; 
+      grid-template-columns: 1fr 1fr 40px; 
+      gap: 10px; 
+      align-items: center;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: rgba(0, 0, 0, 0.15);
+    }
+    .alias-row input, .alias-row select { padding: 8px !important; }
+    .btn-icon {
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--bg-soft);
+      color: var(--danger);
+      cursor: pointer;
+    }
+    .btn-icon:hover { background: rgba(255, 89, 111, 0.1); }
+    .btn-sm { padding: 6px 12px; font-size: 13px; }
 
     .toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
 
@@ -381,6 +417,34 @@
       margin-left: 6px;
       text-transform: uppercase;
     }
+    .site-footer {
+      margin-top: 20px;
+      padding: 14px 16px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: rgba(10, 12, 22, 0.56);
+      color: var(--text-dim);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      font-size: 13px;
+    }
+    .site-footer nav {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .site-footer a {
+      color: #b9c0da;
+      text-decoration: none;
+      border-bottom: 1px dotted transparent;
+    }
+    .site-footer a:hover,
+    .site-footer a:focus-visible {
+      color: #eaf6ff;
+      border-bottom-color: rgba(234, 246, 255, 0.7);
+    }
 
     @media (max-width: 1024px) {
       .grid-3 { grid-template-columns: 1fr 1fr; }
@@ -407,6 +471,7 @@
       .stats-grid { grid-template-columns: 1fr; }
       .topbar { align-items: flex-start; flex-direction: column; }
       .holo-nav { align-items: flex-start; flex-direction: column; }
+      .site-footer { flex-direction: column; align-items: flex-start; }
     }
   </style>
 </head>
@@ -415,7 +480,7 @@
   <div class="container">
     <header class="topbar">
       <div class="brand">
-        <div class="brand-badge" aria-hidden="true">A</div>
+        <img class="brand-logo" src="/aura_holo_logo.png" alt="Aura Bot logo">
         <div>
           <div>Aura Bot Dashboard</div>
           <small class="muted">Private control panel for your Aura instance</small>
@@ -479,15 +544,15 @@
       <section class="holo-frame">
         <div class="holo-nav">
           <div class="brand">
-            <div class="brand-badge" aria-hidden="true">A</div>
+            <img class="brand-logo" src="/aura_holo_logo.png" alt="Aura Bot logo">
             <div>AURA</div>
           </div>
           <nav class="holo-tabs" aria-label="Dashboard navigation">
-            <button class="holo-tab active" type="button">Dashboard</button>
-            <button class="holo-tab" type="button">Servers</button>
-            <button class="holo-tab" type="button">Analytics</button>
-            <button class="holo-tab" type="button">Modules</button>
-            <button class="holo-tab" type="button">Commands</button>
+            <button class="holo-tab active" type="button" data-nav="dashboard">Dashboard</button>
+            <button class="holo-tab" type="button" data-nav="servers">Servers</button>
+            <button class="holo-tab" type="button" data-nav="analytics">Analytics</button>
+            <button class="holo-tab" type="button" data-nav="modules">Modules</button>
+            <button class="holo-tab" type="button" data-nav="commands">Commands</button>
           </nav>
           <div class="hero-actions">
             <button class="btn" type="button" id="manageServerBtn">Manage Server</button>
@@ -497,11 +562,11 @@
 
         <div class="holo-body">
           <aside class="holo-sidebar" aria-label="Quick sections">
-            <div class="side-icon active" title="Dashboard">◫</div>
-            <div class="side-icon" title="Servers">⛁</div>
-            <div class="side-icon" title="Users">◉</div>
-            <div class="side-icon" title="Commands">⌘</div>
-            <div class="side-icon" title="Settings">⚙</div>
+            <button class="side-icon active" type="button" title="Dashboard" aria-label="Dashboard" data-nav="dashboard">DB</button>
+            <button class="side-icon" type="button" title="Servers" aria-label="Servers" data-nav="servers">SV</button>
+            <button class="side-icon" type="button" title="Users" aria-label="Users" data-nav="users">US</button>
+            <button class="side-icon" type="button" title="Commands" aria-label="Commands" data-nav="commands">CM</button>
+            <button class="side-icon" type="button" title="Settings" aria-label="Settings" data-nav="settings">ST</button>
           </aside>
 
           <section class="card dashboard">
@@ -603,6 +668,26 @@
               <div class="field full"><label for="staffRoleIds">Staff role IDs (comma separated)</label><input id="staffRoleIds" placeholder="123,456"></div>
             </div>
 
+            <h2 style="margin-top:16px;">Command control (Dashboard only)</h2>
+            <div class="field-grid">
+              <div class="field full">
+                <label for="commandBlacklist">Disabled commands (comma separated)</label>
+                <input id="commandBlacklist" placeholder="ban, kick, clear">
+              </div>
+              <div class="field full">
+                <label for="disabledChannels">Blocked channel IDs (comma separated)</label>
+                <input id="disabledChannels" placeholder="123456789012345678, 987654321098765432">
+              </div>
+              <div class="field full">
+                <label>Command aliases</label>
+                <div class="hint">Create custom shortcuts for your most used commands (e.g. "p" for "profile")</div>
+                <div id="aliasList" class="alias-list"></div>
+                <button type="button" class="btn btn-sm" id="addAliasBtn" style="margin-top: 8px;">
+                  <strong>+</strong> Add Alias shortcut
+                </button>
+              </div>
+            </div>
+
                 <div class="toolbar">
                   <button class="btn btn-primary" type="submit">Save settings</button>
                   <button class="btn" type="button" id="reloadGuildBtn">Reload</button>
@@ -679,6 +764,14 @@
         </div>
       </section>
     </main>
+
+    <footer class="site-footer">
+      <span>&copy; 2026 Aura Bot Development Team</span>
+      <nav aria-label="Legal links">
+        <a href="/terms.html">Terms</a>
+        <a href="/privacy.html">Privacy</a>
+      </nav>
+    </footer>
   </div>
 
   <script>
@@ -687,6 +780,8 @@
       guilds: [],
       selectedGuildId: null,
       commands: [],
+      disabledCommands: new Set(),
+      commandTogglesInFlight: new Set(),
       socketConnected: false,
     };
 
@@ -838,6 +933,54 @@
 
       document.getElementById('ticketSupportRoles').value = (settings.ticketSupportRoles || []).join(',');
       document.getElementById('staffRoleIds').value = (settings.staffRoleIds || []).join(',');
+      document.getElementById('commandBlacklist').value = (settings.commandBlacklist || []).join(',');
+      document.getElementById('disabledChannels').value = (settings.disabledChannels || []).join(',');
+
+      renderAliasRows(settings.commandAliases || {});
+    }
+
+    function renderAliasRows(aliases) {
+      const list = document.getElementById('aliasList');
+      list.innerHTML = '';
+      Object.entries(aliases).forEach(([alias, command]) => {
+        addAliasRow(alias, command);
+      });
+    }
+
+    document.getElementById('addAliasBtn').addEventListener('click', () => addAliasRow());
+
+    function addAliasRow(alias = '', commandValue = '') {
+      const list = document.getElementById('aliasList');
+      const row = document.createElement('div');
+      row.className = 'alias-row';
+      
+      const commandsHtml = state.commands.length 
+        ? state.commands.map(cmd => `<option value="${cmd.name}" ${cmd.name === commandValue ? 'selected' : ''}>/${cmd.name}</option>`).join('')
+        : `<option value="${commandValue}">${commandValue}</option>`;
+
+      row.innerHTML = `
+        <input type="text" placeholder="Alias (e.g. p)" value="${alias}" class="alias-name-input" aria-label="Alias name">
+        <select class="alias-target-select" aria-label="Target command">
+          <option value="" disabled ${!commandValue ? 'selected' : ''}>Select command...</option>
+          ${commandsHtml}
+        </select>
+        <button type="button" class="btn-icon remove-alias-btn" title="Remove alias">×</button>
+      `;
+
+      row.querySelector('.remove-alias-btn').addEventListener('click', () => row.remove());
+      list.appendChild(row);
+    }
+
+    function collectAliases() {
+      const output = {};
+      document.querySelectorAll('.alias-row').forEach(row => {
+        const alias = row.querySelector('.alias-name-input').value.trim().toLowerCase().replace(/^\/+/, '');
+        const target = row.querySelector('.alias-target-select').value;
+        if (alias && target) {
+          output[alias] = target;
+        }
+      });
+      return output;
     }
 
     function collectSettingsFormPayload() {
@@ -854,6 +997,10 @@
 
       payload.ticketSupportRoles = toArrayFromCsv(document.getElementById('ticketSupportRoles').value);
       payload.staffRoleIds = toArrayFromCsv(document.getElementById('staffRoleIds').value);
+      payload.commandBlacklist = toArrayFromCsv(document.getElementById('commandBlacklist').value)
+        .map((commandName) => commandName.toLowerCase().replace(/^\/+/, ''));
+      payload.disabledChannels = toArrayFromCsv(document.getElementById('disabledChannels').value);
+      payload.commandAliases = collectAliases();
       return payload;
     }
 
@@ -897,7 +1044,7 @@
       renderList('fingerprintList', entries, (log) => `
         <div class="list-item">
           <strong style="color: ${log.type === 'on' ? 'var(--green)' : 'var(--danger)'}">
-            ${log.type === 'on' ? 'PUNCH IN' : 'PUNCH OUT'} — User ${String(log.userId).slice(-6)}
+            ${log.type === 'on' ? 'PUNCH IN' : 'PUNCH OUT'} - User ${String(log.userId).slice(-6)}
           </strong>
           <div class="meta">
             ${new Date(log.timestamp).toLocaleString()}
@@ -963,12 +1110,63 @@
             String(cmd.category || '').toLowerCase().includes(q))
         : state.commands;
 
-      renderList('commandList', filtered.slice(0, 120), (cmd) => `
-        <div class="list-item">
-          <strong>/${cmd.name}</strong><span class="pill">${cmd.category || 'general'}</span>
-          <div class="meta">${cmd.description || 'No description'}</div>
-        </div>
-      `);
+      const container = document.getElementById('commandList');
+      if (!filtered.length) {
+        container.innerHTML = '<div class="list-item"><span class="muted">No commands found.</span></div>';
+        return;
+      }
+
+      container.innerHTML = filtered.slice(0, 120).map((cmd) => {
+        const isDisabled = state.disabledCommands.has(cmd.name);
+        return `
+          <div class="list-item" style="display:flex;align-items:center;justify-content:space-between;gap:8px;${isDisabled ? 'opacity:0.6;' : ''}">
+            <div style="flex:1;min-width:0;">
+              <strong>/${cmd.name}</strong>
+              <span class="pill" style="${isDisabled ? 'border-color:rgba(255,89,111,0.5);color:#ff8fa0;' : ''}">${isDisabled ? 'DISABLED' : (cmd.category || 'general')}</span>
+              <div class="meta">${cmd.description || 'No description'}</div>
+            </div>
+            <button
+              class="btn ${isDisabled ? 'btn-primary' : 'btn-danger'}"
+              style="padding:6px 12px;font-size:12px;flex-shrink:0;"
+              onclick="toggleCommand('${cmd.name}')"
+              title="${isDisabled ? 'Enable command' : 'Disable command'}"
+            >${isDisabled ? 'Enable' : 'Disable'}</button>
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function toggleCommand(commandName) {
+      if (!state.selectedGuildId) {
+        setStatus('Please select a guild first.', 'err');
+        return;
+      }
+
+      if (state.commandTogglesInFlight?.has(commandName)) return;
+      if (!state.commandTogglesInFlight) state.commandTogglesInFlight = new Set();
+      state.commandTogglesInFlight.add(commandName);
+
+      const isDisabled = state.disabledCommands.has(commandName);
+      const action = isDisabled ? 'enable' : 'disable';
+
+      try {
+        await apiFetch(`/api/guilds/${state.selectedGuildId}/commands/${commandName}/${action}`, {
+          method: 'POST',
+        });
+
+        if (isDisabled) {
+          state.disabledCommands.delete(commandName);
+        } else {
+          state.disabledCommands.add(commandName);
+        }
+
+        renderCommands(document.getElementById('commandSearch').value);
+        setStatus(`Command /${commandName} ${action}d successfully.`, 'ok');
+      } catch (error) {
+        handleApiError(error, `Failed to ${action} command /${commandName}.`);
+      } finally {
+        state.commandTogglesInFlight.delete(commandName);
+      }
     }
 
     async function loadGuildData(guildId) {
@@ -977,16 +1175,26 @@
       setStatus('Loading guild configuration...', '');
 
       try {
-        const [settings, staff, leaderboard, panels, fingerprints, analytics] = await Promise.all([
+        const [settings, staff, leaderboard, panels, fingerprints, analytics, disabledCmds] = await Promise.all([
           apiFetch(`/api/guilds/${guildId}`),
           apiFetch(`/api/guilds/${guildId}/staff`),
           apiFetch(`/api/guilds/${guildId}/leaderboard`),
           apiFetch(`/api/guilds/${guildId}/ticket-panels`),
           apiFetch(`/api/guilds/${guildId}/fingerprints`),
           apiFetch(`/api/guilds/${guildId}/analytics`),
+          apiFetch(`/api/guilds/${guildId}/disabled-commands`).catch(() => []),
         ]);
 
         fillSettingsForm(settings);
+        const disabledSource = (Array.isArray(disabledCmds) && disabledCmds.length > 0)
+          ? disabledCmds
+          : (settings.commandBlacklist || []);
+        state.disabledCommands = new Set(
+          disabledSource
+            .map((entry) => String(entry?.name || entry || '').trim().toLowerCase())
+            .filter(Boolean)
+        );
+        renderCommands(document.getElementById('commandSearch').value);
         renderStaff(staff);
         renderLeaderboard(leaderboard);
         renderPanels(panels);
@@ -1016,7 +1224,7 @@
       const next = `
         <div class="list-item">
           <strong>${(data.type || 'event').toString().toUpperCase()}</strong>
-          <div class="meta">${data.user || 'Unknown user'} • ${new Date().toLocaleTimeString()}</div>
+          <div class="meta">${data.user || 'Unknown user'} | ${new Date().toLocaleTimeString()}</div>
         </div>
       `;
       stream.innerHTML = next + current;
@@ -1043,6 +1251,10 @@
       try {
         state.commands = await apiFetch('/api/commands');
         renderCommands('');
+        if (state.selectedGuildId) {
+          const guild = state.guilds.find(g => g.guildId === state.selectedGuildId);
+          if (guild) loadGuildData(state.selectedGuildId);
+        }
       } catch {
         renderCommands('');
       }
@@ -1077,8 +1289,20 @@
         return;
       }
       try {
-        settingsForm.querySelector('button[type="submit"]').disabled = true;
         const payload = collectSettingsFormPayload();
+        
+        // Simple validation for duplicate aliases
+        const aliases = Object.keys(payload.commandAliases);
+        const rows = document.querySelectorAll('.alias-row');
+        const aliasInputs = Array.from(document.querySelectorAll('.alias-name-input')).map(i => i.value.trim().toLowerCase());
+        const duplicates = aliasInputs.filter((item, index) => aliasInputs.indexOf(item) !== index && item !== '');
+        
+        if (duplicates.length > 0) {
+          setStatus(`Duplicate alias found: "${duplicates[0]}". Each alias must be unique.`, 'err');
+          return;
+        }
+
+        settingsForm.querySelector('button[type="submit"]').disabled = true;
         await apiFetch(`/api/guilds/${state.selectedGuildId}`, {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
@@ -1145,6 +1369,33 @@
 
     logoutBtn.addEventListener('click', () => {
       window.location.href = '/auth/logout';
+    });
+
+    // Navigation and Action handlers
+    document.querySelectorAll('.holo-tab, .side-icon').forEach((el) => {
+      el.addEventListener('click', () => {
+        const parent = el.parentElement;
+        parent.querySelectorAll('.holo-tab, .side-icon').forEach(item => item.classList.remove('active'));
+        el.classList.add('active');
+
+        const nav = el.textContent.trim() || el.getAttribute('title');
+        if (nav === 'Commands' || nav === 'CM') {
+          document.getElementById('commandSearch').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } else if (nav === 'Dashboard' || nav === 'DB') {
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        } else if (nav === 'Settings' || nav === 'ST') {
+          settingsForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      });
+    });
+
+    document.getElementById('manageServerBtn').addEventListener('click', () => {
+      guildSelect.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      guildSelect.focus();
+    });
+
+    document.getElementById('configureModulesBtn').addEventListener('click', () => {
+      settingsForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
 
     const socket = io();
