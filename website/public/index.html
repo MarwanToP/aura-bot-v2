@@ -1006,53 +1006,99 @@
 
     function renderList(containerId, items, renderItem) {
       const container = document.getElementById(containerId);
+      container.innerHTML = '';
       if (!items || !items.length) {
-        container.innerHTML = '<div class="list-item"><span class="muted">No data found.</span></div>';
+        const emptyDiv = document.createElement('div');
+        emptyDiv.className = 'list-item';
+        const emptySpan = document.createElement('span');
+        emptySpan.className = 'muted';
+        emptySpan.textContent = 'No data found.';
+        emptyDiv.appendChild(emptySpan);
+        container.appendChild(emptyDiv);
         return;
       }
-      container.innerHTML = items.map(renderItem).join('');
+      items.forEach((item, idx) => {
+        const node = renderItem(item, idx);
+        if (node instanceof Node) {
+          container.appendChild(node);
+        }
+      });
     }
 
     function renderPanels(panels) {
-      renderList('panelList', panels, (panel) => `
-        <div class="list-item">
-          <strong>${panel.title || panel.panelId}</strong>
-          <div class="meta">ID: ${panel.panelId || '-'} | Category: ${panel.category || '-'}</div>
-        </div>
-      `);
+      renderList('panelList', panels, (panel) => {
+        const div = document.createElement('div');
+        div.className = 'list-item';
+
+        const strong = document.createElement('strong');
+        strong.textContent = panel.title || panel.panelId;
+        div.appendChild(strong);
+
+        const meta = document.createElement('div');
+        meta.className = 'meta';
+        meta.textContent = `ID: ${panel.panelId || '-'} | Category: ${panel.category || '-'}`;
+        div.appendChild(meta);
+
+        return div;
+      });
     }
 
     function renderLeaderboard(entries) {
-      renderList('leaderboardList', entries, (entry, idx) => `
-        <div class="list-item">
-          <strong>#${idx + 1} User ${String(entry.userId || '').slice(-6)}</strong>
-          <div class="meta">Balance: ${(Number(entry.balance || 0)).toLocaleString()}</div>
-        </div>
-      `);
+      renderList('leaderboardList', entries, (entry, idx) => {
+        const div = document.createElement('div');
+        div.className = 'list-item';
+
+        const strong = document.createElement('strong');
+        strong.textContent = `#${idx + 1} User ${String(entry.userId || '').slice(-6)}`;
+        div.appendChild(strong);
+
+        const meta = document.createElement('div');
+        meta.className = 'meta';
+        meta.textContent = `Balance: ${(Number(entry.balance || 0)).toLocaleString()}`;
+        div.appendChild(meta);
+
+        return div;
+      });
     }
 
     function renderStaff(entries) {
-      renderList('staffList', entries, (staff) => `
-        <div class="list-item">
-          <strong>User ID: ${String(staff.userId || '').slice(-6)}</strong>
-          <div class="meta">Duty: ${Math.floor((Number(staff.totalDutyTime || 0)) / 60)}m | Msg: ${staff.messagesSent || 0} | Tkt: ${staff.ticketsHandled || 0}</div>
-        </div>
-      `);
+      renderList('staffList', entries, (staff) => {
+        const div = document.createElement('div');
+        div.className = 'list-item';
+
+        const strong = document.createElement('strong');
+        strong.textContent = `User ID: ${String(staff.userId || '').slice(-6)}`;
+        div.appendChild(strong);
+
+        const meta = document.createElement('div');
+        meta.className = 'meta';
+        meta.textContent = `Duty: ${Math.floor((Number(staff.totalDutyTime || 0)) / 60)}m | Msg: ${staff.messagesSent || 0} | Tkt: ${staff.ticketsHandled || 0}`;
+        div.appendChild(meta);
+
+        return div;
+      });
     }
 
     function renderFingerprints(entries) {
-      renderList('fingerprintList', entries, (log) => `
-        <div class="list-item">
-          <strong style="color: ${log.type === 'on' ? 'var(--green)' : 'var(--danger)'}">
-            ${log.type === 'on' ? 'PUNCH IN' : 'PUNCH OUT'} - User ${String(log.userId).slice(-6)}
-          </strong>
-          <div class="meta">
-            ${new Date(log.timestamp).toLocaleString()}
-            ${log.duration ? ` | Duration: ${Math.floor(log.duration / 60)}m` : ''}
-            ${log.tickets ? ` | Tickets: ${log.tickets}` : ''}
-          </div>
-        </div>
-      `);
+      renderList('fingerprintList', entries, (log) => {
+        const div = document.createElement('div');
+        div.className = 'list-item';
+
+        const strong = document.createElement('strong');
+        strong.style.color = log.type === 'on' ? 'var(--green)' : 'var(--danger)';
+        strong.textContent = `${log.type === 'on' ? 'PUNCH IN' : 'PUNCH OUT'} - User ${String(log.userId).slice(-6)}`;
+        div.appendChild(strong);
+
+        const meta = document.createElement('div');
+        meta.className = 'meta';
+        let metaText = new Date(log.timestamp).toLocaleString();
+        if (log.duration) metaText += ` | Duration: ${Math.floor(log.duration / 60)}m`;
+        if (log.tickets) metaText += ` | Tickets: ${log.tickets}`;
+        meta.textContent = metaText;
+        div.appendChild(meta);
+
+        return div;
+      });
     }
 
     let chartInstance = null;
