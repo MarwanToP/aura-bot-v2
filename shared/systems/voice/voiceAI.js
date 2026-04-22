@@ -127,7 +127,7 @@ async function transcribeAudio(buffer) {
   wavHeader.write('data', 36);
   wavHeader.writeUInt32LE(buffer.length, 40);
 
-  fs.writeFileSync(tempFile, Buffer.concat([wavHeader, buffer]));
+  await fs.promises.writeFile(tempFile, Buffer.concat([wavHeader, buffer]));
   
   try {
     const response = await ai.audio.transcriptions.create({
@@ -136,7 +136,11 @@ async function transcribeAudio(buffer) {
     });
     return response.text;
   } finally {
-    if (fs.existsSync(tempFile)) fs.unlinkSync(tempFile);
+    try {
+      await fs.promises.unlink(tempFile);
+    } catch (e) {
+      if (e.code !== 'ENOENT') throw e;
+    }
   }
 }
 
