@@ -44,7 +44,9 @@ async function sendModLog(client, guildId, embed) {
     if (!s?.modLogChannelId) return;
     const ch = await client.channels.fetch(s.modLogChannelId).catch(() => null);
     if (ch?.isTextBased()) await ch.send({ embeds: [embed] });
-  } catch {}
+  } catch (error) {
+    console.error('Error in sendModLog:', error);
+  }
 }
 
 async function getWarnCount(client, guildId, userId) {
