@@ -10,6 +10,9 @@ const env = {
   PORT: port,
   DASHBOARD_STRICT_STARTUP: 'false',
   DASHBOARD_USE_REDIS_SESSION: 'false',
+  DISCORD_CLIENT_ID: 'smoke_test_client_id',
+  DISCORD_CLIENT_SECRET: 'smoke_test_client_secret',
+  SESSION_SECRET: 'smoke_test_session_secret'
 };
 
 const child = spawn(process.execPath, ['website/server.js'], {
