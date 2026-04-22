@@ -3,9 +3,8 @@
 // ================================================================
 import { joinVoiceChannel, EndBehaviorType } from '@discordjs/voice';
 import prism from 'prism-media';
-import OpenAI from 'openai';
+import OpenAI, { toFile } from 'openai';
 import logger from '../../utils/logger.js';
-import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -109,8 +108,6 @@ async function transcribeAudio(buffer) {
   const ai = getOpenAI();
   if (!ai) return null;
 
-  const tempFile = path.join(__dirname, `temp_voice_${Date.now()}.wav`);
-  
   // Create WAV header
   const wavHeader = Buffer.alloc(44);
   wavHeader.write('RIFF', 0);
@@ -127,16 +124,17 @@ async function transcribeAudio(buffer) {
   wavHeader.write('data', 36);
   wavHeader.writeUInt32LE(buffer.length, 40);
 
-  fs.writeFileSync(tempFile, Buffer.concat([wavHeader, buffer]));
+  const audioFile = await toFile(Buffer.concat([wavHeader, buffer]), `temp_voice_${Date.now()}.wav`, { type: 'audio/wav' });
   
   try {
     const response = await ai.audio.transcriptions.create({
-      file: fs.createReadStream(tempFile),
+      file: audioFile,
       model: 'whisper-1',
     });
     return response.text;
-  } finally {
-    if (fs.existsSync(tempFile)) fs.unlinkSync(tempFile);
+  } catch (err) {
+    logger.error('[AVA] Whisper error:', err.message);
+    return null;
   }
 }
 
