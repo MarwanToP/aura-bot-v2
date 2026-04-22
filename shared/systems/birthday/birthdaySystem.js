@@ -155,9 +155,14 @@ export async function checkBirthdays(client) {
     const birthdays = await Birthday.findAll({ where: { day: today.day, month: today.month } });
     if (!birthdays.length) return;
 
+    // Batch fetch settings for all unique guild IDs to prevent N+1 queries
+    const uniqueGuildIds = [...new Set(birthdays.map(bday => bday.guildId))];
+    const settingsList = await GuildSettings.findAll({ where: { guildId: uniqueGuildIds } });
+    const settingsMap = new Map(settingsList.map(s => [s.guildId, s]));
+
     for (const bday of birthdays) {
       try {
-        const settings = await GuildSettings.findOne({ where: { guildId: bday.guildId } });
+        const settings = settingsMap.get(bday.guildId);
         if (!settings?.birthdayEnabled || !settings?.birthdayChannelId) continue;
 
         // Only announce once per day
