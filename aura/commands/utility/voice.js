@@ -245,7 +245,9 @@ async function handleVoiceAiSession(client, interaction) {
     logger.error('[VoiceAI] Failed to start session:', err);
     try {
       getVoiceConnection(interaction.guildId)?.destroy();
-    } catch {}
+    } catch (cleanupErr) {
+      logger.error('[VoiceAI] Error cleaning up connection after failed start:', cleanupErr);
+    }
     sessionStore.delete(interaction.guildId);
     return interaction.editReply({
       embeds: [buildEmbed({
