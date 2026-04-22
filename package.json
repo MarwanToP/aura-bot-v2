@@ -14,7 +14,8 @@
     "lint:syntax": "node shared/scripts/check-syntax.js",
     "test:smoke:commands": "node shared/scripts/smoke-bot-commands.js",
     "test:smoke:website": "node shared/scripts/smoke-website-health.js",
-    "test:smoke": "npm run lint:syntax && npm run test:smoke:commands && npm run test:smoke:website"
+    "test:smoke": "npm run lint:syntax && npm run test:smoke:commands && npm run test:smoke:website",
+    "test:unit": "NODE_OPTIONS=--experimental-vm-modules jest shared/tests"
   },
   "dependencies": {
     "@discordjs/voice": "^0.17.0",
@@ -64,6 +65,7 @@
   },
   "devDependencies": {
     "eslint": "^9.7.0",
+    "jest": "^30.3.0",
     "nodemon": "^3.1.4"
   },
   "engines": {
