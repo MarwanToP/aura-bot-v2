@@ -207,13 +207,17 @@ async function handleAutoResponder(client, message) {
         try {
           const res = await client.ai.generateCommandResponse(message.content, `Trigger: ${r.trigger}`);
           response  = res.content;
-        } catch {}
+        } catch (err) {
+          logger.error(`[AutoResponder] AI generation failed for trigger "${r.trigger}":`, err.message);
+        }
       }
 
       await message.channel.send(response);
       break;
     }
-  } catch {}
+  } catch (err) {
+    logger.error(`[AutoResponder] General failure in guild ${message.guild.id}:`, err.message);
+  }
 }
 
 // ─── DM Handler ───────────────────────────────────────────────
@@ -231,5 +235,7 @@ async function handleDM(client, message) {
     await client.ai.saveContext(client.redis, message.author.id, 'dm', newHistory);
 
     await message.reply(result.content.slice(0, 2000));
-  } catch {}
+  } catch (err) {
+    logger.error(`[DM Handler] Error processing DM from ${message.author.id}:`, err.message);
+  }
 }
