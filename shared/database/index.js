@@ -17,7 +17,6 @@ const sequelize = dbUrl
     dialectOptions: {
       ssl: {
         require: true,
-        rejectUnauthorized: false,
       },
       keepAlive: true,
     },
@@ -33,7 +32,7 @@ const sequelize = dbUrl
       logging: msg => logger.debug(msg),
       pool:    { max: 50, min: 5, acquire: 60000, idle: 5000 },
       dialectOptions: process.env.DB_SSL === 'true'
-        ? { ssl: { require: true, rejectUnauthorized: false } } : {},
+        ? { ssl: { require: true } } : {},
     }
   );
 

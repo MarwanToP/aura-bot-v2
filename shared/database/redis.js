@@ -11,7 +11,7 @@ const redisOptions = {
   retryStrategy: (t) => Math.min(t * 200, 5000),
   lazyConnect:   true,
   keyPrefix:     'aura2:',
-  ...(tlsEnabled && { tls: { rejectUnauthorized: false } }),
+  ...(tlsEnabled && { tls: {} }),
 };
 
 const redis = process.env.REDIS_URL
