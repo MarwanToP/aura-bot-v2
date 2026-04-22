@@ -1,6 +1,7 @@
 import customization from '../../shared/systems/customization/customizationSystem.js';
 import logger        from '../../shared/utils/logger.js';
 import { trackActivity } from '../../shared/systems/staff/staffSystem.js';
+import { awardMessageXp } from '../../shared/systems/leveling/levelingSystem.js';
 
 export const mentionCache = new Map();
 
