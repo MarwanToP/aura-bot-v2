@@ -1,6 +1,7 @@
 import customization from '../../shared/systems/customization/customizationSystem.js';
 import logger        from '../../shared/utils/logger.js';
 import { trackActivity } from '../../shared/systems/staff/staffSystem.js';
+import { awardMessageXp } from '../../shared/systems/leveling/levelingSystem.js';
 
 export const mentionCache = new Map();
 
@@ -190,7 +191,7 @@ async function handleAutoResponder(client, message) {
         case 'exact':      matched = c === t; break;
         case 'contains':   matched = c.includes(t); break;
         case 'startsWith': matched = c.startsWith(t); break;
-        case 'regex': try { matched = new RegExp(r.trigger, 'i').test(message.content); } catch {} break;
+        case 'regex': try { matched = new RegExp(r.trigger, 'i').test(message.content); } catch (err) { logger.warn(`[AutoResponder] Invalid regex in guild ${message.guild.id}: "${r.trigger}"`, err.message); } break;
       }
 
       if (!matched) continue;
@@ -206,13 +207,17 @@ async function handleAutoResponder(client, message) {
         try {
           const res = await client.ai.generateCommandResponse(message.content, `Trigger: ${r.trigger}`);
           response  = res.content;
-        } catch {}
+        } catch (err) {
+          logger.error(`[AutoResponder] AI generation failed for trigger "${r.trigger}":`, err.message);
+        }
       }
 
       await message.channel.send(response);
       break;
     }
-  } catch {}
+  } catch (err) {
+    logger.error(`[AutoResponder] General failure in guild ${message.guild.id}:`, err.message);
+  }
 }
 
 // ─── DM Handler ───────────────────────────────────────────────
@@ -230,5 +235,7 @@ async function handleDM(client, message) {
     await client.ai.saveContext(client.redis, message.author.id, 'dm', newHistory);
 
     await message.reply(result.content.slice(0, 2000));
-  } catch {}
+  } catch (err) {
+    logger.error(`[DM Handler] Error processing DM from ${message.author.id}:`, err.message);
+  }
 }
