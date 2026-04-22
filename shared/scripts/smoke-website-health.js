@@ -10,6 +10,9 @@ const env = {
   PORT: port,
   DASHBOARD_STRICT_STARTUP: 'false',
   DASHBOARD_USE_REDIS_SESSION: 'false',
+  DISCORD_CLIENT_ID: 'mock-client-id',
+  DISCORD_CLIENT_SECRET: 'mock-client-secret',
+  SESSION_SECRET: 'mock-session-secret',
 };
 
 const child = spawn(process.execPath, ['website/server.js'], {
