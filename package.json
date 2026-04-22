@@ -63,7 +63,6 @@
     "youtube-sr": "^4.3.11"
   },
   "devDependencies": {
-    "eslint": "^9.7.0",
     "nodemon": "^3.1.4"
   },
   "engines": {

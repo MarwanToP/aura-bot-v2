@@ -32,7 +32,7 @@ async function createCase(client, { guildId, userId, moderatorId, type, reason, 
 
     return modCase;
   } catch (err) { 
-    console.error('Error in createCase:', err);
+    client.logger.error('Error in createCase:', err);
     return null; 
   }
 }
@@ -45,7 +45,7 @@ async function sendModLog(client, guildId, embed) {
     const ch = await client.channels.fetch(s.modLogChannelId).catch(() => null);
     if (ch?.isTextBased()) await ch.send({ embeds: [embed] });
   } catch (error) {
-    console.error('Error in sendModLog:', error);
+    client.logger.error('Error in sendModLog:', error);
   }
 }
 
