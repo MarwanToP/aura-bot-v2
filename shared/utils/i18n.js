@@ -2,14 +2,14 @@
 //  i18n — Multilingual Support
 // ================================================================
 import i18next          from 'i18next';
-import { readFileSync } from 'fs';
+import fs from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 function loadLocale(locale) {
-  try { return JSON.parse(readFileSync(join(__dirname, '../locales', `${locale}.json`), 'utf-8')); }
+  try { return JSON.parse(fs.readFileSync(join(__dirname, '../locales', `${locale}.json`), 'utf-8')); }
   catch { return {}; }
 }
 
