@@ -6,6 +6,7 @@ import {
 } from 'discord.js';
 import { buildEmbed } from '../../../shared/utils/embedBuilder.js';
 import config         from '../../../shared/config/config.js';
+import crypto         from 'crypto';
 
 // ─── Blackjack ────────────────────────────────────────────────
 export const blackjack = {
@@ -182,7 +183,11 @@ function createDeck() {
   for (const suit of suits) {
     for (const rank of ranks) deck.push({ rank, suit, value: values[rank] });
   }
-  return deck.sort(() => Math.random() - 0.5);
+  for (let i = deck.length - 1; i > 0; i--) {
+    const j = crypto.randomInt(0, i + 1);
+    [deck[i], deck[j]] = [deck[j], deck[i]];
+  }
+  return deck;
 }
 
 function drawCard(deck) { return deck.pop(); }
