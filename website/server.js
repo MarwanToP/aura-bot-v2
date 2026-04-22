@@ -49,8 +49,8 @@ const normalizeCallbackPath = (value) => {
 };
 const configuredDiscordCallbackPath = normalizeCallbackPath(process.env.DISCORD_CALLBACK_PATH);
 
-if (isProduction && !configuredSessionSecret) {
-  throw new Error('SESSION_SECRET is required in production.');
+if (!configuredSessionSecret) {
+  throw new Error('SESSION_SECRET environment variable is required.');
 }
 
 const parseOriginList = (value) =>
@@ -220,7 +220,7 @@ const secureSessionCookie = forceSecureCookie
   ? true
   : (forceInsecureCookie ? false : isProduction);
 const sessionOptions = {
-  secret:            configuredSessionSecret || 'aura-dashboard-secret-change-me',
+  secret:            configuredSessionSecret,
   resave:            false, // Recommended false for Redis to avoid race conditions
   saveUninitialized: false,
   rolling:           false, // Changed to false to prevent frequent cookie churn
