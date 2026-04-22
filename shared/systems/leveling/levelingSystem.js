@@ -61,15 +61,16 @@ async function handleLevelUp(client, message, newLevel, settings) {
     // Level role rewards
     const { LevelReward } = client.db.models;
     const rewards = await LevelReward.findAll({ where: { guildId: message.guild.id }, order: [['level', 'DESC']] });
-    for (const r of rewards) {
+    for (let i = 0; i < rewards.length; i++) {
+      const r = rewards[i];
       if (newLevel >= r.level) {
         const role = message.guild.roles.cache.get(r.roleId);
         if (role && !message.member.roles.cache.has(role.id)) {
           await message.member.roles.add(role, `[Aura] Level ${r.level} reward`).catch(() => {});
         }
         if (r.removeOnNext) {
-          const lower = rewards.filter(x => x.level < r.level);
-          for (const l of lower) {
+          for (let j = i + 1; j < rewards.length; j++) {
+            const l = rewards[j];
             if (message.member.roles.cache.has(l.roleId)) await message.member.roles.remove(l.roleId).catch(() => {});
           }
         }
