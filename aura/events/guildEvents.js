@@ -233,7 +233,15 @@ async function handleReactionRole(client, reaction, user, adding) {
   try {
     if (reaction.partial) await reaction.fetch();
     const { ReactionRole } = client.db.models;
-    const rroles = await ReactionRole.findAll({ where: { messageId: reaction.message.id, emoji: reaction.emoji.toString() } });
+
+    // Fetch all reaction roles for this message at once
+    const messageReactionRoles = await ReactionRole.findAll({ where: { messageId: reaction.message.id } });
+    if (!messageReactionRoles.length) return;
+
+    // Filter to only the ones for the specific emoji
+    const emojiStr = reaction.emoji.toString();
+    const rroles = messageReactionRoles.filter(rr => rr.emoji === emojiStr);
+
     if (!rroles.length) return;
 
     const guild  = reaction.message.guild;
@@ -246,8 +254,7 @@ async function handleReactionRole(client, reaction, user, adding) {
 
       if (rr.type === 'unique' && adding) {
         // Remove all other roles from same message
-        const others = await ReactionRole.findAll({ where: { messageId: reaction.message.id } });
-        for (const o of others) {
+        for (const o of messageReactionRoles) {
           if (o.roleId !== rr.roleId && member.roles.cache.has(o.roleId)) {
             await member.roles.remove(o.roleId, '[Aura] Reaction Role').catch(() => {});
           }
