@@ -775,6 +775,17 @@
   </div>
 
   <script>
+    function escapeHTML(str) {
+      if (typeof str !== 'string') return str;
+      return str.replace(/[&<>"']/g, (m) => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+      }[m]));
+    }
+
     const state = {
       me: null,
       guilds: [],
@@ -893,9 +904,9 @@
 
       userCard.innerHTML = `
         <div style="display:flex;align-items:center;gap:10px;">
-          <img src="${avatar}" alt="User avatar" style="width:42px;height:42px;border-radius:50%;border:1px solid var(--line);">
+          <img src="${escapeHTML(avatar)}" alt="User avatar" style="width:42px;height:42px;border-radius:50%;border:1px solid var(--line);">
           <div>
-            <strong>${state.me.username}</strong>
+            <strong>${escapeHTML(state.me.username)}</strong>
             <div class="meta">${state.me.isDeveloper ? 'Developer access enabled' : 'Standard admin access'}</div>
           </div>
         </div>
@@ -911,7 +922,7 @@
 
       guildSelect.disabled = false;
       guildSelect.innerHTML = state.guilds
-        .map((guild) => `<option value="${guild.guildId}">${guild.name || `Guild ${guild.guildId}`} ${guild.isConfigured ? '' : '(new)'}</option>`)
+        .map((guild) => `<option value="${escapeHTML(guild.guildId)}">${escapeHTML(guild.name || `Guild ${guild.guildId}`)} ${guild.isConfigured ? '' : '(new)'}</option>`)
         .join('');
     }
 
@@ -955,11 +966,11 @@
       row.className = 'alias-row';
       
       const commandsHtml = state.commands.length 
-        ? state.commands.map(cmd => `<option value="${cmd.name}" ${cmd.name === commandValue ? 'selected' : ''}>/${cmd.name}</option>`).join('')
-        : `<option value="${commandValue}">${commandValue}</option>`;
+        ? state.commands.map(cmd => `<option value="${escapeHTML(cmd.name)}" ${cmd.name === commandValue ? 'selected' : ''}>/${escapeHTML(cmd.name)}</option>`).join('')
+        : `<option value="${escapeHTML(commandValue)}">${escapeHTML(commandValue)}</option>`;
 
       row.innerHTML = `
-        <input type="text" placeholder="Alias (e.g. p)" value="${alias}" class="alias-name-input" aria-label="Alias name">
+        <input type="text" placeholder="Alias (e.g. p)" value="${escapeHTML(alias)}" class="alias-name-input" aria-label="Alias name">
         <select class="alias-target-select" aria-label="Target command">
           <option value="" disabled ${!commandValue ? 'selected' : ''}>Select command...</option>
           ${commandsHtml}
@@ -1016,8 +1027,8 @@
     function renderPanels(panels) {
       renderList('panelList', panels, (panel) => `
         <div class="list-item">
-          <strong>${panel.title || panel.panelId}</strong>
-          <div class="meta">ID: ${panel.panelId || '-'} | Category: ${panel.category || '-'}</div>
+          <strong>${escapeHTML(panel.title || panel.panelId)}</strong>
+          <div class="meta">ID: ${escapeHTML(panel.panelId || '-')} | Category: ${escapeHTML(panel.category || '-')}</div>
         </div>
       `);
     }
@@ -1025,7 +1036,7 @@
     function renderLeaderboard(entries) {
       renderList('leaderboardList', entries, (entry, idx) => `
         <div class="list-item">
-          <strong>#${idx + 1} User ${String(entry.userId || '').slice(-6)}</strong>
+          <strong>#${idx + 1} User ${escapeHTML(String(entry.userId || '').slice(-6))}</strong>
           <div class="meta">Balance: ${(Number(entry.balance || 0)).toLocaleString()}</div>
         </div>
       `);
@@ -1034,7 +1045,7 @@
     function renderStaff(entries) {
       renderList('staffList', entries, (staff) => `
         <div class="list-item">
-          <strong>User ID: ${String(staff.userId || '').slice(-6)}</strong>
+          <strong>User ID: ${escapeHTML(String(staff.userId || '').slice(-6))}</strong>
           <div class="meta">Duty: ${Math.floor((Number(staff.totalDutyTime || 0)) / 60)}m | Msg: ${staff.messagesSent || 0} | Tkt: ${staff.ticketsHandled || 0}</div>
         </div>
       `);
@@ -1044,7 +1055,7 @@
       renderList('fingerprintList', entries, (log) => `
         <div class="list-item">
           <strong style="color: ${log.type === 'on' ? 'var(--green)' : 'var(--danger)'}">
-            ${log.type === 'on' ? 'PUNCH IN' : 'PUNCH OUT'} - User ${String(log.userId).slice(-6)}
+            ${log.type === 'on' ? 'PUNCH IN' : 'PUNCH OUT'} - User ${escapeHTML(String(log.userId).slice(-6))}
           </strong>
           <div class="meta">
             ${new Date(log.timestamp).toLocaleString()}
@@ -1121,14 +1132,14 @@
         return `
           <div class="list-item" style="display:flex;align-items:center;justify-content:space-between;gap:8px;${isDisabled ? 'opacity:0.6;' : ''}">
             <div style="flex:1;min-width:0;">
-              <strong>/${cmd.name}</strong>
-              <span class="pill" style="${isDisabled ? 'border-color:rgba(255,89,111,0.5);color:#ff8fa0;' : ''}">${isDisabled ? 'DISABLED' : (cmd.category || 'general')}</span>
-              <div class="meta">${cmd.description || 'No description'}</div>
+              <strong>/${escapeHTML(cmd.name)}</strong>
+              <span class="pill" style="${isDisabled ? 'border-color:rgba(255,89,111,0.5);color:#ff8fa0;' : ''}">${isDisabled ? 'DISABLED' : escapeHTML(cmd.category || 'general')}</span>
+              <div class="meta">${escapeHTML(cmd.description || 'No description')}</div>
             </div>
             <button
               class="btn ${isDisabled ? 'btn-primary' : 'btn-danger'}"
               style="padding:6px 12px;font-size:12px;flex-shrink:0;"
-              onclick="toggleCommand('${cmd.name}')"
+              onclick="toggleCommand('${escapeHTML(cmd.name)}')"
               title="${isDisabled ? 'Enable command' : 'Disable command'}"
             >${isDisabled ? 'Enable' : 'Disable'}</button>
           </div>
@@ -1223,8 +1234,8 @@
       const current = Array.from(stream.children).slice(0, 19).map((el) => el.outerHTML).join('');
       const next = `
         <div class="list-item">
-          <strong>${(data.type || 'event').toString().toUpperCase()}</strong>
-          <div class="meta">${data.user || 'Unknown user'} | ${new Date().toLocaleTimeString()}</div>
+          <strong>${escapeHTML((data.type || 'event').toString().toUpperCase())}</strong>
+          <div class="meta">${escapeHTML(data.user || 'Unknown user')} | ${new Date().toLocaleTimeString()}</div>
         </div>
       `;
       stream.innerHTML = next + current;
