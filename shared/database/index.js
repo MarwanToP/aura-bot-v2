@@ -6,6 +6,19 @@
 
 import { Sequelize, DataTypes, Op } from 'sequelize';
 import logger from '../utils/logger.js';
+import pg from 'pg';
+
+if (process.env.CF_PAGES || process.env.CLOUDFLARE_WORKER || process.env.CF_WORKER) {
+  // Use pg-cloudflare for Cloudflare Workers / Pages
+  import('pg-cloudflare').then(({ CloudflareSocket }) => {
+    pg.defaults.connectionFactory = (ssl) => {
+      return new CloudflareSocket(ssl);
+    };
+  }).catch(e => {
+    console.warn('pg-cloudflare could not be loaded', e);
+  });
+}
+
 
 const dbUrl = process.env.DATABASE_URL;
 
