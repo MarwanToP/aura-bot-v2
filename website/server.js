@@ -928,7 +928,7 @@ io.on('connection', (socket) => {
 // ── Redis ModLog Subscription ────────────────────────────────
 let modSub = null;
 if (process.env.REDIS_URL) {
-  modSub = new Redis(process.env.REDIS_URL, { ...(process.env.REDIS_TLS === 'true' && { tls: { rejectUnauthorized: false } }) });
+  modSub = new Redis(process.env.REDIS_URL, { ...(process.env.REDIS_TLS === 'true' && { tls: {} }) });
   modSub.on('error', (err) => logger.warn(`[Dashboard] ModLog Redis subscriber error: ${err.message}`));
   modSub.subscribe('aura:modlogs').catch((err) => logger.warn(`[Dashboard] Failed to subscribe modlogs: ${err.message}`));
   modSub.on('message', (channel, message) => {
