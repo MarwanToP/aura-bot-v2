@@ -158,10 +158,16 @@ async function checkTicketSLA(client) {
     const { Ticket, GuildSettings } = client.db.models;
     const twoHrsAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
     const idle = await Ticket.findAll({ where: { status: ['open','claimed'], updatedAt: { [client.db.Op.lt]: twoHrsAgo } } });
+    if (!idle.length) return;
+
+    // Optimization: Fetch all unique GuildSettings in one query to avoid N+1
+    const guildIds = [...new Set(idle.map(t => t.guildId))];
+    const allSettings = await GuildSettings.findAll({ where: { guildId: { [client.db.Op.in]: guildIds } } });
+    const settingsMap = new Map(allSettings.map(s => [s.guildId, s]));
 
     for (const ticket of idle) {
       try {
-        const settings = await GuildSettings.findOne({ where: { guildId: ticket.guildId } });
+        const settings = settingsMap.get(ticket.guildId);
         if (!settings?.ticketLogChannelId) continue;
         const channel = await client.channels.fetch(settings.ticketLogChannelId).catch(() => null);
         if (!channel?.isTextBased()) continue;
