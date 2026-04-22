@@ -10,6 +10,10 @@ const env = {
   PORT: port,
   DASHBOARD_STRICT_STARTUP: 'false',
   DASHBOARD_USE_REDIS_SESSION: 'false',
+  SESSION_SECRET: 'smoke-test-secret',
+  DISCORD_CLIENT_ID: 'smoke-client-id',
+  DISCORD_CLIENT_SECRET: 'smoke-client-secret',
+  DISCORD_CALLBACK_URL: 'http://localhost:3199/callback',
 };
 
 const child = spawn(process.execPath, ['website/server.js'], {

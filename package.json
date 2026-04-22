@@ -14,7 +14,9 @@
     "lint:syntax": "node shared/scripts/check-syntax.js",
     "test:smoke:commands": "node shared/scripts/smoke-bot-commands.js",
     "test:smoke:website": "node shared/scripts/smoke-website-health.js",
-    "test:smoke": "npm run lint:syntax && npm run test:smoke:commands && npm run test:smoke:website"
+    "test:smoke": "npm run lint:syntax && npm run test:smoke:commands && npm run test:smoke:website",
+    "test:unit": "node shared/scripts/test-unit.js",
+    "test": "npm run test:unit && npm run test:smoke"
   },
   "dependencies": {
     "@discordjs/voice": "^0.17.0",
