@@ -190,7 +190,7 @@ async function handleAutoResponder(client, message) {
         case 'exact':      matched = c === t; break;
         case 'contains':   matched = c.includes(t); break;
         case 'startsWith': matched = c.startsWith(t); break;
-        case 'regex': try { matched = new RegExp(r.trigger, 'i').test(message.content); } catch {} break;
+        case 'regex': try { matched = new RegExp(r.trigger, 'i').test(message.content); } catch (err) { logger.warn(`[AutoResponder] Invalid regex in guild ${message.guild.id}: "${r.trigger}"`, err.message); } break;
       }
 
       if (!matched) continue;
