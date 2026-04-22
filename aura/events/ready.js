@@ -34,7 +34,9 @@ export default {
           const invites = await guild.invites.fetch();
           client.inviteCache.set(guild.id, new Map(invites.map(i => [i.code, i.uses])));
         }
-      } catch {}
+      } catch (err) {
+        logger.error(`[Ready] Failed to cache invites for guild ${guild.id}:`, err);
+      }
     }
 
     // Start background tasks
