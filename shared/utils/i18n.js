@@ -2,14 +2,14 @@
 //  i18n — Multilingual Support
 // ================================================================
 import i18next          from 'i18next';
-import fs from 'fs';
+import { readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 function loadLocale(locale) {
-  try { return JSON.parse(fs.readFileSync(join(__dirname, '../locales', `${locale}.json`), 'utf-8')); }
+  try { return JSON.parse(readFileSync(join(__dirname, '../locales', `${locale}.json`), 'utf-8')); }
   catch { return {}; }
 }
 
@@ -65,4 +65,6 @@ async function resolveLanguage(client, userId, guildId) {
 
 function isRTL(locale) { return ['ar', 'he', 'fa', 'ur'].includes(locale); }
 
+// Exporting loadLocale for testing purposes
+export const _test_loadLocale = loadLocale;
 export default { init, t, getGuildLanguage, getUserLanguage, resolveLanguage, isRTL, raw: i18next };
