@@ -11,6 +11,12 @@
     "deploy:guild": "node shared/scripts/deploy-commands.js --guild",
     "db:migrate": "node shared/scripts/migrate.js",
     "dashboard": "node website/server.js",
+    "cf:dev": "wrangler dev",
+    "cf:deploy": "wrangler deploy",
+    "cf:deploy:ai": "cd aura-ai-worker && wrangler deploy",
+    "cf:migration:check": "node shared/scripts/cloudflare/pre-migration-check.mjs",
+    "cf:zone:setup": "node shared/scripts/cloudflare/setup-cloudflare-zone.mjs",
+    "cf:zone:verify": "node shared/scripts/cloudflare/verify-cloudflare-integration.mjs",
     "lint:syntax": "node shared/scripts/check-syntax.js",
     "test:smoke:commands": "node shared/scripts/smoke-bot-commands.js",
     "test:smoke:website": "node shared/scripts/smoke-website-health.js",
@@ -64,7 +70,8 @@
   },
   "devDependencies": {
     "eslint": "^9.7.0",
-    "nodemon": "^3.1.4"
+    "nodemon": "^3.1.4",
+    "wrangler": "^4.84.1"
   },
   "engines": {
     "node": ">=18.0.0"

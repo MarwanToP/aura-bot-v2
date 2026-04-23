@@ -4,6 +4,15 @@ import logger from '../../utils/logger.js';
  * Customization System — Handles Command Aliases and Channel Restrictions.
  */
 class CustomizationSystem {
+  sanitizeCommandName(value) {
+    return String(value || '').trim().toLowerCase().replace(/^\/+/, '');
+  }
+
+  buildRedisKey(prefix, guildId) {
+    const safeGuildId = encodeURIComponent(String(guildId || '').trim());
+    return `${prefix}:${safeGuildId}`;
+  }
+
   /**
    * Check if a command is restricted in a specific channel.
    * @param {Client} client 
@@ -13,7 +22,7 @@ class CustomizationSystem {
    */
   async isCommandRestricted(client, guildId, channelId, commandName) {
     try {
-      const cacheKey = `settings:restrictions:${guildId}`;
+      const cacheKey = this.buildRedisKey('settings:restrictions', guildId);
       let settings = await client.redis.getJSON(cacheKey);
 
       if (!settings) {
@@ -26,11 +35,22 @@ class CustomizationSystem {
 
       if (!settings) return false;
 
+      const normalizedCommand = this.sanitizeCommandName(commandName);
+      const normalizedChannel = String(channelId || '').trim();
+
+      const blacklistedCommands = Array.isArray(settings.commandBlacklist)
+        ? settings.commandBlacklist.map((entry) => this.sanitizeCommandName(entry)).filter(Boolean)
+        : [];
+
+      const disabledChannels = Array.isArray(settings.disabledChannels)
+        ? settings.disabledChannels.map((entry) => String(entry || '').trim()).filter(Boolean)
+        : [];
+
       // 1. Check Global Command Blacklist
-      if (settings.commandBlacklist?.includes(commandName)) return true;
+      if (normalizedCommand && blacklistedCommands.includes(normalizedCommand)) return true;
 
       // 2. Check Channel Restrictions
-      if (settings.disabledChannels?.includes(channelId)) return true;
+      if (normalizedChannel && disabledChannels.includes(normalizedChannel)) return true;
 
       return false;
     } catch (err) {
@@ -47,7 +67,7 @@ class CustomizationSystem {
    */
   async resolveAlias(client, guildId, alias) {
     try {
-      const cacheKey = `settings:aliases:${guildId}`;
+      const cacheKey = this.buildRedisKey('settings:aliases', guildId);
       let aliases = await client.redis.getJSON(cacheKey);
 
       if (!aliases) {
@@ -59,7 +79,9 @@ class CustomizationSystem {
         await client.redis.setJSON(cacheKey, aliases, 300);
       }
 
-      return aliases[alias] || alias;
+      const normalizedAlias = this.sanitizeCommandName(alias);
+      if (!normalizedAlias) return alias;
+      return aliases[normalizedAlias] || normalizedAlias;
     } catch (err) {
       logger.error('[Customization] Alias resolution failed:', err.message);
       return alias;

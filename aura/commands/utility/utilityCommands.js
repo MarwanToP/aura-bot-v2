@@ -242,11 +242,11 @@ export const help = {
     const category = interaction.options.getString('category');
     const cats = {
       ai:           { emoji: '🤖', title: 'Neural AI Core',     cmds: ['/ask','/imagine','/translate','/summarize','/ai-permissions','/search'] },
-      moderation:   { emoji: '🛡️', title: 'Security Force',      cmds: ['/ban','/kick','/timeout','/softban','/warn','/history','/clear','/lockdown'] },
-      professional: { emoji: '👔', title: 'Management Console', cmds: ['/staff duty','/staff stats','/ticket panel','/settings view','/invites'] },
+      moderation:   { emoji: '🛡️', title: 'Security Force',      cmds: ['/ban','/unban','/kick','/timeout','/softban','/warn','/note','/case','/role','/slowmode','/history','/clear','/lockdown'] },
+      professional: { emoji: '👔', title: 'Management Console', cmds: ['/staff duty','/staff stats','/ticket panel','/reactionrole','/settings view','/userinfo','/serverinfo','/roleinfo','/invites'] },
       bank:         { emoji: '🏛️', title: 'Aura Central Bank',   cmds: ['/bank balance','/bank deposit','/bank withdraw','/bank daily','/bank work','/shop'] },
       games:        { emoji: '🎮', title: 'Entertainment Deck', cmds: ['/blackjack','/slots','/coinflip','/dice'] },
-      fun:          { emoji: '🎨', title: 'Aura Social',        cmds: ['/aura','/rank','/leaderboard','/avatar','/rep'] },
+      fun:          { emoji: '🎨', title: 'Aura Social',        cmds: ['/aura','/rank','/leaderboard','/avatar','/meme','/rep'] },
       settings:     { emoji: '⚙️', title: 'System Config',       cmds: ['/settings language','/settings welcome','/settings leveling','/settings aimod'] },
     };
     if (category) {

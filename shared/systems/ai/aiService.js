@@ -1,6 +1,6 @@
 // ================================================================
-//  AURA BOT v2.0 — AI Service (Google Gemini)
-//  All AI features powered by Gemini 1.5 Flash
+//  AURA BOT v2.0 — AI Service (Multi-Provider)
+//  Providers: Google Gemini + Cloudflare Workers AI (+ OpenAI image)
 // ================================================================
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import OpenAI from 'openai';
@@ -10,9 +10,16 @@ import logger    from '../../utils/logger.js';
 class AIService {
   constructor() {
     this.gemini   = null;
-    this.model    = null;
+    this.model    = process.env.AI_CHAT_MODEL || 'gemini-1.5-flash';
+    this.modModel = process.env.AI_MOD_MODEL  || 'gemini-1.5-flash';
     this.enabled  = process.env.AI_ENABLED !== 'false';
     this.openai   = null;
+    this.cloudflare = {
+      accountId: process.env.CLOUDFLARE_ACCOUNT_ID,
+      apiToken:  process.env.CLOUDFLARE_API_TOKEN,
+      gatewayId: process.env.CLOUDFLARE_GATEWAY_ID,
+      model:     process.env.CLOUDFLARE_AI_MODEL || '@cf/meta/llama-3.1-8b-instruct'
+    };
   }
 
   /**
@@ -24,36 +31,59 @@ class AIService {
       return; 
     }
 
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      logger.warn('[AI] GEMINI_API_KEY is missing. Disabling AI features.');
-      this.enabled = false;
-      return;
+    const geminiApiKey = process.env.GEMINI_API_KEY;
+    if (geminiApiKey) {
+      try {
+        this.gemini = new GoogleGenerativeAI(geminiApiKey);
+        logger.info(`[AI] Gemini successfully initialized (Model: ${this.model}) ✓`);
+      } catch (err) {
+        logger.error(`[AI] Gemini initialization failed: ${err.message}`);
+      }
+    } else {
+      logger.warn('[AI] GEMINI_API_KEY is missing. Gemini provider unavailable.');
     }
 
-    try {
-      this.gemini   = new GoogleGenerativeAI(apiKey);
-      this.model    = process.env.AI_CHAT_MODEL || 'gemini-1.5-flash';
-      this.modModel = process.env.AI_MOD_MODEL  || 'gemini-1.5-flash';
-      logger.info(`[AI] Gemini successfully initialized (Model: ${this.model}) ✓`);
-    } catch (err) {
-      logger.error(`[AI] Gemini initialization failed: ${err.message}`);
+    if (this._hasCloudflare()) {
+      const gatewaySuffix = this.cloudflare.gatewayId ? ` via Gateway ${this.cloudflare.gatewayId}` : '';
+      logger.info(`[AI] Cloudflare Workers AI initialized (Model: ${this.cloudflare.model}${gatewaySuffix}) ✓`);
+    } else if ((process.env.AI_PROVIDER || '').toLowerCase() === 'cloudflare') {
+      logger.warn('[AI] AI_PROVIDER=cloudflare but CLOUDFLARE_ACCOUNT_ID/CLOUDFLARE_API_TOKEN are missing.');
+    }
+
+    if (!this._hasAnyChatProvider()) {
+      logger.warn('[AI] No chat provider configured. Set GEMINI_API_KEY or Cloudflare credentials.');
       this.enabled = false;
     }
   }
 
   isAvailable() { 
-    return this.enabled && !!this.gemini; 
+    return this.enabled && this._hasAnyChatProvider(); 
   }
 
   /**
    * Standard Chat Completion (Multi-turn Support)
    */
   async chat({ messages, system, model, maxTokens = 1000 }) {
-    if (!this.isAvailable()) throw new Error('AI Service is not configured or available.');
-
     const sysInstruction = system || config.ai.systemPrompt;
     const modelName      = model  || this.model;
+    const provider       = this._resolveChatProvider(modelName);
+
+    if (!provider) {
+      throw new Error('No AI chat provider available. Configure GEMINI_API_KEY or Cloudflare credentials.');
+    }
+
+    if (provider === 'cloudflare') {
+      const cloudflareModel = modelName && modelName.startsWith('@cf/')
+        ? modelName
+        : this.cloudflare.model;
+
+      return this._chatCloudflare({
+        messages,
+        system: sysInstruction,
+        model: cloudflareModel,
+        maxTokens,
+      });
+    }
 
     try {
       const genModel = this.gemini.getGenerativeModel({
@@ -123,14 +153,13 @@ class AIService {
     `;
 
     try {
-      const genModel = this.gemini.getGenerativeModel({
+      const result = await this.prompt(moderationPrompt, {
         model: this.modModel,
-        systemInstruction: 'System: Content Moderation Engine. Output strict JSON only.',
-        generationConfig: { maxOutputTokens: isDeep ? 300 : 150 },
+        maxTokens: isDeep ? 300 : 150,
+        system: 'System: Content Moderation Engine. Output strict JSON only.',
       });
 
-      const result = await genModel.generateContent(moderationPrompt);
-      const parsed = this._parseJSON(result.response.text());
+      const parsed = this._parseJSON(result.content);
 
       return {
         violation:  !!parsed.violation,
@@ -138,11 +167,68 @@ class AIService {
         severity:   parsed.severity   || 'low',
         confidence: parsed.confidence || 0,
         reason:     parsed.reason     || 'Analysis completed.',
-        source:     `gemini_mod_${isDeep ? 'deep' : 'standard'}`,
+        source:     `${result.provider || 'ai'}_mod_${isDeep ? 'deep' : 'standard'}`,
       };
     } catch (err) {
       logger.warn(`[AI] Moderation analysis failed: ${err.message}`);
       return { violation: false, confidence: 0, category: 'error', reason: 'Internal error', source: 'system_error' };
+    }
+  }
+
+  async _chatCloudflare({ messages, system, model, maxTokens = 1000 }) {
+    const accountId = this.cloudflare.accountId;
+    const apiToken  = this.cloudflare.apiToken;
+    const modelName = model || this.cloudflare.model;
+
+    if (!accountId || !apiToken) {
+      throw new Error('Cloudflare AI is not configured. Missing ACCOUNT_ID or API_TOKEN.');
+    }
+
+    try {
+      const endpoint = this.cloudflare.gatewayId
+        ? `https://gateway.ai.cloudflare.com/v1/${accountId}/${this.cloudflare.gatewayId}/workers-ai/${modelName}`
+        : `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/${modelName}`;
+
+      const payload = {
+        messages: this._normalizeCloudflareMessages(messages, system),
+        max_tokens: maxTokens,
+      };
+
+      const res = await fetch(
+        endpoint,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${apiToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+        }
+      );
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        const message = data?.errors?.[0]?.message || data?.error || `Cloudflare AI HTTP ${res.status}`;
+        throw new Error(message);
+      }
+
+      if (typeof data?.success === 'boolean' && !data.success) {
+        throw new Error(data?.errors?.[0]?.message || 'Cloudflare AI request failed');
+      }
+
+      const content = this._extractCloudflareContent(data);
+      if (!content) {
+        throw new Error('Cloudflare AI returned no text response.');
+      }
+
+      return { 
+        content,
+        provider: 'cloudflare' 
+      };
+    } catch (err) {
+      logger.error(`[AI] Cloudflare AI call failed: ${err.message}`);
+      throw err;
     }
   }
 
@@ -158,6 +244,97 @@ class AIService {
     } catch (err) {
       throw new Error(`Failed to parse AI JSON response: ${err.message}`);
     }
+  }
+
+  _hasGemini() {
+    return !!this.gemini;
+  }
+
+  _hasCloudflare() {
+    return !!(this.cloudflare.accountId && this.cloudflare.apiToken);
+  }
+
+  _hasAnyChatProvider() {
+    return this._hasGemini() || this._hasCloudflare();
+  }
+
+  _resolveChatProvider(modelName = '') {
+    const provider = String(process.env.AI_PROVIDER || 'gemini').toLowerCase();
+    const model = String(modelName || '');
+
+    if (model.startsWith('@cf/')) {
+      if (this._hasCloudflare()) return 'cloudflare';
+      if (this._hasGemini()) return 'gemini';
+      return null;
+    }
+
+    if (provider === 'cloudflare') {
+      if (this._hasCloudflare()) return 'cloudflare';
+      if (this._hasGemini()) return 'gemini';
+      return null;
+    }
+
+    if (this._hasGemini()) return 'gemini';
+    if (this._hasCloudflare()) return 'cloudflare';
+    return null;
+  }
+
+  _normalizeCloudflareMessages(messages = [], system = '') {
+    const normalized = [];
+
+    if (typeof system === 'string' && system.trim()) {
+      normalized.push({ role: 'system', content: system.trim() });
+    }
+
+    for (const message of messages) {
+      const content = String(message?.content || '').trim();
+      if (!content) continue;
+
+      const role = message?.role === 'assistant' || message?.role === 'system'
+        ? message.role
+        : 'user';
+
+      normalized.push({ role, content });
+    }
+
+    return normalized;
+  }
+
+  _extractCloudflareContent(payload) {
+    const result = payload?.result ?? payload ?? {};
+
+    if (typeof result.response === 'string' && result.response.trim()) {
+      return result.response.trim();
+    }
+
+    if (typeof result.output_text === 'string' && result.output_text.trim()) {
+      return result.output_text.trim();
+    }
+
+    if (typeof result.text === 'string' && result.text.trim()) {
+      return result.text.trim();
+    }
+
+    const messages = Array.isArray(result.messages) ? result.messages : [];
+    const assistant = [...messages].reverse().find((message) => message?.role === 'assistant');
+    if (!assistant) return '';
+
+    if (typeof assistant.content === 'string') {
+      return assistant.content.trim();
+    }
+
+    if (Array.isArray(assistant.content)) {
+      return assistant.content
+        .map((part) => {
+          if (typeof part === 'string') return part;
+          if (typeof part?.text === 'string') return part.text;
+          return '';
+        })
+        .join(' ')
+        .trim();
+    }
+
+    return '';
   }
 
   // ── Usage & Context Management ──────────────────────────────

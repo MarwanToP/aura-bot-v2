@@ -1,0 +1,14 @@
+{
+  "name": "aura-ai-worker",
+  "version": "1.0.0",
+  "description": "Standalone AI Worker for Aura Bot",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev"
+  },
+  "devDependencies": {
+    "wrangler": "^4.84.1"
+  }
+}

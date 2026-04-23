@@ -13,9 +13,10 @@ import {
 /**
  * Initializes a persistent ticket panel from a database configuration
  */
-export async function initializeTicketPanel(client, panelId) {
+export async function initializeTicketPanel(client, panelId, guildId = null) {
   const { TicketPanel } = client.db.models;
-  const panel = await TicketPanel.findOne({ where: { panelId } });
+  const where = guildId ? { guildId, panelId } : { panelId };
+  const panel = await TicketPanel.findOne({ where });
   if (!panel) return;
 
   const channel = await client.channels.fetch(panel.channelId).catch(() => null);
@@ -29,10 +30,12 @@ export async function initializeTicketPanel(client, panelId) {
   });
 
   const row = new ActionRowBuilder();
-  panel.categories.slice(0, 5).forEach(cat => {
+  panel.categories.slice(0, 5).forEach((cat) => {
+    const categoryKey = String(cat?.name || cat?.id || '').trim();
+    if (!categoryKey) return;
     row.addComponents(
       new ButtonBuilder()
-        .setCustomId(`ticket:open:${cat.id}`)
+        .setCustomId(`ticket:open:${categoryKey}`)
         .setLabel(cat.label)
         .setEmoji(cat.emoji || '🎫')
         .setStyle(ButtonStyle.Primary)
@@ -175,7 +178,9 @@ export async function closeTicket(client, ticketId, guildId, closedBy) {
 }
 
 export async function handleButton(client, interaction, args) {
-  const [action, ticketId, extra] = args.split(':');
+  const [action, ...parts] = args.split(':');
+  const ticketId = parts[0];
+  const extra = parts.slice(1).join(':');
   const lang = await client.i18n.resolveLanguage(client, interaction.user.id, interaction.guildId);
 
   if (action === 'claim') {
@@ -193,8 +198,7 @@ export async function handleButton(client, interaction, args) {
 
   // Handle dynamic buttons from the Web-configured Ticket Panel
   if (action === 'open') {
-    // extra contains cat.id. We can find the category name from panel config, or just use it as the category string.
-    const categoryName = extra || 'Support';
+    const categoryName = parts.join(':') || 'Support';
     
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder().setCustomId(`ticket:setlang:dummy:${categoryName}|ar`).setLabel('🇸🇦 Arabic / عربى').setStyle(ButtonStyle.Primary),
@@ -235,7 +239,8 @@ export async function handleButton(client, interaction, args) {
 
   // Language Selection
   if (action === 'setlang') {
-    const [category, language] = extra.split('|'); // e.g., "Technical|ar"
+    const langPayload = parts.slice(1).join(':');
+    const [category, language] = langPayload.split('|'); // e.g., "Technical|ar"
     await interaction.deferUpdate();
     const result = await createTicket(client, interaction.guild, interaction.user, { category });
     

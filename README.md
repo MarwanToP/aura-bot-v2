@@ -38,6 +38,16 @@ Use two Render services from `render.yaml`:
 
 > `MODE=BOTH` is still supported for local/dev single-process runs.
 
+## ☁️ Cloudflare Migration (Edge Front Door)
+If you are moving website traffic from Railway to Cloudflare, use:
+- `wrangler.toml` (Worker + static assets + dynamic proxy routes)
+- `website/cloudflare-worker.js`
+- Guide: `docs/CLOUDFLARE_MIGRATION.md`
+- Full integration runbook: `docs/CLOUDFLARE_COMPLETE_INTEGRATION.md`
+- Automation scripts:
+  - `npm run cf:zone:setup -- YOUR_DOMAIN https://YOUR_ORIGIN`
+  - `npm run cf:zone:verify -- YOUR_DOMAIN ns1.cloudflare.com,ns2.cloudflare.com`
+
 ### 1) Deploy Bot Worker (Render Worker Service)
 1. In Render, create Blueprint from this repo (`render.yaml`) or create a Docker Worker manually.
 2. Confirm service uses:

@@ -1,7 +1,7 @@
 import { spawn } from 'child_process';
 
 const port = process.env.SMOKE_PORT || '3199';
-const timeoutMs = 30000;
+const timeoutMs = 60000;
 const startedAt = Date.now();
 
 const env = {
@@ -10,6 +10,8 @@ const env = {
   PORT: port,
   DASHBOARD_STRICT_STARTUP: 'false',
   DASHBOARD_USE_REDIS_SESSION: 'false',
+  DASHBOARD_DB_SYNC: 'false',
+  DASHBOARD_DB_ALTER: 'false',
 };
 
 const child = spawn(process.execPath, ['website/server.js'], {

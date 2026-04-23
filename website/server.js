@@ -115,9 +115,7 @@ const ioCorsOrigin = (origin, callback) => {
       callback(new Error('Not allowed by CORS'));
     }
   } else {
-    // Permissive in production if not specifically restricted, but prioritize security
-    // For now, let's allow it to fix the dashboard and advise user to set DASHBOARD_CORS_ORIGIN
-    callback(null, true);
+    callback(new Error('Not allowed by CORS'));
   }
 };
 

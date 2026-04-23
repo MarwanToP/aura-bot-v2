@@ -10,6 +10,7 @@ import { loadCommands } from './handlers/commandHandler.js';
 import { loadEvents   } from './handlers/eventHandler.js';
 import i18n             from '../shared/utils/i18n.js';
 import aiService        from '../shared/systems/ai/aiService.js';
+import { initializeTicketPanel } from '../shared/systems/tickets/ticketSystem.js';
 
 // ── 1. Create the Client ──────────────────────────────────────
 const client = new Client({
@@ -79,6 +80,10 @@ async function boot() {
     await loadEvents(client);
     logger.info('[Boot] Events loaded ✓');
 
+    logger.info('[Boot] Starting realtime sync subscriptions...');
+    await setupRealtimeSync(client);
+    logger.info('[Boot] Realtime sync ready ✓');
+
     logger.info('[Boot] Logging in...');
     await client.login(process.env.DISCORD_TOKEN);
   } catch (err) {
@@ -87,11 +92,61 @@ async function boot() {
   }
 }
 
+async function setupRealtimeSync(client) {
+  const subscriber = client.redis.duplicate();
+  client.realtimeSubscriber = subscriber;
+
+  subscriber.on('error', (err) => {
+    logger.warn(`[RealtimeSync] Subscriber error: ${err.message}`);
+  });
+
+  await subscriber.subscribe('aura:config_update', 'aura:ticket_panel_update');
+
+  subscriber.on('message', async (channel, rawMessage) => {
+    try {
+      const payload = JSON.parse(rawMessage || '{}');
+
+      if (channel === 'aura:config_update') {
+        const guildId = String(payload?.guildId || '').trim();
+        if (!guildId) return;
+
+        const safeGuildId = encodeURIComponent(guildId);
+        await client.redis.del(
+          `settings:restrictions:${safeGuildId}`,
+          `settings:aliases:${safeGuildId}`,
+          `guild:premium:${guildId}`
+        );
+
+        logger.info(`[RealtimeSync] Config cache invalidated for guild ${guildId}`);
+        return;
+      }
+
+      if (channel === 'aura:ticket_panel_update') {
+        const guildId = String(payload?.guildId || '').trim();
+        const panelId = String(payload?.panelId || '').trim();
+        if (!panelId) return;
+
+        await initializeTicketPanel(client, panelId, guildId || null);
+        logger.info(`[RealtimeSync] Ticket panel refreshed (${guildId || 'unknown guild'} / ${panelId})`);
+      }
+    } catch (err) {
+      logger.warn(`[RealtimeSync] Failed to process ${channel}: ${err.message}`);
+    }
+  });
+}
+
 async function shutdown(signal) {
   logger.info(`[Shutdown] ${signal} received — graceful shutdown...`);
   client.destroy();
+  try {
+    await client.realtimeSubscriber?.quit();
+  } catch {}
   await database.close();
-  redis.disconnect();
+  try {
+    await redis.quit();
+  } catch {
+    redis.disconnect();
+  }
   process.exit(0);
 }
 
