@@ -1,0 +1,76 @@
+services:
+  aura-bot:
+    build: .
+    container_name: aura-bot-oracle
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      - MODE=BOT
+      - DATABASE_URL=postgresql://${DB_USER:-aura}:${DB_PASSWORD:?DB_PASSWORD required}@postgres:5432/${DB_NAME:-aura_bot}
+      - REDIS_URL=redis://redis:6379/${REDIS_DB:-0}
+      - REDIS_TLS=false
+    volumes:
+      - ./logs:/app/logs
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis:    { condition: service_healthy }
+    networks: [aura]
+
+  aura-dashboard:
+    build: .
+    container_name: aura-dashboard-oracle
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      - MODE=DASHBOARD
+      - PORT=3000
+      - DATABASE_URL=postgresql://${DB_USER:-aura}:${DB_PASSWORD:?DB_PASSWORD required}@postgres:5432/${DB_NAME:-aura_bot}
+      - REDIS_URL=redis://redis:6379/${REDIS_DB:-0}
+      - REDIS_TLS=false
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./logs:/app/logs
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis:    { condition: service_healthy }
+    networks: [aura]
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: aura-postgres-oracle
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB:       ${DB_NAME:-aura_bot}
+      POSTGRES_USER:     ${DB_USER:-aura}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD required}
+    volumes:
+      - postgres-data-oracle:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-aura}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks: [aura]
+
+  redis:
+    image: redis:7-alpine
+    container_name: aura-redis-oracle
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis-data-oracle:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks: [aura]
+
+volumes:
+  postgres-data-oracle:
+  redis-data-oracle:
+
+networks:
+  aura:
+    driver: bridge

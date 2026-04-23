@@ -1,0 +1,99 @@
+{
+  "common": {
+    "success":"Success","error":"Error","warning":"Warning","loading":"Processing...",
+    "confirm":"Confirm","cancel":"Cancel","yes":"Yes","no":"No","close":"Close",
+    "noPermission":"You don't have permission to use this command.",
+    "botNoPermission":"I don't have the required permissions.",
+    "onCooldown":"You're on cooldown. Wait **{{time}}** before using this again.",
+    "guildOnly":"This command can only be used in a server.",
+    "premiumRequired":"⭐ This feature requires **Aura Premium**.",
+    "invalidUser":"Couldn't find that user.",
+    "selfAction":"You can't do that to yourself.",
+    "higherRole":"That member has an equal or higher role.",
+    "botHigherRole":"My role is too low to do that.",
+    "footer":"Aura Bot v2.0 • {{time}}"
+  },
+  "moderation": {
+    "ban":     { "success":"**{{user}}** has been banned.", "dm":"You were **banned** from **{{guild}}**.\n**Reason:** {{reason}}", "noReason":"No reason provided", "alreadyBanned":"That user is already banned." },
+    "kick":    { "success":"**{{user}}** has been kicked.", "dm":"You were **kicked** from **{{guild}}**.\n**Reason:** {{reason}}" },
+    "timeout": { "success":"**{{user}}** timed out for **{{duration}}**.", "removed":"**{{user}}'s** timeout removed.", "dm":"You were **timed out** in **{{guild}}** for **{{duration}}**.\n**Reason:** {{reason}}" },
+    "warn":    { "success":"**{{user}}** warned. (Warning #{{count}})", "dm":"You received a **warning** in **{{guild}}**.\n**Reason:** {{reason}}\n**Total:** {{count}}", "escalate":"⚠️ Threshold reached — auto action: **{{action}}**" },
+    "clear":   { "success":"Deleted **{{count}}** messages.", "noneFound":"No messages matching filters." },
+    "history": { "title":"Mod History — {{user}}", "empty":"No moderation history." }
+  },
+  "leveling": {
+    "levelUp":"🎉 Congratulations {{user}}! You reached **Level {{level}}**!",
+    "rankTitle":"Rank — {{user}}",
+    "leaderboardTitle":"🏆 Leaderboard — {{guild}}",
+    "noData":"No XP data yet."
+  },
+  "bank": {
+    "title": "🏛️ Neural Bank — {{user}}",
+    "insufficient":"❌ Insufficient funds in your neural account.",
+    "dailyClaimed":"💰 Successfully synchronized. Claimed **{{amount}}** Aura Points!",
+    "transferred":"✅ Transferred **{{amount}}** points to <@{{user}}>.",
+    "profile": {
+      "title": "📇 Identity Matrix",
+      "balance": "Balance: {{amount}} AP",
+      "bank": "Vault: {{amount}} AP",
+      "reputation": "Reputation: {{amount}} REP"
+    },
+    "loan": {
+      "approved": "✅ Neural credit approved. **{{amount}}** AP added to your account.",
+      "denied": "❌ Credit request denied. Low reputation or pending debt."
+    }
+  },
+  "games": {
+    "blackjack": {
+      "title": "🃏 Neural Blackjack",
+      "dealer": "Dealer's Hand",
+      "player": "Your Hand",
+      "stand": "You stand.",
+      "hit": "You hit.",
+      "win": "🎉 You win **{{amount}}** AP!",
+      "lose": "💀 You lost. Better luck next time.",
+      "draw": "⚖️ Push. No winner."
+    },
+    "slots": {
+      "title": "🎰 Neural Slots",
+      "result": "Result: {{emojis}}",
+      "win": "🎉 Jackpot! You won **{{amount}}** AP!",
+      "lose": "❌ No match."
+    }
+  },
+  "professional": {
+    "duty": {
+      "on": "🟢 You are now **ON DUTY**. Staff logs will track your activity.",
+      "off": "🔴 You are now **OFF DUTY**. Summary: **{{time}}** of active monitoring.",
+      "alreadyOn": "⚠️ You are already on duty.",
+      "alreadyOff": "⚠️ You are not on duty."
+    },
+    "audit": {
+      "title": "🛡️ Professional Server Audit",
+      "processing": "Analyzing server health and security...",
+      "result": "Server Audit Score: **{{score}}%**\n\n{{details}}"
+    }
+  },
+  "fun": {
+    "meme": { "title": "🎭 Neural Meme", "generating": "Synthesizing meme from the cloud..." },
+    "joke": { "title": "🤣 Randomized Neural Humor", "generating": "Accessing humor database..." }
+  },
+  "tickets": {
+    "created":"✅ Ticket created: {{channel}}",
+    "closed":"Ticket **{{id}}** closed.",
+    "claimed":"Ticket claimed by **{{user}}**.",
+    "alreadyOpen":"You have **{{count}}** open tickets. Please close them first.",
+    "notTicket":"This command only works inside a ticket channel.",
+    "survey":"How would you rate your support experience?",
+    "categories": { "technical":"Technical Support","billing":"Billing","report":"Report","partnership":"Partnership","other":"Other" }
+  },
+  "security": {
+    "antiNuke": { "triggered":"🛡️ **Anti-Nuke!**\n**By:** {{user}}\n**Action:** {{action}}", "enabled":"Anti-Nuke **enabled**.", "disabled":"Anti-Nuke **disabled**." },
+    "raidDetected":"🚨 **RAID** — {{count}} joins in {{window}}s. Lockdown active.",
+    "lockdown": { "activated":"🔒 Lockdown by {{user}}. **Reason:** {{reason}}", "lifted":"🔓 Lockdown lifted by {{user}}." }
+  },
+  "welcome": { "defaultMessage":"Welcome to **{{guild}}**, {{user}}! 🎉 You are member **#{{count}}**.", "farewell":"**{{user}}** left the server." },
+  "settings": { "updated":"✅ **{{key}}** updated.", "language": { "changed":"Language set to **English**." } },
+  "ai": { "limitReached":"⚠️ Daily AI limit ({{limit}}) reached. Resets at midnight.", "notConfigured":"❌ AI is not configured." },
+  "birthday": { "happy":"🎂 Happy Birthday, **{{user}}**! 🎉{{age}}" }
+}

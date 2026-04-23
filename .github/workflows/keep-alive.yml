@@ -1,0 +1,22 @@
+name: 💓 Always-Online Pulse
+
+on:
+  schedule:
+    - cron: '*/10 * * * *' # Every 10 minutes
+  workflow_dispatch:      # Allow manual trigger
+
+jobs:
+  ping:
+    name: Keep Aura Awake
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Dashboard
+        run: |
+          curl -s -o /dev/null -w "%{http_code}" https://aura-unified-core.onrender.com/api/health
+          echo "Pulse sent to Unified Core"
+
+      - name: Ping Bot (if separate)
+        run: |
+          # Render workers don't always have a public URL, 
+          # but we ping the dashboard which should trigger internal bot heartbeats.
+          echo "Internal heartbeat managed by Dashboard"

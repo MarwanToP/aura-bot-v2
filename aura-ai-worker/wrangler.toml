@@ -1,0 +1,12 @@
+name = "aura-ai-worker"
+main = "src/index.js"
+compatibility_date = "2026-04-22"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+DEFAULT_MODEL = "@cf/meta/llama-3.1-8b-instruct"
+GATEWAY_ID = ""
+MAX_TOKENS = "1000"
+
+[ai]
+binding = "AI"

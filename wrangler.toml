@@ -1,0 +1,16 @@
+name = "aura-dashboard-edge"
+main = "website/cloudflare-worker.js"
+compatibility_date = "2026-04-22"
+compatibility_flags = ["nodejs_compat"]
+
+[assets]
+directory = "./website/public"
+binding = "ASSETS"
+run_worker_first = ["/api/*", "/auth/*", "/socket.io/*"]
+
+[vars]
+# Required: upstream origin that runs your existing Node dashboard server.
+# Example: "https://aura-dashboard.railway.app"
+BACKEND_ORIGIN = ""
+NODE_ENV = "production"
+DASHBOARD_STRICT_STARTUP = "true"

@@ -1,0 +1,11 @@
+node_modules
+npm-debug.log
+logs
+Dockerfile
+.dockerignore
+.git
+.gitignore
+.env
+render.yaml
+railway.json
+docker-compose.yml
