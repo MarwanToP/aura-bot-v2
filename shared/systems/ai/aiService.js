@@ -1,6 +1,6 @@
 // ================================================================
 //  AURA BOT v2.0 — AI Service (Multi-Provider)
-//  Providers: Google Gemini + Cloudflare Workers AI (+ OpenAI image)
+//  Providers: Google Gemini + Cloudflare Workers AI + OpenAI + Anthropic (Claude)
 // ================================================================
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import OpenAI from 'openai';
@@ -50,8 +50,20 @@ class AIService {
       logger.warn('[AI] AI_PROVIDER=cloudflare but CLOUDFLARE_ACCOUNT_ID/CLOUDFLARE_API_TOKEN are missing.');
     }
 
+    if (this._hasOpenAI()) {
+      logger.info('[AI] OpenAI provider available ✓');
+    } else if ((process.env.AI_PROVIDER || '').toLowerCase() === 'openai') {
+      logger.warn('[AI] AI_PROVIDER=openai but OPENAI_API_KEY is missing.');
+    }
+
+    if (this._hasAnthropic()) {
+      logger.info('[AI] Anthropic (Claude) provider available ✓');
+    } else if ((process.env.AI_PROVIDER || '').toLowerCase() === 'anthropic') {
+      logger.warn('[AI] AI_PROVIDER=anthropic but ANTHROPIC_API_KEY is missing.');
+    }
+
     if (!this._hasAnyChatProvider()) {
-      logger.warn('[AI] No chat provider configured. Set GEMINI_API_KEY or Cloudflare credentials.');
+      logger.warn('[AI] No chat provider configured. Set GEMINI_API_KEY, OPENAI_API_KEY, ANTHROPIC_API_KEY, or Cloudflare credentials.');
       this.enabled = false;
     }
   }
@@ -69,7 +81,7 @@ class AIService {
     const provider       = this._resolveChatProvider(modelName);
 
     if (!provider) {
-      throw new Error('No AI chat provider available. Configure GEMINI_API_KEY or Cloudflare credentials.');
+      throw new Error('No AI chat provider available. Configure GEMINI_API_KEY, OPENAI_API_KEY, ANTHROPIC_API_KEY, or Cloudflare credentials.');
     }
 
     if (provider === 'cloudflare') {
@@ -81,6 +93,24 @@ class AIService {
         messages,
         system: sysInstruction,
         model: cloudflareModel,
+        maxTokens,
+      });
+    }
+
+    if (provider === 'openai') {
+      return this._chatOpenAI({
+        messages,
+        system: sysInstruction,
+        model: modelName,
+        maxTokens,
+      });
+    }
+
+    if (provider === 'anthropic') {
+      return this._chatAnthropic({
+        messages,
+        system: sysInstruction,
+        model: modelName,
         maxTokens,
       });
     }
@@ -232,6 +262,115 @@ class AIService {
     }
   }
 
+  async _chatOpenAI({ messages, system, model, maxTokens = 1000 }) {
+    const ai = this._getOpenAI();
+    if (!ai) {
+      throw new Error('OpenAI is not configured. Missing OPENAI_API_KEY.');
+    }
+
+    const modelName = model || process.env.AI_CHAT_MODEL || 'gpt-4o-mini';
+
+    const normalized = [];
+    if (typeof system === 'string' && system.trim()) {
+      normalized.push({ role: 'system', content: system.trim() });
+    }
+
+    for (const message of messages || []) {
+      const content = String(message?.content || '').trim();
+      if (!content) continue;
+
+      const role = message?.role === 'assistant' || message?.role === 'system'
+        ? message.role
+        : 'user';
+
+      normalized.push({ role, content });
+    }
+
+    if (normalized.length === 0) {
+      throw new Error('No valid messages provided.');
+    }
+
+    try {
+      const response = await ai.chat.completions.create({
+        model: modelName,
+        messages: normalized,
+        max_tokens: Math.min(Number(maxTokens) || 1000, 4096),
+      });
+
+      const content = String(response?.choices?.[0]?.message?.content || '').trim();
+      if (!content) {
+        throw new Error('OpenAI returned no text response.');
+      }
+
+      return { content, provider: 'openai' };
+    } catch (err) {
+      logger.error(`[AI] OpenAI chat call failed: ${err.message}`);
+      throw err;
+    }
+  }
+
+  async _chatAnthropic({ messages, system, model, maxTokens = 1000 }) {
+    const apiKey = String(process.env.ANTHROPIC_API_KEY || '').trim();
+    if (!apiKey) {
+      throw new Error('Anthropic is not configured. Missing ANTHROPIC_API_KEY.');
+    }
+
+    const modelName = model || process.env.AI_CHAT_MODEL || 'claude-3-5-sonnet-latest';
+    const max = Math.min(Number(maxTokens) || 1000, 4096);
+
+    const normalized = [];
+    for (const message of messages || []) {
+      const content = String(message?.content || '').trim();
+      if (!content) continue;
+
+      const role = message?.role === 'assistant' ? 'assistant' : 'user';
+      normalized.push({ role, content });
+    }
+
+    if (normalized.length === 0) {
+      throw new Error('No valid messages provided.');
+    }
+
+    try {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: modelName,
+          max_tokens: max,
+          system: typeof system === 'string' && system.trim() ? system.trim() : undefined,
+          messages: normalized,
+        }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const msg = data?.error?.message || data?.message || `Anthropic HTTP ${res.status}`;
+        throw new Error(msg);
+      }
+
+      const blocks = Array.isArray(data?.content) ? data.content : [];
+      const content = blocks
+        .filter((b) => b?.type === 'text' && typeof b?.text === 'string')
+        .map((b) => b.text)
+        .join(' ')
+        .trim();
+
+      if (!content) {
+        throw new Error('Anthropic returned no text response.');
+      }
+
+      return { content, provider: 'anthropic' };
+    } catch (err) {
+      logger.error(`[AI] Anthropic chat call failed: ${err.message}`);
+      throw err;
+    }
+  }
+
   /**
    * Reliable JSON parsing from AI responses
    */
@@ -254,28 +393,83 @@ class AIService {
     return !!(this.cloudflare.accountId && this.cloudflare.apiToken);
   }
 
+  _hasOpenAI() {
+    return !!String(process.env.OPENAI_API_KEY || '').trim();
+  }
+
+  _hasAnthropic() {
+    return !!String(process.env.ANTHROPIC_API_KEY || '').trim();
+  }
+
   _hasAnyChatProvider() {
-    return this._hasGemini() || this._hasCloudflare();
+    return this._hasGemini() || this._hasCloudflare() || this._hasOpenAI() || this._hasAnthropic();
   }
 
   _resolveChatProvider(modelName = '') {
-    const provider = String(process.env.AI_PROVIDER || 'gemini').toLowerCase();
+    const provider = String(process.env.AI_PROVIDER || '').toLowerCase();
     const model = String(modelName || '');
+    const lowerModel = model.toLowerCase();
 
     if (model.startsWith('@cf/')) {
       if (this._hasCloudflare()) return 'cloudflare';
+      // model forces Cloudflare, but fall back to anything available
       if (this._hasGemini()) return 'gemini';
+      if (this._hasOpenAI()) return 'openai';
+      if (this._hasAnthropic()) return 'anthropic';
       return null;
     }
 
     if (provider === 'cloudflare') {
       if (this._hasCloudflare()) return 'cloudflare';
       if (this._hasGemini()) return 'gemini';
+      if (this._hasOpenAI()) return 'openai';
+      if (this._hasAnthropic()) return 'anthropic';
       return null;
     }
 
+    if (provider === 'gemini') {
+      if (this._hasGemini()) return 'gemini';
+      if (this._hasCloudflare()) return 'cloudflare';
+      if (this._hasOpenAI()) return 'openai';
+      if (this._hasAnthropic()) return 'anthropic';
+      return null;
+    }
+
+    if (provider === 'openai') {
+      if (this._hasOpenAI()) return 'openai';
+      if (this._hasGemini()) return 'gemini';
+      if (this._hasAnthropic()) return 'anthropic';
+      if (this._hasCloudflare()) return 'cloudflare';
+      return null;
+    }
+
+    if (provider === 'anthropic') {
+      if (this._hasAnthropic()) return 'anthropic';
+      if (this._hasGemini()) return 'gemini';
+      if (this._hasOpenAI()) return 'openai';
+      if (this._hasCloudflare()) return 'cloudflare';
+      return null;
+    }
+
+    if (provider === 'both') {
+      if (lowerModel.startsWith('claude') && this._hasAnthropic()) return 'anthropic';
+      if ((lowerModel.startsWith('gpt') || lowerModel.startsWith('o')) && this._hasOpenAI()) return 'openai';
+      if (this._hasAnthropic()) return 'anthropic';
+      if (this._hasOpenAI()) return 'openai';
+      if (this._hasGemini()) return 'gemini';
+      if (this._hasCloudflare()) return 'cloudflare';
+      return null;
+    }
+
+    // auto-detect based on model hints, then fall back
+    if (lowerModel.startsWith('claude') && this._hasAnthropic()) return 'anthropic';
+    if ((lowerModel.startsWith('gpt') || lowerModel.startsWith('o')) && this._hasOpenAI()) return 'openai';
+    if (lowerModel.startsWith('gemini') && this._hasGemini()) return 'gemini';
+
     if (this._hasGemini()) return 'gemini';
     if (this._hasCloudflare()) return 'cloudflare';
+    if (this._hasOpenAI()) return 'openai';
+    if (this._hasAnthropic()) return 'anthropic';
     return null;
   }
 
