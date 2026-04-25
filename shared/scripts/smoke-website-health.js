@@ -12,6 +12,9 @@ const env = {
   DASHBOARD_USE_REDIS_SESSION: 'false',
   DASHBOARD_DB_SYNC: 'false',
   DASHBOARD_DB_ALTER: 'false',
+  SESSION_SECRET: 'mock_session_secret',
+  DISCORD_CLIENT_ID: '123456789012345678',
+  DISCORD_CLIENT_SECRET: 'mock_client_secret',
 };
 
 const child = spawn(process.execPath, ['website/server.js'], {
