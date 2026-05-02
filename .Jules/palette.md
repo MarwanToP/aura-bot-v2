@@ -1,0 +1,3 @@
+## 2024-05-02 - Icon-Only Button Accessibility Pattern
+**Learning:** Found that the dashboard's macOS-style header and dashboard control buttons relied solely on Lucide icons (`<i data-lucide="...">`) without any text labels or ARIA descriptions, rendering them completely opaque to screen readers. They also lacked visible focus states for keyboard navigation.
+**Action:** Applied `aria-label` properties (e.g., "Search", "Notifications", "Settings", "Logout") and tailwind `focus-visible` utility classes (`focus-visible:ring-2 focus-visible:ring-indigo-500 rounded outline-none`) to ensure accessibility compliance without breaking the visual layout.
