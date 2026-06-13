@@ -345,9 +345,9 @@
             </div>
 
             <div class="flex items-center gap-4">
-                <button class="text-zinc-500 hover:text-white transition-colors"><i data-lucide="search" class="w-4 h-4"></i></button>
-                <button class="text-zinc-500 hover:text-white transition-colors"><i data-lucide="bell" class="w-4 h-4"></i></button>
-                <button class="text-zinc-500 hover:text-white transition-colors"><i data-lucide="settings" class="w-4 h-4"></i></button>
+                <button aria-label="Search" class="text-zinc-500 hover:text-white transition-colors focus-visible:ring-2 focus-visible:ring-indigo-500 rounded outline-none"><i data-lucide="search" class="w-4 h-4"></i></button>
+                <button aria-label="Notifications" class="text-zinc-500 hover:text-white transition-colors focus-visible:ring-2 focus-visible:ring-indigo-500 rounded outline-none"><i data-lucide="bell" class="w-4 h-4"></i></button>
+                <button aria-label="Settings" class="text-zinc-500 hover:text-white transition-colors focus-visible:ring-2 focus-visible:ring-indigo-500 rounded outline-none"><i data-lucide="settings" class="w-4 h-4"></i></button>
             </div>
         </header>
         <!-- Sidebar -->
@@ -426,7 +426,7 @@
             </nav>
 
             <div class="p-4 border-t border-white/5">
-                <button id="toggleSidebar" class="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-zinc-500 hover:text-white hover:bg-white/5 transition-all">
+                <button id="toggleSidebar" class="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-zinc-500 hover:text-white hover:bg-white/5 transition-all focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none">
                     <i data-lucide="chevron-left" id="collapseIcon" class="w-5 h-5"></i>
                     <span class="text-sm font-medium sidebar-text">Collapse Sidebar</span>
                 </button>
@@ -459,7 +459,7 @@
                             <img id="userAvatarImg" src="https://cdn.discordapp.com/embed/avatars/0.png" class="w-10 h-10 rounded-xl border border-white/20">
                             <div class="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-black"></div>
                         </div>
-                        <button id="logoutBtn2" title="Logout" class="text-zinc-500 hover:text-red-400 transition-colors">
+                        <button id="logoutBtn2" aria-label="Logout" title="Logout" class="text-zinc-500 hover:text-red-400 transition-colors focus-visible:ring-2 focus-visible:ring-indigo-500 rounded outline-none">
                             <i data-lucide="log-out" class="w-5 h-5"></i>
                         </button>
                     </div>
@@ -527,11 +527,11 @@
                 <div class="glass-card rounded-3xl p-6 border border-white/5">
                     <h3 class="text-sm font-bold text-zinc-500 uppercase tracking-widest mb-4">Button Builder</h3>
                     <div class="flex items-center gap-2 mb-4">
-                        <button class="w-8 h-8 rounded-xl bg-[#8c55ff]/20 border border-[#8c55ff]/30 flex items-center justify-center text-[#8c55ff]"><i data-lucide="palette" class="w-4 h-4"></i></button>
-                        <button class="w-8 h-8 rounded-xl bg-gray-500/20 border border-gray-500/30 flex items-center justify-center text-gray-500"><i data-lucide="palette" class="w-4 h-4"></i></button>
-                        <button class="w-8 h-8 rounded-xl bg-green-500/20 border border-green-500/30 flex items-center justify-center text-green-500"><i data-lucide="palette" class="w-4 h-4"></i></button>
-                        <button class="w-8 h-8 rounded-xl bg-red-500/20 border border-red-500/30 flex items-center justify-center text-red-500"><i data-lucide="palette" class="w-4 h-4"></i></button>
-                        <input type="text" placeholder="Button text..." class="flex-1 bg-white/5 border border-white/10 rounded-xl py-2.5 px-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all">
+                        <button aria-label="Purple theme" class="w-8 h-8 rounded-xl bg-[#8c55ff]/20 border border-[#8c55ff]/30 flex items-center justify-center text-[#8c55ff] focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"><i data-lucide="palette" class="w-4 h-4"></i></button>
+                        <button aria-label="Gray theme" class="w-8 h-8 rounded-xl bg-gray-500/20 border border-gray-500/30 flex items-center justify-center text-gray-500 focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"><i data-lucide="palette" class="w-4 h-4"></i></button>
+                        <button aria-label="Green theme" class="w-8 h-8 rounded-xl bg-green-500/20 border border-green-500/30 flex items-center justify-center text-green-500 focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"><i data-lucide="palette" class="w-4 h-4"></i></button>
+                        <button aria-label="Red theme" class="w-8 h-8 rounded-xl bg-red-500/20 border border-red-500/30 flex items-center justify-center text-red-500 focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"><i data-lucide="palette" class="w-4 h-4"></i></button>
+                        <input type="text" placeholder="Button text..." aria-label="Button text" class="flex-1 bg-white/5 border border-white/10 rounded-xl py-2.5 px-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all">
                     </div>
                 </div>
 
@@ -588,13 +588,13 @@
                             </div>
                         </div>
                         <div class="p-4 border-t border-white/5 flex gap-2">
-                            <button class="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-colors"><i data-lucide="plus" class="w-4 h-4"></i></button>
-                            <button class="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-colors"><i data-lucide="image" class="w-4 h-4"></i></button>
-                            <button class="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-colors"><i data-lucide="video" class="w-4 h-4"></i></button>
-                            <button class="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-colors"><i data-lucide="smile" class="w-4 h-4"></i></button>
-                            <button class="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-colors"><i data-lucide="chevron-up" class="w-4 h-4"></i></button>
+                            <button aria-label="Add attachment" class="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-colors focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"><i data-lucide="plus" class="w-4 h-4"></i></button>
+                            <button aria-label="Add image" class="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-colors focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"><i data-lucide="image" class="w-4 h-4"></i></button>
+                            <button aria-label="Add video" class="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-colors focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"><i data-lucide="video" class="w-4 h-4"></i></button>
+                            <button aria-label="Add emoji" class="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-colors focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"><i data-lucide="smile" class="w-4 h-4"></i></button>
+                            <button aria-label="More options" class="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-colors focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"><i data-lucide="chevron-up" class="w-4 h-4"></i></button>
                             <div class="flex-1"></div>
-                            <button class="px-4 py-2 rounded-xl bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 text-sm font-bold hover:bg-indigo-500/20 transition-colors">Send</button>
+                            <button class="px-4 py-2 rounded-xl bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 text-sm font-bold hover:bg-indigo-500/20 transition-colors focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none">Send</button>
                         </div>
                     </div>
                 </div>
