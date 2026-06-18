@@ -1,6 +1,7 @@
 import customization from '../../shared/systems/customization/customizationSystem.js';
 import logger        from '../../shared/utils/logger.js';
 import { trackActivity } from '../../shared/systems/staff/staffSystem.js';
+import { awardMessageXp } from '../../shared/systems/leveling/levelingSystem.js';
 
 export const mentionCache = new Map();
 
@@ -13,14 +14,18 @@ export default {
     // Track Staff Activity (Messages)
     await trackActivity(client, message.guildId, message.author.id, 'message');
 
+    // Fetch GuildSettings once for the entire message execution
+    const { GuildSettings } = client.db.models;
+    const settings = await GuildSettings.findOne({ where: { guildId: message.guild.id } });
+
     // ─── Neural Custom Handlers ──────────────────────────────
-    await handlePrefixCommands(client, message);
+    await handlePrefixCommands(client, message, settings);
 
     // Run parallel tasks
     await Promise.allSettled([
       awardMessageXp(client, message),
-      handleAutoMod(client, message),
-      handleAIChatChannel(client, message),
+      handleAutoMod(client, message, settings),
+      handleAIChatChannel(client, message, settings),
       handleAutoResponder(client, message),
     ]);
   },
@@ -29,10 +34,8 @@ export default {
 /**
  * Prefix Command Handler — Supports Dynamic Aliases and Restrictions.
  */
-async function handlePrefixCommands(client, message) {
+async function handlePrefixCommands(client, message, settings) {
   try {
-    const { GuildSettings } = client.db.models;
-    const settings = await GuildSettings.findOne({ where: { guildId: message.guildId } });
     const prefix = settings?.prefix || '!';
 
     if (!message.content.startsWith(prefix)) return;
@@ -58,16 +61,14 @@ async function handlePrefixCommands(client, message) {
 }
 
 // ─── AI Auto-Mod ──────────────────────────────────────────────
-async function handleAutoMod(client, message) {
+async function handleAutoMod(client, message, settings) {
   try {
     if (!client.ai.isAvailable()) return;
 
-    const { GuildSettings } = client.db.models;
     const cacheKey  = `settings:aimod:${message.guild.id}`;
     let aiModEnabled = await client.redis.get(cacheKey);
 
     if (aiModEnabled === null) {
-      const settings = await GuildSettings.findOne({ where: { guildId: message.guild.id } });
       aiModEnabled   = settings?.aiModEnabled ? '1' : '0';
       await client.redis.setex(cacheKey, 300, aiModEnabled);
     }
@@ -96,7 +97,6 @@ async function handleAutoMod(client, message) {
       }).then(m => setTimeout(() => m.delete().catch(() => {}), 10000));
 
       // Log to mod channel
-      const settings = await GuildSettings.findOne({ where: { guildId: message.guild.id } });
       if (settings?.modLogChannelId) {
         const logChannel = await client.channels.fetch(settings.modLogChannelId).catch(() => null);
         if (logChannel) {
@@ -122,15 +122,12 @@ async function handleAutoMod(client, message) {
 }
 
 // ─── AI Chat Channel ──────────────────────────────────────────
-async function handleAIChatChannel(client, message) {
+async function handleAIChatChannel(client, message, settings) {
   let inAiChannel = false;
   let isMentioned = false;
 
   try {
     if (!client.ai.isAvailable()) return;
-
-    const { GuildSettings } = client.db.models;
-    const settings = await GuildSettings.findOne({ where: { guildId: message.guild.id } });
 
     // Only respond in designated AI chat channel OR when mentioned
     inAiChannel = settings?.aiChatChannelId === message.channel.id;
