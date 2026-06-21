@@ -65,4 +65,6 @@ async function resolveLanguage(client, userId, guildId) {
 
 function isRTL(locale) { return ['ar', 'he', 'fa', 'ur'].includes(locale); }
 
+// Exporting loadLocale for testing purposes
+export const _test_loadLocale = loadLocale;
 export default { init, t, getGuildLanguage, getUserLanguage, resolveLanguage, isRTL, raw: i18next };
