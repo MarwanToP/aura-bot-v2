@@ -345,9 +345,9 @@
             </div>
 
             <div class="flex items-center gap-4">
-                <button class="text-zinc-500 hover:text-white transition-colors"><i data-lucide="search" class="w-4 h-4"></i></button>
-                <button class="text-zinc-500 hover:text-white transition-colors"><i data-lucide="bell" class="w-4 h-4"></i></button>
-                <button class="text-zinc-500 hover:text-white transition-colors"><i data-lucide="settings" class="w-4 h-4"></i></button>
+                <button aria-label="Search" class="text-zinc-500 hover:text-white transition-colors focus-visible:ring-2 focus-visible:ring-indigo-500 rounded outline-none"><i data-lucide="search" class="w-4 h-4"></i></button>
+                <button aria-label="Notifications" class="text-zinc-500 hover:text-white transition-colors focus-visible:ring-2 focus-visible:ring-indigo-500 rounded outline-none"><i data-lucide="bell" class="w-4 h-4"></i></button>
+                <button aria-label="Settings" class="text-zinc-500 hover:text-white transition-colors focus-visible:ring-2 focus-visible:ring-indigo-500 rounded outline-none"><i data-lucide="settings" class="w-4 h-4"></i></button>
             </div>
         </header>
         <!-- Sidebar -->
@@ -604,7 +604,7 @@
             <div id="contentArea" class="p-8 space-y-8 overflow-y-auto flex-1">
                 <div id="statusPopup" class="hidden mb-4 p-4 glass-card rounded-2xl border-indigo-500/30 flex items-center justify-between">
                     <span class="text-sm font-medium text-indigo-200" id="statusMessage">Updating server configuration...</span>
-                    <button class="text-zinc-500 hover:text-white" onclick="this.parentElement.classList.add('hidden')"><i data-lucide="x" class="w-4 h-4"></i></button>
+                    <button aria-label="Close" class="text-zinc-500 hover:text-white focus-visible:ring-2 focus-visible:ring-indigo-500 rounded outline-none" onclick="this.parentElement.classList.add('hidden')"><i data-lucide="x" class="w-4 h-4"></i></button>
                 </div>
 
                 <!-- Overview Section -->
@@ -944,7 +944,7 @@
                                     <p class="text-zinc-500 text-xs">Configuration Panel</p>
                                 </div>
                             </div>
-                            <button onclick="document.getElementById('guildConfigPanel').classList.add('hidden')" class="text-zinc-500 hover:text-white"><i data-lucide="x" class="w-6 h-6"></i></button>
+                            <button aria-label="Close" onclick="document.getElementById('guildConfigPanel').classList.add('hidden')" class="text-zinc-500 hover:text-white focus-visible:ring-2 focus-visible:ring-indigo-500 rounded outline-none"><i data-lucide="x" class="w-6 h-6"></i></button>
                         </div>
 
                         <div id="guildSelectWrapper" class="mb-4 hidden">
