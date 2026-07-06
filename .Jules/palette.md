@@ -1,0 +1,3 @@
+## 2024-07-06 - Icon-only Button Accessibility
+**Learning:** In the Aura Bot dashboard (which uses glassmorphic UI and Lucide icons), many interactive elements like header buttons contain only icons without text. These fail to provide context for screen readers and lack clear keyboard navigation focus indicators.
+**Action:** Ensure all icon-only `<button>` elements have explicit `aria-label` attributes describing their function, and include explicit keyboard focus utility classes such as `focus-visible:ring-2 focus-visible:ring-indigo-500 rounded outline-none` to guarantee accessibility without breaking the glassmorphic aesthetic.
