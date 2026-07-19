@@ -2,7 +2,7 @@
 //  AURA BOT v2.0 — Giveaway System (Premium)
 // ================================================================
 
-import crypto from 'crypto';
+import crypto from 'node:crypto';
 import {
   SlashCommandBuilder, PermissionFlagsBits,
   ActionRowBuilder, ButtonBuilder, ButtonStyle,
