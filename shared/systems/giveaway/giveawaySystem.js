@@ -2,6 +2,7 @@
 //  AURA BOT v2.0 — Giveaway System (Premium)
 // ================================================================
 
+import crypto from 'node:crypto';
 import {
   SlashCommandBuilder, PermissionFlagsBits,
   ActionRowBuilder, ButtonBuilder, ButtonStyle,
@@ -87,7 +88,11 @@ export async function endGiveaway(client, giveawayId) {
     }
 
     // Pick winners
-    const shuffled = [...entries].sort(() => Math.random() - 0.5);
+    const shuffled = [...entries];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = crypto.randomInt(i + 1);
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
     const winners  = shuffled.slice(0, giveaway.winnerCount);
     const winnerMentions = winners.map(w => `<@${w.userId}>`).join(', ');
 
@@ -199,7 +204,12 @@ export const giveaway = {
       const entries = await GiveawayEntry.findAll({ where: { giveawayId: giveaway.id } });
       if (!entries.length) return interaction.editReply({ embeds: [buildEmbed({ type: 'error', description: '❌ Cannot reroll: no entries in this giveaway.' })] });
       
-      const shuffled = [...entries].sort(() => Math.random() - 0.5);
+      const shuffled = [...entries];
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = crypto.randomInt(i + 1);
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
+
       const newWinners = shuffled.slice(0, count);
       const winnerMentions = newWinners.map(w => `<@${w.userId}>`).join(', ');
       
