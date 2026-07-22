@@ -1,0 +1,109 @@
+# ================================================================
+#  AURA BOT v2.0 — Koyeb Service Manifest
+#  Free-tier all-in-one (Bot + Dashboard in one process, BOTH mode)
+#  Repo: https://github.com/MarwanToP/aura-bot-v2
+#
+#  Secrets (set in Koyeb dashboard OR via `koyeb secrets create`):
+#    DISCORD_TOKEN, DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET,
+#    DATABASE_URL, REDIS_URL, GEMINI_API_KEY, CLOUDFLARE_API_TOKEN,
+#    CLOUDFLARE_ACCOUNT_ID, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID,
+#    SESSION_SECRET, JWT_SECRET
+#
+#  Public URL after deploy: https://<service-name>-<account>.koyeb.app
+#  Update DASHBOARD_URL / DISCORD_CALLBACK_URL after first deploy.
+# ================================================================
+name: aura-bot
+type: web
+docker:
+  dockerfile: Dockerfile
+regions:
+  - fra   # Frankfurt — closest to EU/MENA users
+instance_type: free   # 512 MB. Upgrade to "small" for 24/7 stability.
+health_checks:
+  - port: 3000
+    path: /api/health
+    initial_delay: 30
+    period: 30
+    timeout: 5
+    failure_threshold: 3
+ports:
+  - port: 3000
+    protocol: http
+env:
+  # ── Runtime mode ─────────────────────────────────────────────
+  - key: MODE
+    value: BOTH
+  - key: NODE_ENV
+    value: production
+  - key: LOG_LEVEL
+    value: info
+  - key: SHARD_COUNT
+    value: "1"
+  - key: PORT
+    value: "3000"
+
+  # ── Dashboard hardening (set after first deploy) ────────────
+  - key: TRUST_PROXY
+    value: "true"
+  - key: DASHBOARD_ENABLED
+    value: "true"
+  - key: DASHBOARD_COOKIE_SECURE
+    value: "true"
+  - key: DASHBOARD_STRICT_STARTUP
+    value: "true"
+
+  # ── Public URL (UPDATE after first deploy to the Koyeb URL) ─
+  - key: DASHBOARD_URL
+    value: "https://aura-bot-marwantop.koyeb.app"
+  - key: DISCORD_CALLBACK_URL
+    value: "https://aura-bot-marwantop.koyeb.app/auth/discord/callback"
+  - key: DASHBOARD_CORS_ORIGIN
+    value: "https://aura-bot-marwantop.koyeb.app"
+
+  # ── Database / Cache ─────────────────────────────────────────
+  - key: REDIS_TLS
+    value: "true"
+
+  # ── AI defaults (Cloudflare Workers AI, free tier) ───────────
+  - key: AI_PROVIDER
+    value: cloudflare
+  - key: AI_CHAT_MODEL
+    value: "@cf/meta/llama-3.2-3b-instruct"
+  - key: AI_MOD_MODEL
+    value: "@cf/meta/llama-3.2-3b-instruct"
+  - key: AI_ENABLED
+    value: "true"
+  - key: CLOUDFLARE_AI_MODEL
+    value: "@cf/meta/llama-3.2-3b-instruct"
+
+  # ── Bot config ───────────────────────────────────────────────
+  - key: DEFAULT_LANGUAGE
+    value: en
+  - key: BOT_PREFIX
+    value: "!"
+
+  # ── Secrets (set as Koyeb secrets, referenced via ?{...}) ──
+  - key: DISCORD_TOKEN
+    value: '?{aura.DISCORD_TOKEN}'
+  - key: DISCORD_CLIENT_ID
+    value: '?{aura.DISCORD_CLIENT_ID}'
+  - key: DISCORD_CLIENT_SECRET
+    value: '?{aura.DISCORD_CLIENT_SECRET}'
+  - key: DATABASE_URL
+    value: '?{aura.DATABASE_URL}'
+  - key: REDIS_URL
+    value: '?{aura.REDIS_URL}'
+  - key: GEMINI_API_KEY
+    value: '?{aura.GEMINI_API_KEY}'
+  - key: CLOUDFLARE_ACCOUNT_ID
+    value: '?{aura.CLOUDFLARE_ACCOUNT_ID}'
+  - key: CLOUDFLARE_API_TOKEN
+    value: '?{aura.CLOUDFLARE_API_TOKEN}'
+  - key: TELEGRAM_BOT_TOKEN
+    value: '?{aura.TELEGRAM_BOT_TOKEN}'
+  - key: TELEGRAM_CHAT_ID
+    value: '?{aura.TELEGRAM_CHAT_ID}'
+  - key: SESSION_SECRET
+    value: '?{aura.SESSION_SECRET}'
+  - key: JWT_SECRET
+    value: '?{aura.JWT_SECRET}'

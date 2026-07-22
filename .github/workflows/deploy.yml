@@ -1,9 +1,9 @@
-name: 🚀 Deploy to Railway / Render
+name: 🚀 Deploy (Render / Koyeb / Railway / Cloudflare)
 
 on:
   push:
     branches: [main]
-  workflow_dispatch:       # Allow manual deploys from GitHub Actions tab
+  workflow_dispatch:
 
 jobs:
   # ── 1. Lint & Basic Check ──────────────────────────────────────
@@ -25,7 +25,7 @@ jobs:
       - name: Check syntax (project JS)
         run: npm run lint:syntax
 
-  # ── 2. Build & Push Docker Image to GHCR (used by Railway/Render) ─
+  # ── 2. Build & Push Docker Image to GHCR (used by Render) ─────
   docker:
     name: 🐳 Build & Push Docker Image
     runs-on: ubuntu-latest
@@ -53,12 +53,50 @@ jobs:
             ghcr.io/${{ github.repository_owner }}/aura-bot-v2:latest
             ghcr.io/${{ github.repository_owner }}/aura-bot-v2:${{ github.sha }}
 
-  # ── 3. Trigger Railway Redeploy ────────────────────────────────
+  # ── 3. Trigger Render Redeploy ────────────────────────────────
+  deploy-render:
+    name: 🎨 Trigger Render Deploy
+    runs-on: ubuntu-latest
+    needs: docker
+    if: vars.DEPLOY_TARGET == 'render' || vars.DEPLOY_TARGET == ''
+    steps:
+      - name: Trigger Render deploy hook
+        if: secrets.RENDER_DEPLOY_HOOK != ''
+        run: |
+          curl -s "${{ secrets.RENDER_DEPLOY_HOOK }}" || echo "Render hook not configured"
+      - name: Notify if hook missing
+        if: secrets.RENDER_DEPLOY_HOOK == ''
+        run: echo "ℹ️  No RENDER_DEPLOY_HOOK secret set. Render is auto-deployed when the GitHub repo is connected in the Render dashboard."
+
+  # ── 4. Trigger Koyeb Redeploy ─────────────────────────────────
+  deploy-koyeb:
+    name: 🪶 Trigger Koyeb Redeploy
+    runs-on: ubuntu-latest
+    needs: validate
+    if: vars.DEPLOY_TARGET == 'koyeb'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Trigger Koyeb redeploy via API
+        if: secrets.KOYEB_API_TOKEN != '' && vars.KOYEB_SERVICE_ID != ''
+        run: |
+          curl -fsS -X POST "https://api.koyeb.com/v1/services/${{ vars.KOYEB_SERVICE_ID }}/redeploy" \
+            -H "Authorization: Bearer ${{ secrets.KOYEB_API_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{}'
+        env:
+          KOYEB_API_TOKEN: ${{ secrets.KOYEB_API_TOKEN }}
+
+      - name: Notify if Koyeb creds missing
+        if: secrets.KOYEB_API_TOKEN == '' || vars.KOYEB_SERVICE_ID == ''
+        run: echo "ℹ️  Set KOYEB_API_TOKEN secret + KOYEB_SERVICE_ID var to enable Koyeb webhook redeploy. Otherwise Koyeb auto-deploys when GitHub is connected in the dashboard."
+
+  # ── 5. Trigger Railway Redeploy ────────────────────────────────
   deploy-railway:
     name: 🚂 Trigger Railway Deploy
     runs-on: ubuntu-latest
     needs: docker
-    if: vars.DEPLOY_TARGET == 'railway' || vars.DEPLOY_TARGET == ''
+    if: vars.DEPLOY_TARGET == 'railway'
     steps:
       - name: Trigger Railway deploy webhook
         if: secrets.RAILWAY_WEBHOOK_URL != ''
@@ -67,19 +105,7 @@ jobs:
             -H "Content-Type: application/json" \
             -d '{"ref":"main"}' || echo "Railway webhook not configured — deploy via git push"
 
-  # ── 4. Trigger Render Redeploy ─────────────────────────────────
-  deploy-render:
-    name: 🎨 Trigger Render Deploy
-    runs-on: ubuntu-latest
-    needs: docker
-    if: vars.DEPLOY_TARGET == 'render'
-    steps:
-      - name: Trigger Render deploy hook
-        if: secrets.RENDER_DEPLOY_HOOK != ''
-        run: |
-          curl -s "${{ secrets.RENDER_DEPLOY_HOOK }}" || echo "Render hook not configured"
-
-  # ── 5. Deploy to Cloudflare Edge ──────────────────────────────
+  # ── 6. Deploy to Cloudflare Edge ──────────────────────────────
   deploy-cloudflare:
     name: ☁️ Deploy to Cloudflare
     runs-on: ubuntu-latest
