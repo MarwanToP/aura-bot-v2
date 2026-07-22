@@ -46,22 +46,25 @@ export const aura = {
         });
       }
 
-      await interaction.reply({ embeds: [buildEmbed({ 
-        type: 'premium', 
-        title: '🎙️ Aura Voice Assistant',
-        description: 'I have joined the voice channel and am now listening!\n\n**Wake Word:** Say "Aura..." followed by your command.\n**Examples:**\n• "Aura, check my balance"\n• "Aura, open a ticket"',
-        footer: 'Privacy Note: Audio is processed for commands and deleted immediately.'
-      })] });
+      await interaction.deferReply().catch(() => {});
 
-      // Start the AI listening system
+      // Start the AI listening system FIRST (this is the slow part)
       try {
         await startListening(client, interaction.member, channel);
       } catch (err) {
-        await interaction.followUp({
+        return interaction.editReply({
           embeds: [buildEmbed({ type: 'error', description: '❌ Failed to start voice listening. Please verify voice permissions and try again.' })],
-          ephemeral: true
         }).catch(() => {});
       }
+
+      return interaction.editReply({
+        embeds: [buildEmbed({
+          type: 'premium',
+          title: '🎙️ Aura Voice Assistant',
+          description: 'I have joined the voice channel and am now listening!\n\n**Wake Word:** Say "Aura..." followed by your command.\n**Examples:**\n• "Aura, check my balance"\n• "Aura, open a ticket"',
+          footer: 'Privacy Note: Audio is processed for commands and deleted immediately.'
+        })],
+      });
     }
 
     if (sub === 'leave') {

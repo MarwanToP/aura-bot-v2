@@ -32,9 +32,12 @@ State-of-the-Art Discord Intelligence and Management Platform.
 - `shared/` — Common database models, AI service, and monitoring.
 
 ## ☁️ Render Deployment (24/7 Split Services)
-Use two Render services from `render.yaml`:
-- **Worker**: `aura-bot-worker` (`MODE=BOT`)
-- **Web**: `aura-dashboard-web` (`MODE=DASHBOARD`)
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy)
+
+Use two Render services automatically provisioned from `render.yaml`:
+- **Worker**: `aura-bot-worker` (`MODE=BOT` — 24/7 online bot)
+- **Web**: `aura-dashboard-web` (`MODE=DASHBOARD` — web dashboard)
 
 > `MODE=BOTH` is still supported for local/dev single-process runs.
 
@@ -42,14 +45,14 @@ Use two Render services from `render.yaml`:
 If you are moving website traffic from Railway to Cloudflare, use:
 - `wrangler.toml` (Worker + static assets + dynamic proxy routes)
 - `website/cloudflare-worker.js`
-- Guide: `docs/CLOUDFLARE_MIGRATION.md`
-- Full integration runbook: `docs/CLOUDFLARE_COMPLETE_INTEGRATION.md`
+- Guide: `docs/cloudflare/CLOUDFLARE_MIGRATION.md`
+- Full integration runbook: `docs/cloudflare/CLOUDFLARE_COMPLETE_INTEGRATION.md`
 - Automation scripts:
   - `npm run cf:zone:setup -- YOUR_DOMAIN https://YOUR_ORIGIN`
   - `npm run cf:zone:verify -- YOUR_DOMAIN ns1.cloudflare.com,ns2.cloudflare.com`
 
 ### 1) Deploy Bot Worker (Render Worker Service)
-1. In Render, create Blueprint from this repo (`render.yaml`) or create a Docker Worker manually.
+1. In Render, create Blueprint from this repo (`deploy/configs/render.yaml`) or create a Docker Worker manually.
 2. Confirm service uses:
    - `type: worker`
    - `dockerfilePath: ./Dockerfile`

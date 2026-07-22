@@ -14,7 +14,9 @@ export const deliver = {
   async execute(client, interaction) {
     const target = interaction.options.getUser('user');
     const item = interaction.options.getString('item');
-    
+
+    await interaction.deferReply({ ephemeral: true }).catch(() => {});
+
     // Attempt DM delivery
     try {
       await target.send({ embeds: [buildEmbed({
@@ -23,10 +25,10 @@ export const deliver = {
         description: `You have received a secure item delivery:\n\n**${item}**`,
         footer: 'Aura Bot Secure Delivery Pipeline'
       })]});
-      
-      await interaction.reply({ embeds: [buildEmbed({ type: 'success', description: `✅ Securely delivered item to ${target.tag} via Direct Message.`})], ephemeral: true });
+
+      return interaction.editReply({ embeds: [buildEmbed({ type: 'success', description: `✅ Securely delivered item to ${target.tag} via Direct Message.`})] });
     } catch (e) {
-      await interaction.reply({ embeds: [buildEmbed({ type: 'error', description: `❌ Could not deliver to ${target.tag}. their DMs might be closed.`})], ephemeral: true });
+      return interaction.editReply({ embeds: [buildEmbed({ type: 'error', description: `❌ Could not deliver to ${target.tag}. their DMs might be closed.`})] });
     }
   }
 };

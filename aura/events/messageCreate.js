@@ -1,6 +1,8 @@
 import customization from '../../shared/systems/customization/customizationSystem.js';
 import logger        from '../../shared/utils/logger.js';
+import { checkCommandPermissions } from '../../shared/utils/permissions.js';
 import { trackActivity } from '../../shared/systems/staff/staffSystem.js';
+import { awardMessageXp } from '../../shared/systems/leveling/levelingSystem.js';
 
 export const mentionCache = new Map();
 
@@ -49,6 +51,21 @@ async function handlePrefixCommands(client, message) {
 
     const command = client.commands.get(commandName);
     if (!command) return;
+
+    // Same permission gate as the slash-command path. Defense-in-depth:
+    // catches any future command that forgets to self-check.
+    const perm = checkCommandPermissions(command, {
+      member: message.member,
+      guild: message.guild,
+      channel: message.channel,
+    });
+    if (!perm.ok) {
+      // Silently drop prefix-command attempts that lack perms. Slash path
+      // returns an ephemeral error; for prefix we don't want to spam the
+      // channel with denial messages, but we do log it for visibility.
+      logger.debug(`[PrefixCmd] Blocked /${commandName} for user ${message.author.id} (${perm.kind})`);
+      return;
+    }
 
     const lang = settings.language || 'en';
     await command.execute(client, message, lang, args);
@@ -209,7 +226,18 @@ async function handleAutoResponder(client, message) {
         } catch {}
       }
 
-      await message.channel.send(response);
+      // Cap mass-mention abuse. Substitute {user} explicitly so the author
+      // is still notified when the responder uses that placeholder.
+      const hasUserPlaceholder = /\{user\}/i.test(response || '');
+      if (hasUserPlaceholder) {
+        response = String(response).replace(/\{user\}/gi, `<@${message.author.id}>`);
+      }
+      await message.channel.send({
+        content: response,
+        allowedMentions: hasUserPlaceholder
+          ? { parse: [], users: [message.author.id] }
+          : { parse: [] },
+      });
       break;
     }
   } catch {}

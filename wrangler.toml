@@ -9,8 +9,8 @@ binding = "ASSETS"
 run_worker_first = ["/api/*", "/auth/*", "/socket.io/*"]
 
 [vars]
-# Required: upstream origin that runs your existing Node dashboard server.
-# Example: "https://aura-dashboard.railway.app"
+# Required: upstream origin that runs your backend server (e.g. Render / VPS URL).
+# Example: "https://aura-dashboard-web.onrender.com"
 BACKEND_ORIGIN = ""
 NODE_ENV = "production"
 DASHBOARD_STRICT_STARTUP = "true"

@@ -26,18 +26,21 @@ export default {
         const sub = interaction.options.getSubcommand();
         const { ApplicationForm } = client.db.models;
 
-        // User submission
+        // User submission — show a modal as the initial response (fast, no DB needed)
         if (sub === 'submit') {
             return showApplicationModal(interaction);
         }
 
         // Admin check for setup/toggle
         if (!interaction.member.permissions.has(PermissionFlagsBits.ManageGuild)) {
-            return interaction.reply({ 
-                embeds: [buildEmbed({ type: 'error', description: '❌ You need `Manage Server` permissions to use this command.' })], 
-                ephemeral: true 
+            return interaction.reply({
+                embeds: [buildEmbed({ type: 'error', description: '❌ You need `Manage Server` permissions to use this command.' })],
+                ephemeral: true
             });
         }
+
+        // Defer for DB writes below
+        await interaction.deferReply().catch(() => {});
 
         if (sub === 'setup') {
             const channel = interaction.options.getChannel('channel');
@@ -50,7 +53,7 @@ export default {
                 enabled: true
             });
 
-            return interaction.reply({ 
+            return interaction.editReply({
                 embeds: [buildEmbed({ type: 'success', title: '⚙️ Application Setup', description: `✅ Staff Application system has been configured!\n\n**Log Channel:** <#${channel.id}>\n**Reward Role:** <@&${role.id}>\n\nUsers can now use \`/apply submit\` to start applying.` })]
             });
         }
@@ -58,10 +61,10 @@ export default {
         if (sub === 'toggle') {
             const enabled = interaction.options.getBoolean('enabled');
             const [form] = await ApplicationForm.findOrCreate({ where: { guildId: interaction.guildId } });
-            
+
             await form.update({ enabled });
 
-            return interaction.reply({ 
+            return interaction.editReply({
                 embeds: [buildEmbed({ type: 'info', description: `✅ Staff Application system is now **${enabled ? 'ENABLED' : 'DISABLED'}**.` })]
             });
         }

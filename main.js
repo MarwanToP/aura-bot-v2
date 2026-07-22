@@ -95,8 +95,8 @@ if (shouldRunBot) {
     logger.info('[HealthCheck] BOT mode running without HTTP listener (valid for worker services).');
   }
 
-  // Handle Sharding based on environment constraints (e.g., Discloud 100MB limit, Render Free 512MB)
-  const isMemoryConstrained = !!process.env.DISCLOUD || !!process.env.ID || !!process.env.RENDER || !!process.env.RAILWAY_ENVIRONMENT;
+  // Handle Sharding based on environment constraints (e.g., Render Free 512MB limit)
+  const isMemoryConstrained = !!process.env.RENDER || !!process.env.KOYEB;
 
   if (isMemoryConstrained) {
     logger.info('[Bot] Memory-Saving Mode: Initializing single instance (No Sharding).');
@@ -175,14 +175,12 @@ const scheduleFatalRestart = async (type, detail) => {
   process.exit(1);
 };
 
-process.on('unhandledRejection', async (reason) => {
-  logger.error('Unhandled Promise Rejection:', reason);
-  const reasonText = formatErrorDetail(reason);
-  await scheduleFatalRestart('Unhandled Rejection', reasonText);
+process.on('unhandledRejection', (reason) => {
+  logger.error('[System] Unhandled Promise Rejection (non-fatal):', reason);
 });
 
 process.on('uncaughtException', async (error) => {
-  logger.error('Uncaught Exception:', error);
+  logger.error('[System] Uncaught Exception:', error);
   const errorText = formatErrorDetail(error);
   await scheduleFatalRestart('Uncaught Exception', errorText);
 });
@@ -201,19 +199,19 @@ const closeHealthCheckServer = async () => {
 const stopShards = async () => {
   if (!shardingManager) return;
 
-  const results = await Promise.allSettled(
-    [...shardingManager.shards.values()].map(async (shard) => {
-      try {
-        shard.kill();
-      } catch (err) {
-        logger.error(`[Shard ${shard.id}] Failed to stop cleanly:`, err);
-        throw err;
-      }
-    }),
-  );
+  const shards = [...shardingManager.shards.values()];
+  const failedIds = [];
+  for (const shard of shards) {
+    try {
+      shard.kill();
+    } catch (err) {
+      logger.error(`[Shard ${shard.id}] Failed to stop cleanly:`, err);
+      failedIds.push(shard.id);
+    }
+  }
 
-  if (results.some((result) => result.status === 'rejected')) {
-    throw new Error('One or more shards failed to stop cleanly.');
+  if (failedIds.length) {
+    throw new Error(`One or more shards failed to stop cleanly: ${failedIds.join(', ')}`);
   }
 };
 

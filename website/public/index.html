@@ -1251,20 +1251,30 @@
             }
         }
 
+        function escapeHtml(value) {
+            return String(value ?? '').replace(/[&<>"']/g, (ch) => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            }[ch]));
+        }
+
         function renderGuilds() {
             const container = document.getElementById('guildListContainer');
             container.innerHTML = '';
-            
+
             state.guilds.forEach(guild => {
                 const card = document.createElement('div');
                 card.className = 'glass-card rounded-3xl p-6 hover:border-indigo-500/50 transition-all cursor-pointer group';
-                const avatar = guild.icon ? `https://cdn.discordapp.com/icons/${guild.guildId}/${guild.icon}.png` : `https://ui-avatars.com/api/?name=${guild.name}&background=6366f1&color=fff`;
-                
+                const safeName = escapeHtml(guild.name);
+                const safeIcon = typeof guild.icon === 'string' ? guild.icon : '';
+                const avatar = safeIcon
+                    ? `https://cdn.discordapp.com/icons/${guild.guildId}/${encodeURIComponent(safeIcon)}.png`
+                    : `https://ui-avatars.com/api/?name=${encodeURIComponent(guild.name || '?')}&background=6366f1&color=fff`;
+
                 card.innerHTML = `
                     <div class="flex items-center gap-4">
                         <img src="${avatar}" class="w-16 h-16 rounded-2xl shadow-xl group-hover:scale-105 transition-transform">
                         <div class="flex-1 overflow-hidden">
-                            <h3 class="text-lg font-bold text-white truncate">${guild.name}</h3>
+                            <h3 class="text-lg font-bold text-white truncate">${safeName}</h3>
                             <p class="text-zinc-500 text-xs mt-1 uppercase font-bold tracking-widest">${guild.permissions === 'ADMIN' ? 'Owner' : 'Manager'}</p>
                         </div>
                         <i data-lucide="chevron-right" class="w-5 h-5 text-zinc-600 group-hover:text-white transition-colors"></i>
@@ -1273,10 +1283,12 @@
                          <div class="flex gap-2">
                              <span class="text-[10px] font-bold text-zinc-500 bg-white/5 px-2 py-1 rounded-md uppercase tracking-widest">${guild.isConfigured ? 'Active' : 'New'}</span>
                          </div>
-                         <button class="bg-indigo-600/10 hover:bg-indigo-600 text-indigo-400 hover:text-white text-[10px] font-bold uppercase tracking-widest px-4 py-2 rounded-lg transition-all" onclick="selectGuild('${guild.guildId}')">Settings</button>
+                         <button class="bg-indigo-600/10 hover:bg-indigo-600 text-indigo-400 hover:text-white text-[10px] font-bold uppercase tracking-widest px-4 py-2 rounded-lg transition-all">Settings</button>
                     </div>
                 `;
                 card.onclick = () => selectGuild(guild.guildId);
+                const button = card.querySelector('button');
+                if (button) button.onclick = (e) => { e.stopPropagation(); selectGuild(guild.guildId); };
                 container.appendChild(card);
             });
             lucide.createIcons();

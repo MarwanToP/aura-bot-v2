@@ -3,49 +3,8 @@
 // ================================================================
 import { SlashCommandBuilder, PermissionFlagsBits } from 'discord.js';
 import { buildEmbed, buildModEmbed } from '../../../shared/utils/embedBuilder.js';
+import { createCase, sendModLog } from '../../../shared/utils/moderation.js';
 import ms from 'ms';
-
-// ─── Case Manager helpers ─────────────────────────────────────
-async function createCase(client, { guildId, userId, moderatorId, type, reason, duration }) {
-  try {
-    const { ModerationCase, GuildCounter, Warning } = client.db.models;
-    const [counter] = await GuildCounter.findOrCreate({ where: { guildId }, defaults: { caseCount: 0 } });
-    await counter.increment('caseCount');
-    const caseId    = counter.caseCount;
-    let expiresAt   = null;
-    if (duration) expiresAt = new Date(Date.now() + Number(duration));
-    const modCase   = await ModerationCase.create({ caseId, guildId, userId, moderatorId, type, reason: reason || 'No reason provided', duration: duration ? Number(duration) : null, expiresAt });
-    if (type === 'warn') await Warning.create({ guildId, userId, moderatorId, reason: reason || 'No reason provided' });
-    
-    // Broadcast to Dashboard via Redis Pub/Sub
-    if (client.redis) {
-      const user = await client.users.fetch(userId).catch(() => ({ tag: userId }));
-      client.redis.publish('aura:modlogs', JSON.stringify({
-        guildId,
-        type,
-        user: user.tag || user.globalName || userId,
-        moderatorId,
-        reason: reason || 'No reason provided',
-        color: type === 'ban' ? '#ff7675' : type === 'warn' ? '#fdcb6e' : '#00cec9'
-      }));
-    }
-
-    return modCase;
-  } catch (err) { 
-    console.error('Error in createCase:', err);
-    return null; 
-  }
-}
-
-async function sendModLog(client, guildId, embed) {
-  try {
-    const { GuildSettings } = client.db.models;
-    const s = await GuildSettings.findOne({ where: { guildId } });
-    if (!s?.modLogChannelId) return;
-    const ch = await client.channels.fetch(s.modLogChannelId).catch(() => null);
-    if (ch?.isTextBased()) await ch.send({ embeds: [embed] });
-  } catch {}
-}
 
 async function getWarnCount(client, guildId, userId) {
   try { return client.db.models.Warning.count({ where: { guildId, userId, active: true } }); } catch { return 0; }

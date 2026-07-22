@@ -6,6 +6,7 @@ import { buildEmbed }      from '../../shared/utils/embedBuilder.js';
 import config              from '../../shared/config/config.js';
 import logger              from '../../shared/utils/logger.js';
 import customization       from '../../shared/systems/customization/customizationSystem.js';
+import { checkCommandPermissions } from '../../shared/utils/permissions.js';
 
 // Local cache for system handlers to avoid expensive dynamic imports
 const handlerRegistry = new Map();
@@ -83,22 +84,17 @@ async function handleSlash(client, interaction) {
     return interaction.reply({ embeds: [buildEmbed({ type: 'error', description: '❌ This command is restricted to servers.' })], ephemeral: true });
   }
 
-  // Permission Checks (Member & Bot)
-  if (command.userPermissions?.length && interaction.member) {
-    const missing = command.userPermissions.filter(p => !interaction.member.permissions.has(p));
-    if (missing.length) {
-      return interaction.reply({ embeds: [buildEmbed({ type: 'error', description: client.i18n.t('common.noPermission', {}, lang) })], ephemeral: true });
-    }
-  }
-  if (command.botPermissions?.length) {
-    const botPerms = interaction.guild?.members?.me?.permissionsIn(interaction.channel);
-    const missingBot = command.botPermissions.filter(p => !botPerms?.has(p));
-    if (missingBot.length) {
-      return interaction.reply({
-        embeds: [buildEmbed({ type: 'error', description: '❌ I am missing required permissions to run this command in this channel.' })],
-        ephemeral: true,
-      }).catch(() => {});
-    }
+  // Permission Checks (Member & Bot) — shared gate, same as prefix path
+  const perm = checkCommandPermissions(command, {
+    member: interaction.member,
+    guild: interaction.guild,
+    channel: interaction.channel,
+  });
+  if (!perm.ok) {
+    const message = perm.kind === 'bot'
+      ? '❌ I am missing required permissions to run this command in this channel.'
+      : client.i18n.t('common.noPermission', {}, lang);
+    return interaction.reply({ embeds: [buildEmbed({ type: 'error', description: message })], ephemeral: true }).catch(() => {});
   }
 
   // Premium Tier Verification (Optimized with Timeout fallback)

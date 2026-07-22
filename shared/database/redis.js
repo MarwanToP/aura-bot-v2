@@ -4,7 +4,7 @@
 import Redis  from 'ioredis';
 import logger from '../utils/logger.js';
 
-// TLS is required for Upstash and Railway Redis — set REDIS_TLS=true in prod
+// TLS is required for cloud Redis providers like Upstash — set REDIS_TLS=true in prod
 const tlsEnabled = process.env.REDIS_TLS === 'true' || (process.env.REDIS_URL && process.env.REDIS_URL.includes('rediss://'));
 
 const redisOptions = {

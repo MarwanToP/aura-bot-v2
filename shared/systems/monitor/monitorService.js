@@ -151,7 +151,7 @@ class MonitorService {
           chat_id: this.telegramChatId,
           text: message,
           parse_mode: 'Markdown',
-        }).catch(err => logger.error('[Monitor] Telegram Alert Failed:', err.response?.data || err.message));
+        }, { timeout: 10000 }).catch(err => logger.error('[Monitor] Telegram Alert Failed:', err.response?.data || err.message));
       }
 
       // 2. Email

@@ -68,6 +68,8 @@ const GuildSettings = sequelize.define('GuildSettings', {
   autoRoleDelay:        { type: DataTypes.INTEGER, defaultValue: 0 },
   birthdayRoleId:       { type: DataTypes.STRING, allowNull: true },
   verificationRoleId:   { type: DataTypes.STRING, allowNull: true },
+  verificationChannelId:{ type: DataTypes.STRING, allowNull: true },
+  verificationMessageId:{ type: DataTypes.STRING, allowNull: true },
 
   // Welcome
   welcomeEnabled:       { type: DataTypes.BOOLEAN, defaultValue: false },
@@ -148,6 +150,12 @@ const GuildSettings = sequelize.define('GuildSettings', {
   commandAliases:       { type: DataTypes.JSONB, defaultValue: {} }, // e.g. { "profile": "p" }
   commandBlacklist:     { type: DataTypes.ARRAY(DataTypes.STRING), defaultValue: [] }, // e.g. ["games"]
   disabledChannels:     { type: DataTypes.ARRAY(DataTypes.STRING), defaultValue: [] }, // e.g. ["#general-id"]
+
+  // Suggestions
+  suggestionsEnabled:   { type: DataTypes.BOOLEAN, defaultValue: false },
+  suggestionsChannelId: { type: DataTypes.STRING, allowNull: true },
+  suggestionUpvotes:    { type: DataTypes.JSONB, defaultValue: {} }, // { "suggestionId": [userIds] }
+  suggestionDownvotes:  { type: DataTypes.JSONB, defaultValue: {} },
 }, { tableName: 'guild_settings', timestamps: true });
 
 // ── 2. User Profile ────────────────────────────────────────────
@@ -492,10 +500,27 @@ const StaffFingerprint = sequelize.define('StaffFingerprint', {
   duration:     { type: DataTypes.INTEGER, allowNull: true }, // Duration in seconds (only for 'off')
   tickets:      { type: DataTypes.INTEGER, defaultValue: 0 },
   messages:     { type: DataTypes.INTEGER, defaultValue: 0 },
-}, { 
-  tableName: 'staff_fingerprints', 
+}, {
+  tableName: 'staff_fingerprints',
   timestamps: false,
   indexes: [{ fields: ['guildId', 'userId'] }]
+});
+
+// ── 28. Suggestion ───────────────────────────────────────────
+const Suggestion = sequelize.define('Suggestion', {
+  id:           { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
+  guildId:      { type: DataTypes.STRING, allowNull: false },
+  userId:       { type: DataTypes.STRING, allowNull: false },
+  content:      { type: DataTypes.TEXT, allowNull: false, validate: { len: [10, 2000] } },
+  status:       { type: DataTypes.ENUM('pending','approved','rejected','implemented'), defaultValue: 'pending' },
+  upvotes:      { type: DataTypes.INTEGER, defaultValue: 0 },
+  downvotes:    { type: DataTypes.INTEGER, defaultValue: 0 },
+  moderatorId:  { type: DataTypes.STRING, allowNull: true },
+  moderatorNote:{ type: DataTypes.TEXT, allowNull: true },
+  messageId:    { type: DataTypes.STRING, allowNull: true },
+}, {
+  tableName: 'suggestions', timestamps: true,
+  indexes: [{ fields: ['guildId', 'status'] }, { fields: ['guildId', 'userId'] }],
 });
 
 // ── Register all models ───────────────────────────────────────
@@ -506,7 +531,7 @@ const models = {
   ReactionRole, StarboardEntry, InviteTrack, GuildCounter,
   Automation, TimedMessage, Achievement, UserAchievement, TempChannel,
   ApplicationForm, TicketPanel, StaffApplication, StaffDuty,
-  StaffFingerprint,
+  StaffFingerprint, Suggestion,
 };
 
 Object.entries(models).forEach(([name, model]) => {

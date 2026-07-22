@@ -88,7 +88,7 @@ export function startBackgroundTasks(client) {
 }
 
 // ─── Stats Channels ───────────────────────────────────────────
-async function updateStatsChannels(client) {
+export async function updateStatsChannels(client) {
   try {
     const { GuildSettings } = client.db.models;
     const guilds = await GuildSettings.findAll({ where: { statsEnabled: true } });

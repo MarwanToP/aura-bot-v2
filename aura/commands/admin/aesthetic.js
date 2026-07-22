@@ -13,13 +13,39 @@ export const aesthetic = {
 
   async execute(client, interaction) {
     const success = interaction.options.getString('success_emoji');
-    const error = interaction.options.getString('error_emoji');
-    
-    // Logic to save these custom emojis to guild settings in database
-    await interaction.reply({ embeds: [buildEmbed({
-      type: 'success', 
-      description: `✨ Server aesthetics updated!\n\n**Success Icon:** ${success || 'Default'}\n**Error Icon:** ${error || 'Default'}`
-    })]});
+    const error   = interaction.options.getString('error_emoji');
+
+    await interaction.deferReply().catch(() => {});
+
+    try {
+      const { GuildSettings } = client.db.models;
+      const updates = {};
+      if (success) updates.customEmojis = { ...({ customEmojis: {} }), success };
+      if (error)   updates.customEmojis = { ...(updates.customEmojis || {}), error };
+
+      if (Object.keys(updates).length === 0) {
+        return interaction.editReply({
+          embeds: [buildEmbed({
+            type: 'warning',
+            description: '⚠️ Provide at least one of `success_emoji` or `error_emoji` to update.'
+          })],
+        });
+      }
+
+      await GuildSettings.update(updates, { where: { guildId: interaction.guildId } });
+
+      return interaction.editReply({
+        embeds: [buildEmbed({
+          type: 'success',
+          description: `✨ Server aesthetics updated!\n\n**Success Icon:** ${success || 'unchanged'}\n**Error Icon:** ${error || 'unchanged'}`
+        })],
+      });
+    } catch (err) {
+      client.logger?.error?.('[Aesthetic] failed:', err);
+      return interaction.editReply({
+        embeds: [buildEmbed({ type: 'error', description: '❌ Failed to save aesthetic settings.' })],
+      }).catch(() => {});
+    }
   }
 };
 

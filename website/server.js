@@ -49,8 +49,11 @@ const normalizeCallbackPath = (value) => {
 };
 const configuredDiscordCallbackPath = normalizeCallbackPath(process.env.DISCORD_CALLBACK_PATH);
 
-if (isProduction && !configuredSessionSecret) {
-  throw new Error('SESSION_SECRET is required in production.');
+if (!configuredSessionSecret) {
+  throw new Error('SESSION_SECRET is required (set it in your .env or deployment env).');
+}
+if (process.env.JWT_SECRET && process.env.JWT_SECRET === configuredSessionSecret) {
+  throw new Error('SESSION_SECRET and JWT_SECRET must be different values.');
 }
 
 const parseOriginList = (value) =>
@@ -93,8 +96,15 @@ const corsOptionsDelegate = (req, callback) => {
   } else {
     // In production with no explicit CORS, we allow the request if it's the same host
     const host = req.get('host');
-    if (requestOrigin.includes(host)) {
-      origin = true;
+    if (requestOrigin) {
+      try {
+        const parsedOrigin = new URL(requestOrigin);
+        if (parsedOrigin.host === host) {
+          origin = true;
+        }
+      } catch {
+        origin = false;
+      }
     }
   }
   
@@ -121,11 +131,19 @@ const ioCorsOrigin = (origin, callback) => {
 
 const io        = new SocketIO(httpServer, { cors: { origin: ioCorsOrigin, credentials: true } });
 
-// Railway and cloud proxies require trust proxy settings to handle cookies correctly.
+// Cloud proxies (Cloudflare, Render, etc.) require trust proxy settings to handle cookies correctly.
 // We force 'trust proxy' in production to ensure 'secure: true' cookies work.
 if (isProduction || trustProxy) {
   app.set('trust proxy', 1);
 }
+
+const getRequestOrigin = (req) => {
+  const host = req.get('host');
+  const protocol = String(req.headers['x-forwarded-proto'] || req.protocol || 'http')
+    .split(',')[0]
+    .trim();
+  return `${protocol}://${host}`;
+};
 
 const buildDiscordCallback = (req) => {
   if (configuredDiscordCallbackUrl) return configuredDiscordCallbackUrl;
@@ -140,23 +158,12 @@ const buildDiscordCallback = (req) => {
   }
 
   // Fallback to current request host
-  const host = req.get('host');
-  const protocol = String(req.headers['x-forwarded-proto'] || req.protocol || 'http')
-    .split(',')[0]
-    .trim();
-  return `${protocol}://${host}${discordCallbackPath}`;
+  return `${getRequestOrigin(req)}${discordCallbackPath}`;
 };
 
 const getDashboardOrigin = (req) => {
-  // We prefer the current request's origin over a hardcoded one to support multiple domains/Railway aliases
-  const host = req.get('host');
-  const protocol = String(req.headers['x-forwarded-proto'] || req.protocol || 'http')
-    .split(',')[0]
-    .trim();
-  const currentOrigin = `${protocol}://${host}`;
-
-  // If hardcoded URL is different, we still allow it, but we MUST allow the current one.
-  return currentOrigin;
+  // We prefer the current request's origin over a hardcoded one to support multiple dynamic domains
+  return getRequestOrigin(req);
 };
 
 const OAUTH_STATE_SESSION_KEY = 'discordOAuthState';
@@ -196,7 +203,24 @@ const getDashboardRedirectUrl = (req, authStatus) => {
 };
 
 // ── Middleware ────────────────────────────────────────────────
-app.use(helmet({ contentSecurityPolicy: false }));
+app.use(helmet({
+  contentSecurityPolicy: {
+    useDefaults: false,
+    directives: {
+      defaultSrc:  ["'self'"],
+      scriptSrc:   ["'self'", "'unsafe-inline'", 'https://cdn.tailwindcss.com', 'https://unpkg.com', 'https://cdn.jsdelivr.net'],
+      styleSrc:    ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+      fontSrc:     ["'self'", 'data:', 'https://fonts.gstatic.com'],
+      imgSrc:      ["'self'", 'data:', 'https://cdn.discordapp.com', 'https://ui-avatars.com'],
+      connectSrc:  ["'self'"],
+      frameAncestors: ["'none'"],
+      objectSrc:   ["'none'"],
+      baseUri:     ["'self'"],
+      formAction:  ["'self'"],
+    },
+  },
+  crossOriginEmbedderPolicy: false,
+}));
 
 // Force HTTPS in production to ensure secure cookies are sent
 if (isProduction) {
@@ -218,12 +242,12 @@ const secureSessionCookie = forceSecureCookie
   ? true
   : (forceInsecureCookie ? false : isProduction);
 const sessionOptions = {
-  secret:            configuredSessionSecret || 'aura-dashboard-secret-change-me',
+  secret:            configuredSessionSecret,
   resave:            false, // Recommended false for Redis to avoid race conditions
   saveUninitialized: false,
   rolling:           false, // Changed to false to prevent frequent cookie churn
   proxy:             true,  // Required when trust proxy is enabled
-  cookie:            { 
+  cookie:            {
     secure: secureSessionCookie,
     maxAge: 7 * 24 * 60 * 60 * 1000,
     sameSite: 'lax',
@@ -407,43 +431,115 @@ const allowedGuildSettingKeys = new Set([
   'staffRoleIds',
 ]);
 
+const booleanFields = new Set([
+  'welcomeEnabled', 'welcomeCard', 'farewellEnabled', 'birthdayEnabled',
+  'levelingEnabled', 'autoModEnabled', 'aiModEnabled', 'ticketEnabled',
+  'antiNukeEnabled', 'antiRaidEnabled', 'verificationEnabled', 'tempVoiceEnabled',
+  'starboardEnabled', 'statsEnabled', 'inviteTrackEnabled', 'aiChatEnabled',
+  'staffSystemEnabled', 'suggestionsEnabled', 'hijriDates'
+]);
+
+const snowflakeFields = new Set([
+  'modLogChannelId', 'auditLogChannelId', 'levelUpChannelId', 'ticketLogChannelId',
+  'birthdayChannelId', 'suggestionsChannelId', 'verificationChannelId',
+  'welcomeChannelId', 'farewellChannelId', 'statsChannelId', 'muteRoleId',
+  'autoRoleId', 'birthdayRoleId', 'verificationRoleId', 'ticketCategoryId',
+  'tempVoiceCreatorId', 'tempVoiceCategoryId', 'statsMemberChannelId',
+  'statsOnlineChannelId', 'statsBotChannelId', 'aiChatChannelId'
+]);
+
+const integerFields = {
+  autoRoleDelay: { min: 0, max: 86400, default: 0 },
+  starboardThreshold: { min: 1, max: 100, default: 3 }
+};
+
+const floatFields = {
+  xpMultiplier: { min: 0.1, max: 10.0, default: 1.0 }
+};
+
+const stringFields = {
+  welcomeMessage: 2000,
+  farewellMessage: 2000,
+  birthdayMessage: 2000,
+  levelUpMessage: 2000,
+  tempVoiceNameTemplate: 100,
+  starboardEmoji: 32,
+  language: 10,
+  prefix: 10,
+  timezone: 40,
+};
+
 const sanitizeGuildUpdates = (payload) => {
   if (!payload || typeof payload !== 'object') return {};
 
   const updates = {};
   for (const [key, value] of Object.entries(payload)) {
-    if (!allowedGuildSettingKeys.has(key) || value === undefined) continue;
+    if (!allowedGuildSettingKeys.has(key) || value === undefined || value === null) continue;
+
+    if (booleanFields.has(key)) {
+      updates[key] = value === true || value === 'true';
+      continue;
+    }
+
+    if (snowflakeFields.has(key)) {
+      updates[key] = normalizeSnowflake(value);
+      continue;
+    }
+
+    if (integerFields[key]) {
+      const parsed = parseInt(value, 10);
+      const bounds = integerFields[key];
+      if (!Number.isNaN(parsed)) {
+        updates[key] = Math.max(bounds.min, Math.min(bounds.max, parsed));
+      }
+      continue;
+    }
+
+    if (floatFields[key]) {
+      const parsed = parseFloat(value);
+      const bounds = floatFields[key];
+      if (!Number.isNaN(parsed)) {
+        updates[key] = Math.max(bounds.min, Math.min(bounds.max, parsed));
+      }
+      continue;
+    }
+
+    if (stringFields[key]) {
+      updates[key] = String(value).slice(0, stringFields[key]);
+      continue;
+    }
+
     updates[key] = value;
   }
 
   if (Array.isArray(updates.ticketSupportRoles)) {
     updates.ticketSupportRoles = updates.ticketSupportRoles
-      .map((roleId) => String(roleId).trim())
+      .map((roleId) => normalizeSnowflake(roleId))
       .filter(Boolean);
   }
   if (Array.isArray(updates.staffRoleIds)) {
     updates.staffRoleIds = updates.staffRoleIds
-      .map((roleId) => String(roleId).trim())
+      .map((roleId) => normalizeSnowflake(roleId))
       .filter(Boolean);
   }
   if (Array.isArray(updates.commandBlacklist)) {
     updates.commandBlacklist = updates.commandBlacklist
-      .map((entry) => String(entry).trim())
-      .filter(Boolean);
+      .map((entry) => String(entry).trim().toLowerCase())
+      .filter((entry) => /^[a-z0-9_-]{1,64}$/.test(entry));
   }
   if (updates.commandAliases && typeof updates.commandAliases === 'object' && !Array.isArray(updates.commandAliases)) {
     const normalizedAliases = {};
     for (const [rawAlias, rawTarget] of Object.entries(updates.commandAliases).slice(0, 200)) {
       const alias = String(rawAlias || '').trim().toLowerCase().replace(/^\/+/, '');
       const target = String(rawTarget || '').trim().toLowerCase().replace(/^\/+/, '');
-      if (!alias || !target) continue;
+      if (!alias || !target || !/^[a-z0-9_-]{1,64}$/.test(alias) || !/^[a-z0-9_-]{1,64}$/.test(target)) continue;
       normalizedAliases[alias] = target;
     }
     updates.commandAliases = normalizedAliases;
   }
   if (Array.isArray(updates.disabledChannels)) {
     updates.disabledChannels = updates.disabledChannels
-      .map((channelId) => String(channelId).trim())
+      .map((channelId) => normalizeSnowflake(channelId))
       .filter(Boolean);
   }
   if (updates.aiModSensitivity && !['low', 'medium', 'high'].includes(updates.aiModSensitivity)) {
@@ -569,12 +665,17 @@ app.get('/auth/logout', (req, res) => {
   });
 });
 
+const developerIds = new Set(
+  String(process.env.DEVELOPER_IDS || '')
+    .split(',')
+    .map((id) => id.trim())
+    .filter((id) => /^\d{17,20}$/.test(id))
+);
+
 app.get('/api/me', (req, res) => {
   if (!req.user) return res.status(401).json({ error: 'Not authenticated' });
-  
-  // Developer Access Check
-  const un = String(req.user.username || '').toLowerCase();
-  const isDeveloper = (un.includes('3dh') || un.includes('lenin') || req.user.id === '942130377823252490');
+
+  const isDeveloper = developerIds.has(String(req.user.id));
   const adminGuilds = getAdminGuilds(req.user);
 
   res.json({
@@ -926,7 +1027,7 @@ io.on('connection', (socket) => {
 // ── Redis ModLog Subscription ────────────────────────────────
 let modSub = null;
 if (process.env.REDIS_URL) {
-  modSub = new Redis(process.env.REDIS_URL, { ...(process.env.REDIS_TLS === 'true' && { tls: { rejectUnauthorized: false } }) });
+  modSub = new Redis(process.env.REDIS_URL);
   modSub.on('error', (err) => logger.warn(`[Dashboard] ModLog Redis subscriber error: ${err.message}`));
   modSub.subscribe('aura:modlogs').catch((err) => logger.warn(`[Dashboard] Failed to subscribe modlogs: ${err.message}`));
   modSub.on('message', (channel, message) => {

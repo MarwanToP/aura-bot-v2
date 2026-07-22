@@ -5,47 +5,7 @@
 // ================================================================
 import { SlashCommandBuilder, PermissionFlagsBits } from 'discord.js';
 import { buildEmbed, buildModEmbed } from '../../../shared/utils/embedBuilder.js';
-
-// ── Shared helpers (mirrors modCommands.js private helpers) ──────
-async function createCase(client, { guildId, userId, moderatorId, type, reason, duration }) {
-  try {
-    const { ModerationCase, GuildCounter } = client.db.models;
-    const [counter] = await GuildCounter.findOrCreate({ where: { guildId }, defaults: { caseCount: 0 } });
-    await counter.increment('caseCount');
-    const caseId   = counter.caseCount;
-    const modCase  = await ModerationCase.create({
-      caseId, guildId, userId, moderatorId,
-      type, reason: reason || 'No reason provided',
-      duration: duration ? Number(duration) : null,
-    });
-
-    // Broadcast to dashboard
-    if (client.redis) {
-      const user = await client.users.fetch(userId).catch(() => ({ tag: userId }));
-      client.redis.publish('aura:modlogs', JSON.stringify({
-        guildId, type,
-        user: user.tag || user.globalName || userId,
-        moderatorId,
-        reason: reason || 'No reason provided',
-        color: type === 'unban' ? '#00FF7F' : '#95A5A6',
-      }));
-    }
-    return modCase;
-  } catch (err) {
-    client.logger?.error('[caseManager] createCase failed:', err);
-    return null;
-  }
-}
-
-async function sendModLog(client, guildId, embed) {
-  try {
-    const { GuildSettings } = client.db.models;
-    const s = await GuildSettings.findOne({ where: { guildId } });
-    if (!s?.modLogChannelId) return;
-    const ch = await client.channels.fetch(s.modLogChannelId).catch(() => null);
-    if (ch?.isTextBased()) await ch.send({ embeds: [embed] });
-  } catch {}
-}
+import { createCase, sendModLog } from '../../../shared/utils/moderation.js';
 
 // ─── /unban ──────────────────────────────────────────────────────
 export const unban = {

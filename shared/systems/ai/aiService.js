@@ -203,6 +203,7 @@ class AIService {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify(payload),
+          signal: AbortSignal.timeout(15000),
         }
       );
 

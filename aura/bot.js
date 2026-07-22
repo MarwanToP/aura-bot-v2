@@ -25,7 +25,7 @@ const client = new Client({
   ],
   partials: [Partials.Channel, Partials.Message, Partials.User, Partials.GuildMember],
   
-  // ── Memory Optimization (Critical for Discloud 100MB) ──
+  // ── Memory Optimization (Saves ~50-100MB RAM) ──
   makeCache: Options.cacheWithLimits({
     MessageManager: 0,      // Total disabled (saves ~50-100MB)
     ThreadManager: 0,

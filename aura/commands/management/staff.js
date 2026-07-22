@@ -23,6 +23,8 @@ export const staffCommand = {
   cooldown: 5000,
 
   async execute(client, interaction) {
+    await interaction.deferReply().catch(() => {});
+
     try {
       const { GuildSettings } = client.db.models;
       const settings = await GuildSettings.findOne({ where: { guildId: interaction.guildId } });
@@ -31,9 +33,8 @@ export const staffCommand = {
       const hasStaffRole = (settings?.staffRoleIds || []).some(id => interaction.member.roles.cache.has(id));
 
       if (!hasPermission && !hasStaffRole) {
-        return interaction.reply({
+        return interaction.editReply({
           embeds: [buildEmbed({ type: 'error', description: '❌ Access Denied: Staff only.' })],
-          ephemeral: true,
         });
       }
 
@@ -41,9 +42,9 @@ export const staffCommand = {
 
       if (sub === 'duty') {
         const result = await staff.toggleDuty(client, interaction.guildId, interaction.user.id);
-        
+
         if (result.status === 'on') {
-          return interaction.reply({
+          return interaction.editReply({
             embeds: [buildEmbed({
               type: 'success',
               title: '✅ Shift Started',
@@ -56,11 +57,11 @@ export const staffCommand = {
 
         const report = result.report || { duration: 0, messages: 0, tickets: 0, voice: 0 };
         await staff.sendStaffReport(client, interaction.guild, interaction.user, report);
-        
+
         const hours   = Math.floor(report.duration / 3600);
         const minutes = Math.floor((report.duration % 3600) / 60);
 
-        return interaction.reply({
+        return interaction.editReply({
           embeds: [buildEmbed({
             type: 'warning',
             title: '🏁 Shift Ended',
@@ -76,9 +77,8 @@ export const staffCommand = {
         const duty = await StaffDuty.findOne({ where: { guildId: interaction.guildId, userId: target.id } });
 
         if (!duty) {
-          return interaction.reply({
+          return interaction.editReply({
             embeds: [buildEmbed({ type: 'warning', description: '❌ No staff data found for this user.' })],
-            ephemeral: true,
           });
         }
 
@@ -89,7 +89,7 @@ export const staffCommand = {
         const totHours = Math.floor(totalSeconds / 3600);
         const totMins  = Math.floor((totalSeconds % 3600) / 60);
 
-        return interaction.reply({
+        return interaction.editReply({
           embeds: [buildEmbed({
             type: 'info',
             title: `📊 Staff Statistics — ${target.tag}`,
@@ -106,9 +106,8 @@ export const staffCommand = {
       }
     } catch (err) {
       client.logger.error('[Staff] command failed:', err);
-      return interaction.reply({
+      return interaction.editReply({
         embeds: [buildEmbed({ type: 'error', description: '❌ Failed to process this staff command.' })],
-        ephemeral: true,
       }).catch(() => {});
     }
   },

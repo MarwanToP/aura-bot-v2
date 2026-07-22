@@ -11,3 +11,11 @@ Thumbs.db
 dist/
 build/
 tmp/
+
+# Local secrets & tool state (never commit)
+.dev.vars
+.wrangler/
+.migration-exports/
+.claude/
+reports/
+
