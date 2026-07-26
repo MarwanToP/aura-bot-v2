@@ -1,0 +1,165 @@
+/* Glassmorphism Card System */
+.aura-card {
+  background: var(--aura-bg-card);
+  backdrop-filter: var(--aura-backdrop-blur);
+  border: 1px solid var(--aura-border);
+  border-radius: 12px;
+  padding: 1.5rem;
+  transition: var(--aura-transition);
+}
+
+.aura-card:hover {
+  border-color: var(--aura-border-glow);
+  box-shadow: var(--aura-shadow-md);
+}
+
+/* Button Variants */
+.aura-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1.2rem;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: var(--aura-transition);
+}
+
+.aura-btn-primary {
+  background: var(--aura-primary);
+  color: #ffffff;
+}
+
+.aura-btn-primary:hover {
+  background: var(--aura-primary-hover);
+  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4);
+}
+
+.aura-btn-secondary {
+  background: var(--aura-bg-glass);
+  border-color: var(--aura-border);
+  color: var(--aura-text-primary);
+}
+
+.aura-btn-secondary:hover {
+  background: var(--aura-bg-hover);
+  border-color: var(--aura-text-muted);
+}
+
+.aura-btn-danger {
+  background: var(--aura-danger);
+  color: #ffffff;
+}
+
+.aura-btn-danger:hover {
+  background: #dc2626;
+}
+
+.aura-btn-sm {
+  padding: 0.35rem 0.75rem;
+  font-size: 0.8rem;
+}
+
+/* Badge Component */
+.aura-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.aura-badge-online, .aura-badge-success {
+  background: var(--aura-success-bg);
+  color: var(--aura-success);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.aura-badge-warning, .aura-badge-idle {
+  background: var(--aura-warning-bg);
+  color: var(--aura-warning);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.aura-badge-danger, .aura-badge-offline, .aura-badge-dnd, .aura-badge-error {
+  background: var(--aura-danger-bg);
+  color: var(--aura-danger);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.aura-badge-info, .aura-badge-maintenance {
+  background: var(--aura-info-bg);
+  color: var(--aura-info);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+/* Input Fields */
+.aura-input {
+  width: 100%;
+  padding: 0.65rem 1rem;
+  background: var(--aura-bg-surface);
+  border: 1px solid var(--aura-border);
+  border-radius: 8px;
+  color: var(--aura-text-primary);
+  transition: var(--aura-transition);
+}
+
+.aura-input:focus {
+  border-color: var(--aura-primary);
+  box-shadow: 0 0 0 3px var(--aura-primary-light);
+}
+
+/* Grid Layout Utilities */
+.aura-grid-4 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1.25rem;
+}
+
+.aura-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  gap: 1.5rem;
+}
+
+/* Modal Overlay */
+.aura-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 1rem;
+}
+
+.aura-modal-content {
+  background: var(--aura-bg-surface);
+  border: 1px solid var(--aura-border);
+  border-radius: 16px;
+  width: 100%;
+  max-width: 540px;
+  padding: 2rem;
+  box-shadow: var(--aura-shadow-lg);
+  animation: modalPop 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes modalPop {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}

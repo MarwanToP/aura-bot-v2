@@ -9,6 +9,7 @@ import config         from '../../../shared/config/config.js';
 
 // ─── Blackjack ────────────────────────────────────────────────
 export const blackjack = {
+  register: false,
   data: new SlashCommandBuilder()
     .setName('blackjack')
     .setDescription('Play a game of Blackjack against Aura AI')
@@ -124,6 +125,7 @@ export const blackjack = {
 
 // ─── Slots ────────────────────────────────────────────────────
 export const slots = {
+  register: false,
   data: new SlashCommandBuilder()
     .setName('slots')
     .setDescription('Spin the Aura Slots')

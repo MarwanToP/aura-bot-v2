@@ -1,72 +1,30 @@
-import { SlashCommandBuilder, PermissionFlagsBits, ChannelType } from 'discord.js';
+// ================================================================
+//  AURA BOT v2.0 — Staff Applications (Appy Inspired)
+// ================================================================
+import { SlashCommandBuilder } from 'discord.js';
 import { buildEmbed } from '../../../shared/utils/embedBuilder.js';
-import { showApplicationModal } from '../../../shared/systems/applications/applicationSystem.js';
 
-export default {
-    data: new SlashCommandBuilder()
-        .setName('apply')
-        .setDescription('Manage or submit staff applications')
-        .addSubcommand(sub => 
-            sub.setName('submit')
-            .setDescription('Submit a staff application for this server')
-        )
-        .addSubcommand(sub =>
-            sub.setName('setup')
-            .setDescription('Setup the application system (Admin Only)')
-            .addChannelOption(opt => opt.setName('channel').setDescription('Channel where applications are sent').addChannelTypes(ChannelType.GuildText).setRequired(true))
-            .addRoleOption(opt => opt.setName('role').setDescription('Role granted automatically upon approval').setRequired(true))
-        )
-        .addSubcommand(sub =>
-            sub.setName('toggle')
-            .setDescription('Toggle the application system (Admin Only)')
-            .addBooleanOption(opt => opt.setName('enabled').setDescription('Enable or disable the system').setRequired(true))
-        ),
+export const applyCommand = {
+  data: new SlashCommandBuilder()
+    .setName('apply')
+    .setDescription('Apply for staff, moderator, or helper positions')
+    .addStringOption(o => o.setName('position').setDescription('Position applying for').setRequired(false)),
 
-    async execute(client, interaction) {
-        const sub = interaction.options.getSubcommand();
-        const { ApplicationForm } = client.db.models;
+  guildOnly: true,
+  cooldown: 10000,
 
-        // User submission — show a modal as the initial response (fast, no DB needed)
-        if (sub === 'submit') {
-            return showApplicationModal(interaction);
-        }
-
-        // Admin check for setup/toggle
-        if (!interaction.member.permissions.has(PermissionFlagsBits.ManageGuild)) {
-            return interaction.reply({
-                embeds: [buildEmbed({ type: 'error', description: '❌ You need `Manage Server` permissions to use this command.' })],
-                ephemeral: true
-            });
-        }
-
-        // Defer for DB writes below
-        await interaction.deferReply().catch(() => {});
-
-        if (sub === 'setup') {
-            const channel = interaction.options.getChannel('channel');
-            const role = interaction.options.getRole('role');
-
-            await ApplicationForm.upsert({
-                guildId: interaction.guildId,
-                logChannelId: channel.id,
-                roleRewardId: role.id,
-                enabled: true
-            });
-
-            return interaction.editReply({
-                embeds: [buildEmbed({ type: 'success', title: '⚙️ Application Setup', description: `✅ Staff Application system has been configured!\n\n**Log Channel:** <#${channel.id}>\n**Reward Role:** <@&${role.id}>\n\nUsers can now use \`/apply submit\` to start applying.` })]
-            });
-        }
-
-        if (sub === 'toggle') {
-            const enabled = interaction.options.getBoolean('enabled');
-            const [form] = await ApplicationForm.findOrCreate({ where: { guildId: interaction.guildId } });
-
-            await form.update({ enabled });
-
-            return interaction.editReply({
-                embeds: [buildEmbed({ type: 'info', description: `✅ Staff Application system is now **${enabled ? 'ENABLED' : 'DISABLED'}**.` })]
-            });
-        }
-    }
+  async execute(client, interaction) {
+    const position = interaction.options.getString('position') || 'Staff Moderator';
+    
+    return interaction.reply({
+      embeds: [buildEmbed({
+        type: 'info',
+        title: `📝 Application Form: ${position}`,
+        description: `Please click the button below or visit the web dashboard to submit your application for **${position}**.`,
+        footer: 'Applications are reviewed by Server Management.',
+      })],
+      ephemeral: true,
+    });
+  },
 };
+export default applyCommand;

@@ -149,6 +149,13 @@ export const serverinfo = {
   cooldown:  8000,
 
   async execute(client, interaction) {
+    if (interaction.guild.ownerId !== interaction.user.id) {
+      return interaction.reply({
+        content: '❌ **Access Denied**: `/serverinfo` is restricted to the Server Owner only.',
+        ephemeral: true,
+      });
+    }
+
     await interaction.deferReply();
 
     const guild = interaction.guild;

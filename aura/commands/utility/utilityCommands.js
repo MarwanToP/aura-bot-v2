@@ -228,26 +228,20 @@ export const help = {
     .setDescription('View all commands')
     .addStringOption(o => o.setName('category').setDescription('Category')
       .addChoices(
-        { name: '🤖 AI',           value: 'ai' },
-        { name: '🛡️ Moderation',  value: 'moderation' },
-        { name: '🏛️ Bank',        value: 'bank' },
-        { name: '🎮 Games',       value: 'games' },
-        { name: '🎨 Fun',         value: 'fun' },
-        { name: '👔 Professional', value: 'professional' },
-        { name: '⚙️ Settings',     value: 'settings' },
+        { name: '🛡️ Moderation',     value: 'moderation' },
+        { name: '🏛️ Economy & Clans', value: 'economy' },
+        { name: '👔 Management',     value: 'management' },
+        { name: '📊 Information',     value: 'utility' },
       )
     ),
   cooldown: 5000,
   async execute(client, interaction) {
     const category = interaction.options.getString('category');
     const cats = {
-      ai:           { emoji: '🤖', title: 'Neural AI Core',     cmds: ['/ask','/imagine','/translate','/summarize','/ai-permissions','/search'] },
-      moderation:   { emoji: '🛡️', title: 'Security Force',      cmds: ['/ban','/unban','/kick','/timeout','/softban','/warn','/note','/case','/role','/slowmode','/history','/clear','/lockdown'] },
-      professional: { emoji: '👔', title: 'Management Console', cmds: ['/staff duty','/staff stats','/ticket panel','/reactionrole','/settings view','/userinfo','/serverinfo','/roleinfo','/invites'] },
-      bank:         { emoji: '🏛️', title: 'Aura Central Bank',   cmds: ['/bank balance','/bank deposit','/bank withdraw','/bank daily','/bank work','/shop'] },
-      games:        { emoji: '🎮', title: 'Entertainment Deck', cmds: ['/blackjack','/slots','/coinflip','/dice'] },
-      fun:          { emoji: '🎨', title: 'Aura Social',        cmds: ['/aura','/rank','/leaderboard','/avatar','/meme','/rep'] },
-      settings:     { emoji: '⚙️', title: 'System Config',       cmds: ['/settings language','/settings welcome','/settings leveling','/settings aimod'] },
+      moderation: { emoji: '🛡️', title: 'Security & Moderation', cmds: ['/ban', '/unban', '/kick', '/timeout', '/warn', '/warnings', '/case', '/clear', '/lock', '/unlock', '/slowmode', '/lockdown'] },
+      economy:    { emoji: '🏛️', title: 'Economy & Clans',    cmds: ['/balance', '/daily', '/pay', '/leaderboard', '/work', '/shop', '/clan', '/rank'] },
+      management: { emoji: '👔', title: 'Management & Staff',  cmds: ['/staff', '/ticket', '/reactionrole', '/apply', '/suggest', '/voice', '/autoresponder', '/verify'] },
+      utility:    { emoji: '📊', title: 'Information & Utility', cmds: ['/aura', '/stats', '/userinfo', '/serverinfo (Owner)', '/roleinfo', '/avatar', '/invites', '/settings'] },
     };
     if (category) {
       const cat = cats[category];
@@ -259,12 +253,13 @@ export const help = {
       }
       return interaction.reply({ embeds: [buildEmbed({ type: 'primary', title: `${cat.emoji} ${cat.title}`, description: cat.cmds.map(c => `\`${c}\``).join(' • '), footer: 'Aura Bot v2.0 • /help for overview' })], ephemeral: true });
     }
-    return interaction.reply({ embeds: [buildEmbed({ type: 'primary', title: '✨ Aura Bot v2.0 — Help', description: 'Enterprise Discord Bot with AI\n\nUse `/help category:` for details.', thumbnail: client.user.displayAvatarURL({ size: 256 }), fields: Object.values(cats).map(c => ({ name: c.emoji+' '+c.title, value: `${c.cmds.length} commands`, inline: true })), footer: `Aura v${config.version} • ${client.guilds.cache.size} servers`, timestamp: true })], ephemeral: true });
+    return interaction.reply({ embeds: [buildEmbed({ type: 'primary', title: '✨ Aura Bot v2.0 — Help', description: 'Enterprise Discord Bot\n\nUse `/help category:` for details.', thumbnail: client.user.displayAvatarURL({ size: 256 }), fields: Object.values(cats).map(c => ({ name: c.emoji+' '+c.title, value: `${c.cmds.length} commands`, inline: true })), footer: `Aura v${config.version} • ${client.guilds.cache.size} servers`, timestamp: true })], ephemeral: true });
   },
 };
 
 // ─── /search ──────────────────────────────────────────────────
 export const search = {
+  register: false,
   data: new SlashCommandBuilder()
     .setName('search')
     .setDescription('Search anything with AI summary')

@@ -12,6 +12,8 @@
     "db:migrate": "node shared/scripts/deployment/migrate.js",
     "render:check": "node shared/scripts/deployment/validate-render.js",
     "dashboard": "node website/server.js",
+    "dashboard:app": "cd website/dashboard && npm run dev",
+    "dashboard:app:build": "cd website/dashboard && npm run build",
     "cf:dev": "wrangler dev",
     "cf:deploy": "wrangler deploy",
     "cf:deploy:ai": "cd aura-ai-worker && wrangler deploy",

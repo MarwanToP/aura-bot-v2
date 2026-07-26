@@ -1,0 +1,63 @@
+:root {
+  /* Font Family Tokens */
+  --aura-font-body: 'Inter', system-ui, -apple-system, sans-serif;
+  --aura-font-display: 'Outfit', sans-serif;
+  --aura-font-code: 'JetBrains Mono', monospace;
+
+  /* Color Palette - Dark Theme Default */
+  --aura-bg-base: #0b0f19;
+  --aura-bg-surface: #111827;
+  --aura-bg-card: rgba(17, 24, 39, 0.75);
+  --aura-bg-glass: rgba(30, 41, 59, 0.45);
+  --aura-bg-hover: rgba(255, 255, 255, 0.05);
+
+  --aura-border: rgba(255, 255, 255, 0.1);
+  --aura-border-glow: rgba(99, 102, 241, 0.35);
+
+  --aura-text-primary: #f9fafb;
+  --aura-text-secondary: #9ca3af;
+  --aura-text-muted: #6b7280;
+
+  /* Dynamic Accent Token */
+  --aura-primary: #6366f1;
+  --aura-primary-hover: #4f46e5;
+  --aura-primary-light: rgba(99, 102, 241, 0.15);
+
+  /* Status Colors */
+  --aura-success: #10b981;
+  --aura-success-bg: rgba(16, 185, 129, 0.15);
+  --aura-warning: #f59e0b;
+  --aura-warning-bg: rgba(245, 158, 11, 0.15);
+  --aura-danger: #ef4444;
+  --aura-danger-bg: rgba(239, 68, 68, 0.15);
+  --aura-info: #3b82f6;
+  --aura-info-bg: rgba(59, 130, 246, 0.15);
+
+  /* Shadows & Glassmorphism */
+  --aura-shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.3);
+  --aura-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --aura-shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.5);
+  --aura-backdrop-blur: blur(12px);
+
+  /* Transitions */
+  --aura-transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+[data-theme='light'] {
+  --aura-bg-base: #f3f4f6;
+  --aura-bg-surface: #ffffff;
+  --aura-bg-card: rgba(255, 255, 255, 0.85);
+  --aura-bg-glass: rgba(243, 244, 246, 0.6);
+  --aura-bg-hover: rgba(0, 0, 0, 0.04);
+
+  --aura-border: rgba(0, 0, 0, 0.1);
+  --aura-border-glow: rgba(99, 102, 241, 0.25);
+
+  --aura-text-primary: #111827;
+  --aura-text-secondary: #4b5563;
+  --aura-text-muted: #9ca3af;
+
+  --aura-shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.05);
+  --aura-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --aura-shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.12);
+}

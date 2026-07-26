@@ -32,6 +32,7 @@ export const avatar = {
 
 // ─── /meme ─────────────────────────────────────────────────────
 export const meme = {
+  register: false,
   data: new SlashCommandBuilder()
     .setName('meme')
     .setDescription('Generate a random meme from AI neural core'),

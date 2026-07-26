@@ -1,3 +1,13 @@
+---
+title: Aura Bot v2.0
+emoji: 💠
+colorFrom: indigo
+colorTo: pink
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
 # 💠 Aura Bot v2.0 — Neural Intelligence Platform
 
 State-of-the-Art Discord Intelligence and Management Platform.

@@ -480,3 +480,92 @@ input::placeholder { color: #c6cdf1b8; }
   input, select { font-size: 16px; }
   .chips { gap: 8px; }
 }
+
+/* --- Multi-Bot Feature Badges & Controls --- */
+.badge-free {
+  background: rgba(50, 200, 109, 0.15);
+  color: #32c86d;
+  border: 1px solid rgba(50, 200, 109, 0.3);
+  font-size: 9px;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.badge-premium {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.25), rgba(236, 72, 153, 0.25));
+  color: #fbbf24;
+  border: 1px solid rgba(251, 191, 36, 0.4);
+  font-size: 9px;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.2);
+}
+
+.tier-card {
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.01));
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  padding: 24px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.tier-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(126, 111, 245, 0.4);
+  box-shadow: 0 12px 30px -10px rgba(126, 111, 245, 0.3);
+}
+
+.tier-card.featured {
+  background: linear-gradient(145deg, rgba(126, 111, 245, 0.15), rgba(236, 72, 153, 0.15));
+  border: 2px solid rgba(126, 111, 245, 0.6);
+  box-shadow: 0 0 30px rgba(126, 111, 245, 0.25);
+}
+
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: rgba(255, 255, 255, 0.2);
+  transition: .3s;
+  border-radius: 24px;
+}
+
+.toggle-slider:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: .3s;
+  border-radius: 50%;
+}
+
+input:checked + .toggle-slider {
+  background-color: #7e6ff5;
+}
+
+input:checked + .toggle-slider:before {
+  transform: translateX(20px);
+}
+

@@ -73,6 +73,7 @@ export const ask = {
 
 // ── /chat — Persistent AI conversation ─────────────────────
 export const chat = {
+  register: false,
   data: new SlashCommandBuilder()
     .setName('chat')
     .setDescription('Have a conversation with the AI (remembers context)')
@@ -154,6 +155,7 @@ export const chat = {
 
 // ── /imagine — AI Image Generation ─────────────────────────
 export const imagine = {
+  register: false,
   data: new SlashCommandBuilder()
     .setName('imagine')
     .setDescription('Generate an image with AI (DALL-E 3)')
@@ -220,6 +222,7 @@ export const imagine = {
 
 // ── /translate — AI Translation ─────────────────────────────
 export const translate = {
+  register: false,
   data: new SlashCommandBuilder()
     .setName('translate')
     .setDescription('Translate text between languages using AI')
@@ -277,6 +280,7 @@ export const translate = {
 
 // ── /summarize — AI Text Summarizer ─────────────────────────
 export const summarize = {
+  register: false,
   data: new SlashCommandBuilder()
     .setName('summarize')
     .setDescription('Summarize long text with AI')
@@ -315,6 +319,7 @@ export const summarize = {
 
 // ── /aimod — AI Moderation Analysis (Staff only) ───────────
 export const aimod = {
+  register: false,
   data: new SlashCommandBuilder()
     .setName('aimod')
     .setDescription('[Staff] Analyze a message with AI moderation')
@@ -375,6 +380,7 @@ export const aimod = {
 
 // ── /ai-permissions — AI Role Audit ────────────────────────
 export const aiPermissions = {
+  register: false,
   data: new SlashCommandBuilder()
     .setName('ai-permissions')
     .setDescription('[Professional] AI role permission analysis & suggestion')
