@@ -164,11 +164,11 @@
 
             <!-- Header Action Icons -->
             <div class="flex items-center gap-4 text-zinc-400 text-sm">
-                <button onclick="toggleView()" class="hover:text-white transition-colors" title="Toggle Landing / Dashboard"><i data-lucide="layout-template" class="w-5 h-5"></i></button>
-                <button class="hover:text-white transition-colors"><i data-lucide="download" class="w-5 h-5"></i></button>
-                <button class="hover:text-white transition-colors"><i data-lucide="share-2" class="w-5 h-5"></i></button>
-                <button class="hover:text-white transition-colors"><i data-lucide="plus" class="w-5 h-5"></i></button>
-                <button class="hover:text-white transition-colors"><i data-lucide="copy" class="w-5 h-5"></i></button>
+                <button onclick="toggleView()" class="hover:text-white transition-colors rounded outline-none focus-visible:ring-2 focus-visible:ring-indigo-500" title="Toggle Landing / Dashboard" aria-label="Toggle Dashboard View"><i data-lucide="layout-template" class="w-5 h-5"></i></button>
+                <button class="hover:text-white transition-colors rounded outline-none focus-visible:ring-2 focus-visible:ring-indigo-500" aria-label="Download"><i data-lucide="download" class="w-5 h-5"></i></button>
+                <button class="hover:text-white transition-colors rounded outline-none focus-visible:ring-2 focus-visible:ring-indigo-500" aria-label="Share"><i data-lucide="share-2" class="w-5 h-5"></i></button>
+                <button class="hover:text-white transition-colors rounded outline-none focus-visible:ring-2 focus-visible:ring-indigo-500" aria-label="Add New"><i data-lucide="plus" class="w-5 h-5"></i></button>
+                <button class="hover:text-white transition-colors rounded outline-none focus-visible:ring-2 focus-visible:ring-indigo-500" aria-label="Copy"><i data-lucide="copy" class="w-5 h-5"></i></button>
             </div>
         </header>
 
@@ -285,32 +285,32 @@
                 </button>
 
                 <!-- Icon Buttons -->
-                <button onclick="switchTab('overview')" class="w-10 h-10 rounded-xl bg-cyan-500/20 text-cyan-300 flex items-center justify-center border border-cyan-400/40 shadow-inner" title="Dashboard">
+                <button onclick="switchTab('overview')" class="w-10 h-10 rounded-xl bg-cyan-500/20 text-cyan-300 flex items-center justify-center border border-cyan-400/40 shadow-inner outline-none focus-visible:ring-2 focus-visible:ring-indigo-500" title="Dashboard" aria-label="Dashboard Tab">
                     <i data-lucide="layout-grid" class="w-5 h-5"></i>
                 </button>
-                <button onclick="switchTab('modules')" class="w-10 h-10 rounded-xl text-zinc-400 hover:text-white hover:bg-white/10 flex items-center justify-center transition-all" title="Apps">
+                <button onclick="switchTab('modules')" class="w-10 h-10 rounded-xl text-zinc-400 hover:text-white hover:bg-white/10 flex items-center justify-center transition-all outline-none focus-visible:ring-2 focus-visible:ring-indigo-500" title="Apps" aria-label="Apps Tab">
                     <i data-lucide="grid" class="w-5 h-5"></i>
                 </button>
-                <button onclick="switchTab('button-roles')" class="w-10 h-10 rounded-xl text-zinc-400 hover:text-white hover:bg-white/10 flex items-center justify-center transition-all" title="Trophy">
+                <button onclick="switchTab('button-roles')" class="w-10 h-10 rounded-xl text-zinc-400 hover:text-white hover:bg-white/10 flex items-center justify-center transition-all outline-none focus-visible:ring-2 focus-visible:ring-indigo-500" title="Trophy" aria-label="Trophy Tab">
                     <i data-lucide="trophy" class="w-5 h-5"></i>
                 </button>
-                <button onclick="switchTab('commands')" class="w-10 h-10 rounded-xl text-zinc-400 hover:text-white hover:bg-white/10 flex items-center justify-center transition-all" title="Commands & Shortcuts">
+                <button onclick="switchTab('commands')" class="w-10 h-10 rounded-xl text-zinc-400 hover:text-white hover:bg-white/10 flex items-center justify-center transition-all outline-none focus-visible:ring-2 focus-visible:ring-indigo-500" title="Commands & Shortcuts" aria-label="Commands Tab">
                     <i data-lucide="terminal" class="w-5 h-5"></i>
                 </button>
-                <button onclick="switchTab('greetings')" class="w-10 h-10 rounded-xl text-zinc-400 hover:text-white hover:bg-white/10 flex items-center justify-center transition-all" title="Verification / Greetings">
+                <button onclick="switchTab('greetings')" class="w-10 h-10 rounded-xl text-zinc-400 hover:text-white hover:bg-white/10 flex items-center justify-center transition-all outline-none focus-visible:ring-2 focus-visible:ring-indigo-500" title="Verification / Greetings" aria-label="Verification Tab">
                     <i data-lucide="heart" class="w-5 h-5"></i>
                 </button>
-                <button onclick="switchTab('overview')" class="w-10 h-10 rounded-xl text-zinc-400 hover:text-white hover:bg-white/10 flex items-center justify-center transition-all" title="Settings">
+                <button onclick="switchTab('overview')" class="w-10 h-10 rounded-xl text-zinc-400 hover:text-white hover:bg-white/10 flex items-center justify-center transition-all outline-none focus-visible:ring-2 focus-visible:ring-indigo-500" title="Settings" aria-label="Settings Tab">
                     <i data-lucide="settings" class="w-5 h-5"></i>
                 </button>
-                <button onclick="switchTab('overview')" class="w-10 h-10 rounded-xl text-zinc-400 hover:text-white hover:bg-white/10 flex items-center justify-center transition-all" title="Analytics">
+                <button onclick="switchTab('overview')" class="w-10 h-10 rounded-xl text-zinc-400 hover:text-white hover:bg-white/10 flex items-center justify-center transition-all outline-none focus-visible:ring-2 focus-visible:ring-indigo-500" title="Analytics" aria-label="Analytics Tab">
                     <i data-lucide="pie-chart" class="w-5 h-5"></i>
                 </button>
 
                 <div class="flex-1"></div>
 
                 <!-- Logout Icon -->
-                <button onclick="exitDashboard()" class="w-10 h-10 rounded-xl text-zinc-500 hover:text-red-400 hover:bg-red-500/10 flex items-center justify-center transition-all" title="Logout">
+                <button onclick="exitDashboard()" class="w-10 h-10 rounded-xl text-zinc-500 hover:text-red-400 hover:bg-red-500/10 flex items-center justify-center transition-all outline-none focus-visible:ring-2 focus-visible:ring-indigo-500" title="Logout" aria-label="Logout">
                     <i data-lucide="log-out" class="w-5 h-5"></i>
                 </button>
             </aside>
@@ -326,7 +326,7 @@
                             <span class="text-[10px] font-bold text-emerald-400 flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block"></span> Online</span>
                         </div>
                     </div>
-                    <button onclick="toggleProfileDrawer()" class="text-zinc-500 hover:text-white" title="Close Profile Drawer"><i data-lucide="x" class="w-5 h-5"></i></button>
+                    <button onclick="toggleProfileDrawer()" class="text-zinc-500 hover:text-white outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 rounded" title="Close Profile Drawer" aria-label="Close Profile Drawer"><i data-lucide="x" class="w-5 h-5"></i></button>
                 </div>
 
                 <nav class="space-y-6 text-sm">
@@ -424,7 +424,7 @@
                                 <span class="text-[10px] text-zinc-400 font-bold">Active Server</span>
                             </div>
                         </div>
-                        <button onclick="toggleProfileDrawer()" class="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-zinc-400 hover:text-white transition-colors" title="User Profile Menu">
+                        <button onclick="toggleProfileDrawer()" class="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-zinc-400 hover:text-white transition-colors outline-none focus-visible:ring-2 focus-visible:ring-indigo-500" title="User Profile Menu" aria-label="User Profile Menu">
                             <i data-lucide="user" class="w-4 h-4"></i>
                         </button>
                     </div>
