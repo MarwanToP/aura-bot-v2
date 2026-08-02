@@ -1,28 +1,44 @@
-// ================================================================
-//  @aura/dashboard — Socket.io Real-time Telemetry Server
-// ================================================================
-
 import { Server } from 'socket.io';
-import logger from '@aura/logger';
+import { env } from '../../../../packages/config/src/env.js';
 
-export function initializeTelemetrySockets(httpServer, allowedOrigins = []) {
-  const io = new Server(httpServer, {
+let io = null;
+
+export function initTelemetrySocket(httpServer) {
+  io = new Server(httpServer, {
     cors: {
-      origin: allowedOrigins.length ? allowedOrigins : ['http://localhost:3000'],
-      methods: ['GET', 'POST'],
+      origin: env.CORS_ORIGINS || 'http://localhost:3000',
       credentials: true,
     },
   });
 
   io.on('connection', (socket) => {
-    logger.info(`[Socket.io] Client connected: ${socket.id}`);
+    console.log(`🔌 Telemetry Client Connected [${socket.id}]`);
+
+    socket.emit('telemetry:init', {
+      timestamp: new Date().toISOString(),
+      nodeUptime: process.uptime(),
+      memoryUsage: process.memoryUsage(),
+    });
 
     socket.on('disconnect', () => {
-      logger.info(`[Socket.io] Client disconnected: ${socket.id}`);
+      console.log(`🔌 Telemetry Client Disconnected [${socket.id}]`);
     });
   });
 
-  return io;
+  // Broadcast metrics every 5 seconds
+  setInterval(() => {
+    if (io) {
+      io.emit('telemetry:heartbeat', {
+        timestamp: new Date().toISOString(),
+        memoryUsage: process.memoryUsage(),
+        uptime: process.uptime(),
+      });
+    }
+  }, 5000);
 }
 
-export default initializeTelemetrySockets;
+export function broadcastMetric(eventName, payload) {
+  if (io) {
+    io.emit(eventName, payload);
+  }
+}
