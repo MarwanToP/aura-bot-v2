@@ -20,11 +20,13 @@ export async function loadCommands(client) {
     invalidExports: 0,
     importFailures: 0,
   };
-  const commandsPath = join(__dirname, '../cogs');
+  const commandsPath = join(__dirname, '../commands');
   await loadDir(client, commandsPath, true, audit);
   // Also load commands defined inside shared systems (economy, polls, etc.)
-  const systemsPath = join(__dirname, '../../shared/systems');
-  await loadDir(client, systemsPath, false, audit);
+  const systemsPath = join(__dirname, '../../../../packages/systems');
+  if (statSync(systemsPath, { throwIfNoEntry: false })) {
+    await loadDir(client, systemsPath, false, audit);
+  }
 
   client.logger?.info(
     `[Commands] Audit complete | files=${audit.filesScanned} modules=${audit.modulesLoaded} registered=${audit.registered} duplicateAliasesSkipped=${audit.duplicateAliasesSkipped} duplicatesSkipped=${audit.duplicatesSkipped} duplicatesOverwritten=${audit.duplicatesOverwritten} invalidExports=${audit.invalidExports} importFailures=${audit.importFailures}`,

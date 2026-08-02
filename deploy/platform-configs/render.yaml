@@ -1,9 +1,10 @@
-# Aura Bot v2.0 — Render Blueprint (Platform Config)
+# Aura Bot v2.0 — Render Blueprint (Split Services + Free Tier All-In-One Option)
 services:
+  # ── 1. BOT WORKER (Dedicated Background Bot Process) ──
   - type: worker
     name: aura-bot-worker
     runtime: docker
-    dockerfilePath: deploy/docker/Dockerfile
+    dockerfilePath: ./Dockerfile
     plan: starter
     branch: main
     autoDeploy: true
@@ -14,23 +15,32 @@ services:
         value: production
       - key: LOG_LEVEL
         value: info
+
+      # Shared infrastructure
       - key: DATABASE_URL
         sync: false
       - key: REDIS_URL
         sync: false
       - key: REDIS_TLS
         value: "true"
+
+      # Bot secrets
       - key: DISCORD_TOKEN
         sync: false
       - key: GEMINI_API_KEY
         sync: false
       - key: JWT_SECRET
         generateValue: true
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_CHAT_ID
+        sync: false
 
+  # ── 2. DASHBOARD WEB (Dedicated Web Dashboard Service) ──
   - type: web
     name: aura-dashboard-web
     runtime: docker
-    dockerfilePath: deploy/docker/Dockerfile
+    dockerfilePath: ./Dockerfile
     plan: starter
     branch: main
     autoDeploy: true
@@ -40,12 +50,32 @@ services:
         value: DASHBOARD
       - key: NODE_ENV
         value: production
+      - key: TRUST_PROXY
+        value: "true"
+      - key: DASHBOARD_COOKIE_SECURE
+        value: "true"
+      - key: DASHBOARD_STRICT_STARTUP
+        value: "true"
       - key: LOG_LEVEL
         value: info
+
+      # Replace these URLs after first deploy with actual Render URL.
+      - key: DASHBOARD_URL
+        value: "https://aura-dashboard-web.onrender.com"
+      - key: DISCORD_CALLBACK_URL
+        value: "https://aura-dashboard-web.onrender.com/auth/discord/callback"
+      - key: DASHBOARD_CORS_ORIGIN
+        value: "https://aura-dashboard-web.onrender.com"
+
+      # Shared infrastructure
       - key: DATABASE_URL
         sync: false
       - key: REDIS_URL
         sync: false
+      - key: REDIS_TLS
+        value: "true"
+
+      # Dashboard + bot integration secrets
       - key: DISCORD_CLIENT_ID
         sync: false
       - key: DISCORD_CLIENT_SECRET
@@ -58,3 +88,49 @@ services:
         generateValue: true
       - key: GEMINI_API_KEY
         sync: false
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_CHAT_ID
+        sync: false
+
+  # ── 3. FREE TIER COMBINED WEB SERVICE (Bot + Dashboard in 1 Instance) ──
+  - type: web
+    name: aura-bot-allinone
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    branch: main
+    autoDeploy: true
+    healthCheckPath: /api/health
+    envVars:
+      - key: MODE
+        value: BOTH
+      - key: NODE_ENV
+        value: production
+      - key: TRUST_PROXY
+        value: "true"
+      - key: LOG_LEVEL
+        value: info
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: REDIS_TLS
+        value: "true"
+      - key: DISCORD_TOKEN
+        sync: false
+      - key: DISCORD_CLIENT_ID
+        sync: false
+      - key: DISCORD_CLIENT_SECRET
+        sync: false
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: JWT_SECRET
+        generateValue: true
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_CHAT_ID
+        sync: false
+

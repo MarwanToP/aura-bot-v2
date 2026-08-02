@@ -1,18 +1,17 @@
 // ================================================================
-//  @aura/database — Prisma & Sequelize Database Connection Manager
-//  Supports Neon PostgreSQL & parameterized queries for SQLi safety
+//  @aura/database — Database Connection & Models Manager
 // ================================================================
 
-import { PrismaClient } from '@prisma/client';
-import sequelize from '../../shared/database/index.js';
-import logger from '@aura/logger';
+import sequelize from './models.js';
+import logger from '../logger/index.js';
 
-let prisma;
+let prisma = null;
 
 try {
+  const { PrismaClient } = await import('@prisma/client');
   prisma = new PrismaClient();
 } catch (err) {
-  logger.warn('PrismaClient initialization deferred or pending migration:', err.message);
+  logger.warn('[Database] PrismaClient dynamic import deferred or pending npx prisma generate');
 }
 
 export { prisma, sequelize };

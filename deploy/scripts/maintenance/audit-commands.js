@@ -3,8 +3,8 @@
 //  Validates structure, options, JSON. No execution, no Redis spam.
 // ================================================================
 import { Collection, SlashCommandBuilder } from 'discord.js';
-import { loadCommands } from '../../../bot/core/commandHandler.js';
-import database from '../../database/index.js';
+import { loadCommands } from '../../../apps/bot/src/core/commandHandler.js';
+import database from '../../../packages/database/index.js';
 
 // Suppress the duplicate-name warn noise so the report stays clean
 const originalWarn = console.warn;

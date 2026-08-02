@@ -3,7 +3,7 @@ import { join, resolve, relative } from 'path';
 import { execFileSync } from 'child_process';
 
 const root = resolve(process.cwd());
-const targets = ['main.js', 'bot', 'shared', 'dashboard'];
+const targets = ['apps', 'packages', 'deploy'];
 const files = [];
 
 function walk(pathname) {
