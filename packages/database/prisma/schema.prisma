@@ -1,0 +1,79 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Guild {
+  id                      String              @id
+  prefix                  String              @default("!")
+  neuralModerationEnabled Boolean             @default(true)
+  tempVoiceCategoryId    String?
+  createdAt               DateTime            @default(now())
+  updatedAt               DateTime            @updatedAt
+  moderationLogs          ModerationLog[]
+  tempVoiceChannels       TempVoiceChannel[]
+  staffMembers            StaffMember[]
+
+  @@map("guilds")
+}
+
+model User {
+  id             String          @id
+  username       String
+  discriminator  String?
+  avatar         String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  moderationLogs ModerationLog[]
+  staffProfiles  StaffMember[]
+
+  @@map("users")
+}
+
+model ModerationLog {
+  id            String   @id @default(uuid())
+  guildId       String
+  userId        String
+  moderatorId   String
+  action        String   // warn, delete, timeout, ban
+  reason        String
+  severityScore Int      @default(0)
+  createdAt     DateTime @default(now())
+
+  guild Guild @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([guildId, userId])
+  @@map("moderation_logs")
+}
+
+model TempVoiceChannel {
+  id        String   @id
+  guildId   String
+  ownerId   String
+  channelId String   @unique
+  createdAt DateTime @default(now())
+
+  guild Guild @relation(fields: [guildId], references: [id], onDelete: Cascade)
+
+  @@map("temp_voice_channels")
+}
+
+model StaffMember {
+  id        String   @id @default(uuid())
+  guildId   String
+  userId    String
+  role      String   @default("support")
+  points    Int      @default(0)
+  joinedAt  DateTime @default(now())
+
+  guild Guild @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([guildId, userId])
+  @@map("staff_members")
+}
