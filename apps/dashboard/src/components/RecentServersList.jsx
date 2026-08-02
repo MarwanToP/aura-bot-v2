@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { Server, RefreshCw } from "lucide-react";
-import { useAuth } from "../dashboard/context/AuthContext";
+import { useAuth } from "../context/AuthContext";
 
 const DEFAULT_REAL_SERVERS = [
   {

@@ -1,5 +1,5 @@
 import "./globals.css";
-import { AuthProvider } from "../dashboard/context/AuthContext";
+import { AuthProvider } from "../context/AuthContext";
 import CyberBackground from "../components/CyberBackground";
 import MouseGlow from "../components/MouseGlow";
 

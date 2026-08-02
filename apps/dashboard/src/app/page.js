@@ -40,7 +40,7 @@ import StatisticsSettings from "../components/StatisticsSettings";
 import EconomySettings from "../components/EconomySettings";
 import ModerationPanel from "../components/ModerationPanel";
 import ControlPanel from "../components/ControlPanel";
-import { useAuth } from "../dashboard/context/AuthContext";
+import { useAuth } from "../context/AuthContext";
 import { LogIn, ArrowLeft } from "lucide-react";
 
 export default function DashboardHome() {

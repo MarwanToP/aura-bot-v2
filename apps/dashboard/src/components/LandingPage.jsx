@@ -19,7 +19,7 @@ import {
   Sparkles,
   Bolt,
 } from "lucide-react";
-import { useAuth } from "../dashboard/context/AuthContext";
+import { useAuth } from "../context/AuthContext";
 
 /* ── Floating particles canvas ─────────────────────────────────── */
 function AuraParticles() {
