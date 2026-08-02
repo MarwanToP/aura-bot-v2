@@ -5,6 +5,7 @@ import { env } from '../../../packages/config/src/env.js';
 import { helmetMiddleware, corsMiddleware, apiRateLimiter } from './middleware/security.js';
 import authRoutes from './api/auth.js';
 import guildRoutes from './api/guilds.js';
+import moduleRoutes from './api/modules.js';
 import { initTelemetrySocket } from './sockets/telemetry.js';
 
 const app = express();
@@ -25,6 +26,7 @@ app.get('/health', (req, res) => {
 // 3. API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/guilds', guildRoutes);
+app.use('/api/modules', moduleRoutes);
 
 // 4. Initialize Socket.io Telemetry Server
 initTelemetrySocket(httpServer);
