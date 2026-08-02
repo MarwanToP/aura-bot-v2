@@ -120,7 +120,7 @@ export const customcmd = {
 
       const fields = cmds.map(c => ({
         name:  `!${c.name} ${c.useAI ? '🤖' : ''}${!c.enabled ? '❌' : ''}`,
-        value: `${c.description || c.response.slice(0, 80)} • Used: ${c.usageCount}x`,
+        value: `${c.description || (c.response || '').slice(0, 80)} • Used: ${c.usageCount || 0}x`,
         inline: false,
       }));
 
@@ -136,7 +136,7 @@ export const customcmd = {
         type:  'primary',
         title: `!${cmd.name}`,
         fields: [
-          { name: '📝 Response',    value: cmd.response.slice(0, 500), inline: false },
+          { name: '📝 Response',    value: (cmd.response || 'No response set').slice(0, 500), inline: false },
           { name: '🤖 AI Powered',  value: cmd.useAI ? 'Yes' : 'No',  inline: true },
           { name: '✅ Enabled',     value: cmd.enabled ? 'Yes' : 'No', inline: true },
           { name: '⏱️ Cooldown',   value: `${cmd.cooldown}s`,          inline: true },

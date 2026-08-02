@@ -183,6 +183,21 @@ export async function handleButton(client, interaction, data) {
   if (action === 'reject') {
     await app.update({ status: 'rejected', moderatorId: interaction.user.id });
 
+    // Denial role reward
+    if (form?.denyRoleId) {
+      const member = await interaction.guild.members.fetch(app.userId).catch(() => null);
+      const role = interaction.guild.roles.cache.get(form.denyRoleId);
+      const me = interaction.guild.members.me;
+
+      if (member && role) {
+        if (me.permissions.has('ManageRoles') && me.roles.highest.position > role.position) {
+          await member.roles.add(role).catch(err => logger.debug(`[Apply] Denial role add failed: ${err.message}`));
+        } else {
+          logger.warn(`[Apply] Cannot add denial role ${role.name}: Hierarchy or Permission issue.`);
+        }
+      }
+    }
+
     // Notify User
     const user = await client.users.fetch(app.userId).catch(() => null);
     if (user) {

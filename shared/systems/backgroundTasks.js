@@ -98,18 +98,32 @@ export async function updateStatsChannels(client) {
       if (!guild) continue;
 
       if (settings.statsMemberChannelId) {
+        const fmt = settings.statsMemberFormat || '👥 Members: {count}';
+        const name = fmt.replace('{count}', guild.memberCount.toLocaleString());
         const ch = guild.channels.cache.get(settings.statsMemberChannelId);
-        if (ch) await ch.setName(`👥 Members: ${guild.memberCount.toLocaleString()}`).catch(() => {});
+        if (ch) await ch.setName(name).catch(() => {});
       }
       if (settings.statsOnlineChannelId) {
         const online = guild.members.cache.filter(m => m.presence?.status !== 'offline' && !m.user.bot).size;
+        const fmt = settings.statsOnlineFormat || '🟢 Online: {count}';
+        const name = fmt.replace('{count}', online.toLocaleString());
         const ch = guild.channels.cache.get(settings.statsOnlineChannelId);
-        if (ch) await ch.setName(`🟢 Online: ${online.toLocaleString()}`).catch(() => {});
+        if (ch) await ch.setName(name).catch(() => {});
       }
       if (settings.statsBotChannelId) {
         const bots = guild.members.cache.filter(m => m.user.bot).size;
+        const fmt = settings.statsBotFormat || '🤖 Bots: {count}';
+        const name = fmt.replace('{count}', bots.toLocaleString());
         const ch = guild.channels.cache.get(settings.statsBotChannelId);
-        if (ch) await ch.setName(`🤖 Bots: ${bots}`).catch(() => {});
+        if (ch) await ch.setName(name).catch(() => {});
+      }
+      if (settings.statsCustomChannelId) {
+        const target = settings.customGoalTarget || 1000;
+        const count = guild.memberCount;
+        const fmt = settings.statsCustomFormat || '🎯 Goal: {count}/{target}';
+        const name = fmt.replace('{count}', count.toLocaleString()).replace('{target}', target.toLocaleString());
+        const ch = guild.channels.cache.get(settings.statsCustomChannelId);
+        if (ch) await ch.setName(name).catch(() => {});
       }
     }
   } catch (err) {

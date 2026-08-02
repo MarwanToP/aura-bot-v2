@@ -1,0 +1,15 @@
+{
+  "name": "@aura/database",
+  "version": "2.0.0",
+  "type": "module",
+  "main": "index.js",
+  "dependencies": {
+    "@prisma/client": "^5.22.0",
+    "sequelize": "^6.37.3",
+    "pg": "^8.22.0",
+    "@aura/logger": "*"
+  },
+  "devDependencies": {
+    "prisma": "^5.22.0"
+  }
+}

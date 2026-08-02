@@ -1,21 +1,43 @@
-node_modules/
+# Environment Variables & Secrets
 .env
 .env.local
+.env.*.local
+.dev.vars
+*.pem
+*.key
+*.cert
+
+# Node Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Next.js Build Artifacts
+.next/
+out/
+build/
+dist/
+
+# Prisma & SQLite / Temp Files
+*.db
+*.sqlite
+prisma/migrations/*_*/migration.sql.bak
+
+# Logs & Temporary Files
 logs/
 *.log
-npm-debug.log*
+tmp/
+.temp/
+
+# IDE & OS Metadata
 .DS_Store
 Thumbs.db
-.vscode/
 .idea/
-dist/
-build/
-tmp/
-
-# Local secrets & tool state (never commit)
-.dev.vars
-.wrangler/
-.migration-exports/
-.claude/
-reports/
-
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp

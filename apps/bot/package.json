@@ -1,0 +1,17 @@
+{
+  "name": "@aura/bot",
+  "version": "2.0.0",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js"
+  },
+  "dependencies": {
+    "@aura/config": "*",
+    "@aura/database": "*",
+    "@aura/logger": "*",
+    "@aura/redis": "*",
+    "discord.js": "^14.15.3"
+  }
+}

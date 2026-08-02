@@ -1,5 +1,5 @@
 // ================================================================
-//  Ticket System v2 — Create, Close, Claim, Transcripts
+//  Ticket System v2 — Skill-Based Routing, Claiming, Escalation & CSAT
 // ================================================================
 import { trackActivity } from '../staff/staffSystem.js';
 import { buildEmbed } from '../../utils/embedBuilder.js';
@@ -36,7 +36,7 @@ export async function initializeTicketPanel(client, panelId, guildId = null) {
     row.addComponents(
       new ButtonBuilder()
         .setCustomId(`ticket:open:${categoryKey}`)
-        .setLabel(cat.label)
+        .setLabel(cat.label || categoryKey)
         .setEmoji(cat.emoji || '🎫')
         .setStyle(ButtonStyle.Primary)
     );
@@ -54,7 +54,111 @@ export async function initializeTicketPanel(client, panelId, guildId = null) {
   }
 }
 
-export async function createTicket(client, guild, user, { category = 'Other', subject = '', priority = 'Medium' } = {}) {
+/**
+ * Match ticket skill tags against staff roles and members in a guild
+ */
+export function matchStaffBySkills(guild, skillTags = []) {
+  if (!guild || !skillTags || !skillTags.length) return { matchingRoles: [], onlineStaff: [], allStaff: [] };
+
+  const tags = skillTags.map(t => String(t).toLowerCase().trim()).filter(Boolean);
+  if (!tags.length) return { matchingRoles: [], onlineStaff: [], allStaff: [] };
+
+  const skillAliases = {
+    'tech': ['tech', 'technical', 'support', 'developer', 'it'],
+    'technical': ['tech', 'technical', 'support', 'developer', 'it'],
+    'billing': ['billing', 'finance', 'payment', 'sales'],
+    'security': ['security', 'mod', 'moderator', 'admin', 'safety'],
+    'management': ['management', 'manager', 'lead', 'high management', 'admin'],
+  };
+
+  const expandedTags = new Set(tags);
+  for (const tag of tags) {
+    if (skillAliases[tag]) {
+      skillAliases[tag].forEach(t => expandedTags.add(t));
+    }
+  }
+
+  const matchingRoles = guild.roles.cache.filter(role => {
+    const roleName = role.name.toLowerCase();
+    return Array.from(expandedTags).some(t => roleName.includes(t));
+  });
+
+  const allStaff = [];
+  const onlineStaff = [];
+
+  guild.members.cache.forEach(member => {
+    if (member.user.bot) return;
+    const hasMatchingRole = member.roles.cache.some(r => matchingRoles.has(r.id));
+    if (hasMatchingRole) {
+      allStaff.push(member);
+      const status = member.presence?.status || 'online';
+      if (['online', 'idle', 'dnd'].includes(status)) {
+        onlineStaff.push(member);
+      }
+    }
+  });
+
+  return {
+    matchingRoles: Array.from(matchingRoles.values()),
+    onlineStaff,
+    allStaff
+  };
+}
+
+/**
+ * Routes ticket channel to staff members possessing matching skill tags
+ */
+export async function routeTicketBySkill(client, guild, channel, skillTags = []) {
+  try {
+    const { matchingRoles, onlineStaff } = matchStaffBySkills(guild, skillTags);
+
+    if (channel && matchingRoles.length > 0) {
+      for (const role of matchingRoles) {
+        await channel.permissionOverwrites.edit(role.id, {
+          ViewChannel: true,
+          SendMessages: true,
+          AttachFiles: true,
+          ReadMessageHistory: true,
+        }).catch(() => {});
+      }
+    }
+
+    if (channel && (matchingRoles.length > 0 || onlineStaff.length > 0)) {
+      const mentions = [
+        ...matchingRoles.map(r => `<@&${r.id}>`),
+        ...onlineStaff.map(m => `<@${m.id}>`)
+      ].slice(0, 5).join(' ');
+
+      await channel.send({
+        content: mentions ? `🔔 **Skill-based Triage**: ${mentions}` : undefined,
+        embeds: [
+          buildEmbed({
+            type: 'info',
+            title: '🎯 Skill-Based Ticket Routing',
+            description: `Ticket assigned based on skill tags: \`${skillTags.join(', ')}\`.\n` +
+              `**Matching Staff Roles:** ${matchingRoles.length ? matchingRoles.map(r => r.name).join(', ') : 'Default Support'}\n` +
+              `**Available Online Staff:** ${onlineStaff.length ? onlineStaff.map(m => `<@${m.id}>`).join(', ') : 'Notified staff role(s)'}`,
+            footer: 'Aura Intelligent Ticket Router',
+            timestamp: true
+          })
+        ]
+      }).catch(() => {});
+    }
+
+    return {
+      routedRoles: matchingRoles.map(r => r.id),
+      notifiedStaff: onlineStaff.map(m => m.id)
+    };
+  } catch (err) {
+    logger.error('[Tickets] routeTicketBySkill:', err);
+    return { routedRoles: [], notifiedStaff: [] };
+  }
+}
+
+/**
+ * Create a new support ticket
+ */
+export async function createTicket(client, guild, user, { category = 'Other', subject = '', priority = 'Medium', tags = [], skillTags = [] } = {}) {
   try {
     const { GuildSettings, Ticket, GuildCounter } = client.db.models;
     const settings = await GuildSettings.findOne({ where: { guildId: guild.id } });
@@ -69,6 +173,21 @@ export async function createTicket(client, guild, user, { category = 'Other', su
     const ticketId = `TKT-${String(counter.ticketCount).padStart(4, '0')}`;
     const chanName = `${ticketId.toLowerCase()}-${user.username.toLowerCase().replace(/[^a-z0-9]/g,'').slice(0,15)}`;
 
+    // Normalize skill tags
+    const rawTags = [...(Array.isArray(tags) ? tags : []), ...(Array.isArray(skillTags) ? skillTags : [])];
+    const categorySkillMap = {
+      'Technical': 'tech',
+      'Billing': 'billing',
+      'Security': 'security',
+      'Member Complaint': 'security',
+      'Admin Complaint': 'management',
+      'Management': 'management'
+    };
+    if (categorySkillMap[category] && !rawTags.includes(categorySkillMap[category])) {
+      rawTags.push(categorySkillMap[category]);
+    }
+    const finalSkillTags = Array.from(new Set(rawTags.map(t => String(t).toLowerCase().trim()).filter(Boolean)));
+
     const channel = await guild.channels.create({
       name:   chanName, type: ChannelType.GuildText, parent: settings.ticketCategoryId,
       permissionOverwrites: [
@@ -79,17 +198,46 @@ export async function createTicket(client, guild, user, { category = 'Other', su
       ],
     });
 
-    const ticket = await Ticket.create({ ticketId, guildId: guild.id, userId: user.id, channelId: channel.id, category, subject, priority, status: 'open' });
+    const ticket = await Ticket.create({
+      ticketId,
+      guildId: guild.id,
+      userId: user.id,
+      channelId: channel.id,
+      category,
+      subject,
+      priority,
+      status: 'open',
+      tier: 1,
+      tags: finalSkillTags
+    });
 
     const lang = await client.i18n.resolveLanguage(client, user.id, guild.id);
     const pEmoji = { Low: '🟢', Medium: '🟡', High: '🟠', Critical: '🔴' };
 
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder().setCustomId(`ticket:claim:${ticketId}`).setLabel('Claim').setStyle(ButtonStyle.Primary).setEmoji('🙋'),
+      new ButtonBuilder().setCustomId(`ticket:escalate:${ticketId}`).setLabel('Escalate').setStyle(ButtonStyle.Secondary).setEmoji('⬆️'),
       new ButtonBuilder().setCustomId(`ticket:close:${ticketId}`).setLabel('Close').setStyle(ButtonStyle.Danger).setEmoji('🔒'),
     );
 
-    await channel.send({ content: `<@${user.id}>`, embeds: [buildEmbed({ type: 'primary', title: `${config.emojis.ticket} ${ticketId} — ${category}`, description: `Welcome, <@${user.id}>!\n\nPlease describe your issue in detail.${subject ? `\n\n**Subject:** ${subject}` : ''}`, fields: [ { name: '📋 Category', value: category, inline: true }, { name: '⚡ Priority', value: `${pEmoji[priority]} ${priority}`, inline: true } ], footer: ticketId, timestamp: true })], components: [row] });
+    await channel.send({
+      content: `<@${user.id}>`,
+      embeds: [
+        buildEmbed({
+          type: 'primary',
+          title: `${config.emojis.ticket} ${ticketId} — ${category}`,
+          description: `Welcome, <@${user.id}>!\n\nPlease describe your issue in detail.${subject ? `\n\n**Subject:** ${subject}` : ''}`,
+          fields: [
+            { name: '📋 Category', value: category, inline: true },
+            { name: '⚡ Priority', value: `${pEmoji[priority]} ${priority}`, inline: true },
+            { name: '🏷️ Skill Tags', value: finalSkillTags.length ? finalSkillTags.map(t => `\`${t}\``).join(', ') : 'General', inline: true }
+          ],
+          footer: `${ticketId} • Tier 1 Support`,
+          timestamp: true
+        })
+      ],
+      components: [row]
+    });
 
     // --- AUTO-REPLY SYSTEM ---
     const categoryAutoReplies = {
@@ -123,20 +271,330 @@ export async function createTicket(client, guild, user, { category = 'Other', su
         })]
       });
     }
-    // -------------------------
 
     if (settings.ticketLogChannelId) {
       const logCh = await client.channels.fetch(settings.ticketLogChannelId).catch(() => null);
-      if (logCh?.isTextBased()) await logCh.send({ embeds: [buildEmbed({ type: 'info', title: `📨 New Ticket — ${ticketId}`, description: `**User:** <@${user.id}>\n**Category:** ${category}\n**Priority:** ${priority}\n**Channel:** <#${channel.id}>`, timestamp: true })] });
+      if (logCh?.isTextBased()) await logCh.send({ embeds: [buildEmbed({ type: 'info', title: `📨 New Ticket — ${ticketId}`, description: `**User:** <@${user.id}>\n**Category:** ${category}\n**Priority:** ${priority}\n**Skill Tags:** ${finalSkillTags.join(', ')}\n**Channel:** <#${channel.id}>`, timestamp: true })] });
     }
 
-    return { channel, ticketId };
+    // Skill-based ticket routing
+    if (finalSkillTags.length > 0) {
+      await routeTicketBySkill(client, guild, channel, finalSkillTags);
+    }
+
+    return { channel, ticketId, ticket };
   } catch (err) {
     logger.error('[Tickets] createTicket:', err);
     return { error: 'Failed to create ticket.' };
   }
 }
 
+/**
+ * Claim a ticket by staff member
+ */
+export async function claimTicket(client, ticketId, guildId, staffUser) {
+  try {
+    const { Ticket } = client.db.models;
+    const ticket = await Ticket.findOne({ where: { ticketId, guildId } });
+    if (!ticket) return { error: 'Ticket not found.' };
+    if (ticket.status === 'closed') return { error: 'Cannot claim a closed ticket.' };
+    if (ticket.claimedBy && ticket.claimedBy !== staffUser.id) {
+      return { error: `Ticket is already claimed by <@${ticket.claimedBy}>.` };
+    }
+
+    await ticket.update({
+      claimedBy: staffUser.id,
+      status: 'claimed',
+      firstResponseAt: ticket.firstResponseAt || new Date()
+    });
+
+    await trackActivity(client, guildId, staffUser.id, 'ticket').catch(() => {});
+
+    const channel = await client.channels.fetch(ticket.channelId).catch(() => null);
+    if (channel) {
+      await channel.send({
+        embeds: [
+          buildEmbed({
+            type: 'success',
+            title: '🙋 Ticket Claimed',
+            description: `Ticket **${ticketId}** claimed by <@${staffUser.id}>.\nStaff member will assist you shortly!`,
+            timestamp: true
+          })
+        ]
+      }).catch(() => {});
+    }
+
+    return { success: true, ticket };
+  } catch (err) {
+    logger.error('[Tickets] claimTicket:', err);
+    return { error: 'Failed to claim ticket.' };
+  }
+}
+
+/**
+ * Escalate ticket tier level (Tier 1 -> Tier 2 -> Tier 3)
+ */
+export async function escalateTicket(client, ticketId, guildId, escalatedBy, reason = 'Escalation requested by staff') {
+  try {
+    const { Ticket, GuildSettings } = client.db.models;
+    const ticket = await Ticket.findOne({ where: { ticketId, guildId } });
+    if (!ticket) return { error: 'Ticket not found.' };
+    if (ticket.status === 'closed') return { error: 'Cannot escalate a closed ticket.' };
+
+    const currentTier = ticket.tier || 1;
+    if (currentTier >= 3) {
+      return { error: 'Ticket is already at the highest escalation level (Tier 3).' };
+    }
+
+    const newTier = currentTier + 1;
+    let newPriority = ticket.priority;
+
+    if (newTier === 2) {
+      if (newPriority === 'Low' || newPriority === 'Medium') newPriority = 'High';
+    } else if (newTier === 3) {
+      newPriority = 'Critical';
+    }
+
+    await ticket.update({
+      tier: newTier,
+      priority: newPriority
+    });
+
+    const guild = await client.guilds.fetch(guildId).catch(() => null);
+    const channel = await client.channels.fetch(ticket.channelId).catch(() => null);
+    const settings = await GuildSettings.findOne({ where: { guildId } });
+
+    const higherTierRoles = [];
+    if (guild) {
+      const targetKeywords = newTier === 2
+        ? ['tier 2', 'senior', 'lead', 'tier2', 'supervisor']
+        : ['tier 3', 'manager', 'management', 'admin', 'tier3', 'executive'];
+
+      guild.roles.cache.forEach(role => {
+        const name = role.name.toLowerCase();
+        if (targetKeywords.some(kw => name.includes(kw))) {
+          higherTierRoles.push(role);
+        }
+      });
+
+      if (channel && higherTierRoles.length > 0) {
+        for (const role of higherTierRoles) {
+          await channel.permissionOverwrites.edit(role.id, {
+            ViewChannel: true,
+            SendMessages: true,
+            ManageChannels: true,
+            AttachFiles: true,
+          }).catch(() => {});
+        }
+      }
+    }
+
+    const pEmoji = { Low: '🟢', Medium: '🟡', High: '🟠', Critical: '🔴' };
+    const tierLabels = { 1: 'Tier 1 (General Support)', 2: 'Tier 2 (Senior Support)', 3: 'Tier 3 (Executive Management)' };
+
+    if (channel) {
+      const pings = higherTierRoles.map(r => `<@&${r.id}>`).slice(0, 3).join(' ');
+      await channel.send({
+        content: pings ? `🚨 **Senior Staff Alert**: ${pings}` : undefined,
+        embeds: [
+          buildEmbed({
+            type: 'warning',
+            title: `🚨 Ticket Escalated — Tier ${newTier}`,
+            description: `Ticket **${ticketId}** has been escalated to **${tierLabels[newTier]}**.\n\n` +
+              `**Escalated By:** <@${escalatedBy.id}>\n` +
+              `**Reason:** ${reason}\n` +
+              `**New Priority:** ${pEmoji[newPriority]} ${newPriority}`,
+            footer: 'Aura Multi-Tier Escalation Protocol',
+            timestamp: true
+          })
+        ]
+      }).catch(() => {});
+    }
+
+    if (settings?.ticketLogChannelId) {
+      const logCh = await client.channels.fetch(settings.ticketLogChannelId).catch(() => null);
+      if (logCh?.isTextBased()) {
+        await logCh.send({
+          embeds: [
+            buildEmbed({
+              type: 'warning',
+              title: `⚠️ Ticket Escalation Log — ${ticketId}`,
+              description: `**Ticket:** <#${ticket.channelId}>\n` +
+                `**User:** <@${ticket.userId}>\n` +
+                `**Escalated By:** <@${escalatedBy.id}>\n` +
+                `**Tier:** Tier ${currentTier} ➡️ Tier ${newTier}\n` +
+                `**Priority:** ${ticket.priority} ➡️ ${newPriority}\n` +
+                `**Reason:** ${reason}`,
+              timestamp: true
+            })
+          ]
+        }).catch(() => {});
+      }
+    }
+
+    return { success: true, ticket, newTier, newPriority };
+  } catch (err) {
+    logger.error('[Tickets] escalateTicket:', err);
+    return { error: 'Failed to escalate ticket.' };
+  }
+}
+
+/**
+ * Sends a CSAT rating prompt to user DM upon ticket closure
+ */
+export async function sendCSATPrompt(client, user, ticketId) {
+  try {
+    const row = new ActionRowBuilder().addComponents(
+      [1, 2, 3, 4, 5].map(rating =>
+        new ButtonBuilder()
+          .setCustomId(`csat:${ticketId}:${rating}`)
+          .setLabel(`${'⭐'.repeat(rating)} (${rating}/5)`)
+          .setStyle(rating >= 4 ? ButtonStyle.Success : rating === 3 ? ButtonStyle.Primary : ButtonStyle.Secondary)
+      )
+    );
+
+    await user.send({
+      embeds: [
+        buildEmbed({
+          type: 'primary',
+          title: '⭐ Aura CSAT Support Survey',
+          description: `Your ticket **${ticketId}** has been closed. How would you rate your support experience?`,
+          footer: 'Aura ITSM Quality Assurance'
+        })
+      ],
+      components: [row]
+    }).catch(() => {
+      logger.debug(`[CSAT] Direct Message to user ${user?.id} failed or blocked.`);
+    });
+  } catch (err) {
+    logger.debug('[CSAT] Failed to send DM:', err.message);
+  }
+}
+
+/**
+ * Record CSAT rating and optional feedback into database
+ */
+export async function recordCSATResponse(client, { ticketId, guildId, userId, rating, feedback = null }) {
+  try {
+    const { Ticket, TicketCSAT } = client.db.models;
+    const numRating = parseInt(rating);
+    if (isNaN(numRating) || numRating < 1 || numRating > 5) {
+      return { error: 'Rating must be an integer between 1 and 5.' };
+    }
+
+    const ticket = await Ticket.findOne({
+      where: ticketId ? { ticketId } : { guildId, userId }
+    });
+
+    const targetGuildId = guildId || ticket?.guildId;
+    const targetUserId = userId || ticket?.userId;
+
+    if (ticket) {
+      await ticket.update({ satisfaction: numRating });
+    }
+
+    let csatRecord = null;
+    if (TicketCSAT && targetGuildId) {
+      csatRecord = await TicketCSAT.create({
+        ticketId: ticketId || ticket?.ticketId || 'UNKNOWN',
+        guildId: targetGuildId,
+        userId: targetUserId,
+        rating: numRating,
+        feedback,
+        staffId: ticket?.claimedBy || null,
+      });
+    }
+
+    return { success: true, rating: numRating, csatRecord, ticket };
+  } catch (err) {
+    logger.error('[Tickets] recordCSATResponse:', err);
+    return { error: 'Failed to record CSAT response.' };
+  }
+}
+
+/**
+ * Export satisfaction metrics for a guild
+ */
+export async function exportCSATMetrics(client, guildId, options = {}) {
+  try {
+    const { TicketCSAT, Ticket } = client.db.models;
+    let csatRecords = [];
+    if (TicketCSAT) {
+      csatRecords = await TicketCSAT.findAll({ where: { guildId } });
+    }
+
+    const totalResponses = csatRecords.length;
+    let averageRating = 0;
+    let satisfactionPercentage = 0;
+    const breakdown = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    const staffStats = {};
+
+    if (totalResponses > 0) {
+      let sumRating = 0;
+      let satisfiedCount = 0;
+
+      csatRecords.forEach(rec => {
+        const r = rec.rating;
+        if (r >= 1 && r <= 5) breakdown[r] = (breakdown[r] || 0) + 1;
+        sumRating += r;
+        if (r >= 4) satisfiedCount += 1;
+
+        if (rec.staffId) {
+          if (!staffStats[rec.staffId]) {
+            staffStats[rec.staffId] = { staffId: rec.staffId, total: 0, sum: 0, positive: 0 };
+          }
+          staffStats[rec.staffId].total += 1;
+          staffStats[rec.staffId].sum += r;
+          if (r >= 4) staffStats[rec.staffId].positive += 1;
+        }
+      });
+
+      averageRating = parseFloat((sumRating / totalResponses).toFixed(2));
+      satisfactionPercentage = parseFloat(((satisfiedCount / totalResponses) * 100).toFixed(1));
+    }
+
+    const staffMetrics = Object.values(staffStats).map(s => ({
+      staffId: s.staffId,
+      totalResponses: s.total,
+      averageRating: parseFloat((s.sum / s.total).toFixed(2)),
+      satisfactionPercentage: parseFloat(((s.positive / s.total) * 100).toFixed(1))
+    }));
+
+    const closedTicketsCount = await Ticket.count({ where: { guildId, status: 'closed' } });
+    const openTicketsCount = await Ticket.count({ where: { guildId, status: ['open', 'claimed'] } });
+
+    return {
+      guildId,
+      totalResponses,
+      averageRating,
+      satisfactionPercentage,
+      ratingBreakdown: breakdown,
+      staffMetrics,
+      ticketsSummary: {
+        closed: closedTicketsCount,
+        open: openTicketsCount
+      },
+      exportedAt: new Date().toISOString()
+    };
+  } catch (err) {
+    logger.error('[Tickets] exportCSATMetrics:', err);
+    return {
+      guildId,
+      totalResponses: 0,
+      averageRating: 0,
+      satisfactionPercentage: 0,
+      ratingBreakdown: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+      staffMetrics: [],
+      error: 'Failed to export CSAT metrics'
+    };
+  }
+}
+
+export const getCSATMetrics = exportCSATMetrics;
+
+/**
+ * Close a ticket
+ */
 export async function closeTicket(client, ticketId, guildId, closedBy) {
   try {
     const { Ticket, GuildSettings } = client.db.models;
@@ -144,6 +602,10 @@ export async function closeTicket(client, ticketId, guildId, closedBy) {
     if (!ticket || ticket.status === 'closed') return { error: 'Ticket not found or already closed.' };
 
     await ticket.update({ status: 'closed', closedBy: closedBy.id, closedAt: new Date() });
+
+    // Send CSAT survey to ticket creator
+    const ticketUser = await client.users.fetch(ticket.userId).catch(() => null);
+    if (ticketUser) await sendCSATPrompt(client, ticketUser, ticketId);
 
     const channel = await client.channels.fetch(ticket.channelId).catch(() => null);
     if (!channel) return { success: true };
@@ -158,6 +620,7 @@ export async function closeTicket(client, ticketId, guildId, closedBy) {
       });
       if (settings.ticketLogChannelId) {
         const logCh = await client.channels.fetch(settings.ticketLogChannelId).catch(() => null);
+
         if (logCh?.isTextBased()) await logCh.send({ content: `📑 Transcript for **${ticketId}**`, files: [attachment] });
       }
     }
@@ -165,7 +628,7 @@ export async function closeTicket(client, ticketId, guildId, closedBy) {
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder().setCustomId(`ticket:reopen:${ticketId}`).setLabel('Re-open').setStyle(ButtonStyle.Success).setEmoji('🔓'),
       new ButtonBuilder().setCustomId(`ticket:delete:${ticketId}`).setLabel('Delete').setStyle(ButtonStyle.Danger).setEmoji('🗑️'),
-      new ButtonBuilder().setCustomId(`ticket:survey:${ticketId}`).setLabel('Rate Us').setStyle(ButtonStyle.Secondary).setEmoji('⭐'),
+      new ButtonBuilder().setCustomId(`csat:${ticketId}:5`).setLabel('Rate Us').setStyle(ButtonStyle.Secondary).setEmoji('⭐'),
     );
 
     await channel.send({ embeds: [buildEmbed({ type: 'warning', title: '🔒 Ticket Closed', description: `Closed by <@${closedBy.id}>. Use buttons below.`, timestamp: true })], components: [row] });
@@ -177,6 +640,9 @@ export async function closeTicket(client, ticketId, guildId, closedBy) {
   }
 }
 
+/**
+ * Button Interaction Router
+ */
 export async function handleButton(client, interaction, args) {
   const [action, ...parts] = args.split(':');
   const ticketId = parts[0];
@@ -184,16 +650,19 @@ export async function handleButton(client, interaction, args) {
   const lang = await client.i18n.resolveLanguage(client, interaction.user.id, interaction.guildId);
 
   if (action === 'claim') {
-    const { Ticket } = client.db.models;
-    const ticket = await Ticket.findOne({ where: { ticketId, guildId: interaction.guildId } });
-    if (!ticket) return interaction.reply({ embeds: [buildEmbed({ type: 'error', description: '❌ Ticket not found.' })], ephemeral: true });
-    await ticket.update({ claimedBy: interaction.user.id, status: 'claimed', firstResponseAt: new Date() });
-    
-    // Track Staff Activity
-    await trackActivity(client, interaction.guildId, interaction.user.id, 'ticket');
-    
-    await interaction.channel?.send({ embeds: [buildEmbed({ type: 'success', description: `🙋 Claimed by <@${interaction.user.id}>.` })] });
-    return interaction.reply({ embeds: [buildEmbed({ type: 'success', description: '✅ Ticket claimed.' })], ephemeral: true });
+    const result = await claimTicket(client, ticketId, interaction.guildId, interaction.user);
+    if (result.error) {
+      return interaction.reply({ embeds: [buildEmbed({ type: 'error', description: `❌ ${result.error}` })], ephemeral: true });
+    }
+    return interaction.reply({ embeds: [buildEmbed({ type: 'success', description: `✅ Ticket **${ticketId}** claimed successfully.` })], ephemeral: true });
+  }
+
+  if (action === 'escalate') {
+    const result = await escalateTicket(client, ticketId, interaction.guildId, interaction.user, 'Escalation via button interaction');
+    if (result.error) {
+      return interaction.reply({ embeds: [buildEmbed({ type: 'error', description: `❌ ${result.error}` })], ephemeral: true });
+    }
+    return interaction.reply({ embeds: [buildEmbed({ type: 'success', description: `✅ Escalated ticket to Tier ${result.newTier} (${result.newPriority} Priority).` })], ephemeral: true });
   }
 
   // Handle dynamic buttons from the Web-configured Ticket Panel
@@ -227,14 +696,20 @@ export async function handleButton(client, interaction, args) {
   }
 
   if (action === 'survey') {
-    const row = new ActionRowBuilder().addComponents([1,2,3,4,5].map(n => new ButtonBuilder().setCustomId(`ticket:rate:${ticketId}:${n}`).setLabel(`${n} ⭐`).setStyle(ButtonStyle.Secondary)));
+    const row = new ActionRowBuilder().addComponents([1,2,3,4,5].map(n => new ButtonBuilder().setCustomId(`csat:${ticketId}:${n}`).setLabel(`${n} ⭐`).setStyle(ButtonStyle.Secondary)));
     return interaction.reply({ embeds: [buildEmbed({ type: 'primary', description: client.i18n.t('tickets.survey', {}, lang) })], components: [row], ephemeral: true });
   }
 
-  if (action === 'rate') {
-    const { Ticket } = client.db.models;
-    await Ticket.update({ satisfaction: parseInt(extra) }, { where: { ticketId, guildId: interaction.guildId } });
-    return interaction.reply({ embeds: [buildEmbed({ type: 'success', description: `Thank you for your **${extra}⭐** rating!` })], ephemeral: true });
+  if (action === 'rate' || action === 'rating') {
+    const ratingVal = parseInt(extra || ticketId);
+    const targetId = extra ? ticketId : parts[0];
+    await recordCSATResponse(client, {
+      ticketId: targetId,
+      guildId: interaction.guildId,
+      userId: interaction.user.id,
+      rating: ratingVal
+    });
+    return interaction.reply({ embeds: [buildEmbed({ type: 'success', description: `Thank you for your **${ratingVal}⭐** rating!` })], ephemeral: true });
   }
 
   // Language Selection
@@ -246,7 +721,6 @@ export async function handleButton(client, interaction, args) {
     
     if (result.error) return interaction.followUp({ embeds: [buildEmbed({ type: 'error', description: result.error })], ephemeral: true });
     
-    // Set ticket language context (optional, can be inferred from 'language' param)
     return interaction.followUp({ 
       embeds: [buildEmbed({ type: 'success', description: language === 'ar' ? `✅ تم إنشاء التذكرة: <#${result.channel.id}>` : `✅ Ticket created: <#${result.channel.id}>` })], 
       ephemeral: true 

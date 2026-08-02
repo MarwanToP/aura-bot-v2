@@ -5,7 +5,7 @@
 //  (deferReply, DB, permissions, embeds) without a real Discord user.
 // ================================================================
 import { Collection } from 'discord.js';
-import { loadCommands } from '../../../aura/handlers/commandHandler.js';
+import { loadCommands } from '../../../bot/core/commandHandler.js';
 import database from '../../database/index.js';
 import redis from '../../database/redis.js';
 

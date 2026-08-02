@@ -1,7 +1,7 @@
 // ================================================================
 //  Embed Builder Utility
 // ================================================================
-import { EmbedBuilder } from 'discord.js';
+import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import config           from '../config/config.js';
 
 export function buildEmbed({
@@ -13,32 +13,40 @@ export function buildEmbed({
     error: config.colors.error || '#FF4C4C',
     warning: config.colors.warning || '#FFD700', 
     info:  config.colors.info || '#00BFFF',
-    primary: config.colors.primary || '#5865F2', 
+    primary: config.colors.primary || '#9D4EDD', 
+    gold:    '#FFD700',
+    purple:  '#150D2E',
     security: config.colors.security || '#2F3136',
     premium: config.colors.premium || '#FF73FA', 
     neutral: config.colors.neutral || '#95A5A6',
     ai:      config.colors.ai || '#00FFEA',      
     economy: config.colors.economy || '#F1C40F',
     fun:     config.colors.fun || '#FF9999',
+    level:   '#FFD700',
   };
 
-  const embed = new EmbedBuilder().setColor(color ?? colors[type] ?? config.colors.primary);
+  const embedColor = color ?? colors[type] ?? config.colors.primary;
+  const embed = new EmbedBuilder().setColor(embedColor);
   
-  if (title)       embed.setTitle(title);
-  if (description) embed.setDescription(description);
+  if (title) {
+    embed.setTitle(`❖ ${title}`);
+  }
+  if (description) {
+    embed.setDescription(description);
+  }
   
   if (thumbnail)   embed.setThumbnail(thumbnail);
   if (image)       embed.setImage(image);
   if (url)         embed.setURL(url);
   if (timestamp)   embed.setTimestamp();
   
-  if (author)      embed.setAuthor({ name: author, iconURL: authorIcon });
-  else             embed.setAuthor({ name: '✨ Aura Bot v2.0', iconURL: 'https://cdn.discordapp.com/emojis/1109405021876542289.webp' }); // Example default
+  if (author)      embed.setAuthor({ name: `✦ ${author}`, iconURL: authorIcon });
+  else             embed.setAuthor({ name: '✨ Aura Enterprise • Royal Theme', iconURL: 'https://cdn.discordapp.com/emojis/1109405021876542289.webp' });
 
   if (footer !== undefined) {
     embed.setFooter({ text: footer ?? `Aura Core System v${config.version}` });
   } else {
-    embed.setFooter({ text: `Aura Enterprise AI • v${config.version}` });
+    embed.setFooter({ text: `Aura Enterprise AI • Imperial Edition v${config.version}` });
   }
 
   if (fields.length) {
@@ -51,6 +59,33 @@ export function buildEmbed({
   }
   
   return embed;
+}
+
+export function buildProfileEmbed({ user, credits = 50000, rep = 1250, streak = 15, isPremium = true, avatarUrl }) {
+  const embed = new EmbedBuilder()
+    .setColor('#9D4EDD')
+    .setAuthor({ name: `✦ ${user.username ?? user} Card`, iconURL: avatarUrl })
+    .setTitle(`Aura Credits ${isPremium ? '⭐ PREMIUM MEMBER' : ''}`)
+    .setDescription('`● online`')
+    .setThumbnail(avatarUrl)
+    .addFields(
+      { name: '⭐ Reputation', value: `**${rep.toLocaleString()}**`, inline: true },
+      { name: '🪙 Credits', value: `**${credits.toLocaleString()}** 💰`, inline: true },
+      { name: '🔥 Daily Streak', value: `**${streak} Days** 🔥`, inline: true },
+    )
+    .setImage('attachment://banner_profile.png')
+    .setFooter({ text: '✨ Aura Economy System • Imperial Crystal Edition' })
+    .setTimestamp();
+
+  return embed;
+}
+
+export function buildProfileButtons() {
+  return new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId('economy:shop').setLabel('Shop').setStyle(ButtonStyle.Primary).setEmoji('🛒'),
+    new ButtonBuilder().setCustomId('economy:gamble').setLabel('Gamble').setStyle(ButtonStyle.Secondary).setEmoji('🎲'),
+    new ButtonBuilder().setCustomId('economy:transfer').setLabel('Transfer').setStyle(ButtonStyle.Secondary).setEmoji('💸'),
+  );
 }
 
 export function buildModEmbed({ action, user, moderator, reason, duration, caseId, extra = [] }) {

@@ -1,118 +1,124 @@
----
-title: Aura Bot v2.0
-emoji: 💠
-colorFrom: indigo
-colorTo: pink
-sdk: docker
-app_port: 7860
-pinned: false
----
+# 💠 Aura Bot v2.0 — Enterprise Modular Architecture
 
-# 💠 Aura Bot v2.0 — Neural Intelligence Platform
-
-State-of-the-Art Discord Intelligence and Management Platform.
-
-## 🚀 Key Features
-- **Neural Moderation**: AI-powered content analysis using Google Gemini 1.5 Flash.
-*   **Holographic Dashboard**: Fully responsive web interface with real-time telemetry.
-- **Split-Core Architecture**: Independent Bot and Web segments for maximum stability.
-- **TempVoice**: Dynamic voice channel generation and management.
-- **Professional Staff Office**: Advanced application and performance tracking system.
-- **Global Economy & Levels**: Highly optimized gaming systems with Redis caching.
-
-## 🛠️ Tech Stack
-*   **Language**: Node.js v20 (ESM)
-- **Discord API**: discord.js v14
-- **AI Engine**: Google Gemini 1.5 Flash
-- **Database**: PostgreSQL (Prisma/Sequelize) via Neon.tech
-- **Cache Layer**: Upstash Redis (High Speed)
-- **Dashboard**: Express.js + Socket.io + Vanilla CSS
-*   **Hosting**: Render.com (Production)
-
-## 📡 Essential Services & APIs
-*   **Google AI**: Intent analysis, moderation, and command resolution.
-- **Upstash**: Atomic state management and sharding cache.
-- **Neon**: Persistent relational data storage.
-- **Telegram Bot API**: Real-time service monitoring and crash alerts.
-- **Discord OAuth2**: Secure user authentication for the dashboard.
-
-## 📦 Project Structure
-- `aura/` — Discord bot logic, commands, and events.
-- `website/` — Web dashboard, API, and frontend assets.
-- `shared/` — Common database models, AI service, and monitoring.
-
-## ☁️ Render Deployment (24/7 Split Services)
-
-[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy)
-
-Use two Render services automatically provisioned from `render.yaml`:
-- **Worker**: `aura-bot-worker` (`MODE=BOT` — 24/7 online bot)
-- **Web**: `aura-dashboard-web` (`MODE=DASHBOARD` — web dashboard)
-
-> `MODE=BOTH` is still supported for local/dev single-process runs.
-
-## ☁️ Cloudflare Migration (Edge Front Door)
-If you are moving website traffic from Railway to Cloudflare, use:
-- `wrangler.toml` (Worker + static assets + dynamic proxy routes)
-- `website/cloudflare-worker.js`
-- Guide: `docs/cloudflare/CLOUDFLARE_MIGRATION.md`
-- Full integration runbook: `docs/cloudflare/CLOUDFLARE_COMPLETE_INTEGRATION.md`
-- Automation scripts:
-  - `npm run cf:zone:setup -- YOUR_DOMAIN https://YOUR_ORIGIN`
-  - `npm run cf:zone:verify -- YOUR_DOMAIN ns1.cloudflare.com,ns2.cloudflare.com`
-
-### 1) Deploy Bot Worker (Render Worker Service)
-1. In Render, create Blueprint from this repo (`deploy/configs/render.yaml`) or create a Docker Worker manually.
-2. Confirm service uses:
-   - `type: worker`
-   - `dockerfilePath: ./Dockerfile`
-   - `MODE=BOT`
-3. Set required env vars:
-   - `NODE_ENV=production`
-   - `DISCORD_TOKEN`
-   - `DATABASE_URL`
-   - `REDIS_URL`
-   - `REDIS_TLS` (`true` for Upstash)
-   - `GEMINI_API_KEY` (if AI features enabled)
-   - `JWT_SECRET`
-   - Optional alerts: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`
-4. Deploy and verify logs show bot login + heartbeat started.
-
-### 2) Deploy Dashboard Web (Render Web Service)
-1. Confirm service uses:
-   - `type: web`
-   - `dockerfilePath: ./Dockerfile`
-   - `MODE=DASHBOARD`
-   - `healthCheckPath=/api/health`
-2. Set required env vars:
-   - `NODE_ENV=production`
-   - `TRUST_PROXY=true`
-   - `DASHBOARD_STRICT_STARTUP=true`
-   - `DASHBOARD_COOKIE_SECURE=true`
-   - `DATABASE_URL`
-   - `REDIS_URL`
-   - `REDIS_TLS` (`true` for Upstash)
-   - `DISCORD_CLIENT_ID`
-   - `DISCORD_CLIENT_SECRET`
-   - `DISCORD_TOKEN` (used by dashboard APIs needing bot access)
-   - `SESSION_SECRET`
-   - `JWT_SECRET`
-   - `DASHBOARD_URL=https://<your-web-service>.onrender.com`
-   - `DISCORD_CALLBACK_URL=https://<your-web-service>.onrender.com/auth/discord/callback`
-   - `DASHBOARD_CORS_ORIGIN=https://<your-web-service>.onrender.com`
-3. Deploy and verify `GET /api/health` returns `{ "status": "ok" }`.
-
-### Monitoring Note
-- **UptimeRobot is monitoring only** (HTTP checks + alerts).
-- It does **not** host your bot or dashboard.
-
-## 🧪 Monitoring & Health
-Aura implements a dedicated `MonitorService` that tracks heartbeats for:
-- Bot Logic Core
-- Web Dashboard
-- PostgreSQL Connection
-
-**Telegram Alerts**: Integrated directly into the monitor to notify developers of service status, recoveries, and critical failures.
+A state-of-the-art Discord Intelligence Platform and Web Dashboard rebuilt with a 1,000,000x clean separation of concerns, high-concurrency sharding, and real-time telemetry.
 
 ---
-© 2026 Aura Innovations.
+
+## 🛠️ Tech Stack & Hosting
+
+- **Runtime**: Node.js v20 (ESM)
+- **Discord Framework**: discord.js v14
+- **AI Engine**: Google Gemini API
+- **Database & Cache**: PostgreSQL + Upstash Redis (atomic caching & real-time sync)
+- **Dashboard**: Express.js + Socket.IO + Next.js / Tailwind UI
+- **Primary Hosting**: **WispByte** (Bot Node & Dedicated Backend)
+- **Edge Routing & CDN**: **Cloudflare** (Edge Front Door & Workers)
+
+---
+
+## 📦 Project Architecture
+
+```
+aura-bot-v2/
+├── bot/                       # All Discord Bot Logic
+│   ├── cogs/                  # Modular Command Modules (admin, ai, fun, games, management, mod, premium, utility)
+│   ├── core/                  # Main Bot Client, Command Loader & Event Loader
+│   ├── events/                # Discord Event Listeners (ready, interactionCreate, messageCreate, etc.)
+│   └── utils/                 # Bot-specific utilities
+├── dashboard/                 # Web Dashboard & Public Assets
+│   ├── server.js              # Express + Socket.IO REST/Realtime Backend
+│   ├── cloudflare-worker.js   # Cloudflare Edge Worker integration
+│   └── public/                # Web Frontend Assets & UI pages
+├── shared/                    # Code shared between Bot and Dashboard
+│   ├── config/                # Environment & Configuration Schemas
+│   ├── database/              # PostgreSQL Sequelize & Redis Models
+│   ├── locales/               # Internationalization i18n JSON files
+│   ├── scripts/               # Structured Maintenance, Tests & Deployment Scripts
+│   ├── systems/               # Decoupled Core Systems (AI, Economy, Tickets, Leveling, Voice)
+│   └── utils/                 # Shared Logger, Embed Builder, Permissions
+├── docs/                      # Documentation & Architecture Specifications
+└── main.js                    # Unified Entry Point (Split-Core Orchestration)
+```
+
+---
+
+## ⚡ Quick Start
+
+### 1. Install Dependencies
+```bash
+npm install
+```
+
+### 2. Configure Environment
+Copy `.env.example` to `.env` and configure your credentials:
+```env
+MODE=BOTH
+DISCORD_TOKEN=your_bot_token
+DISCORD_CLIENT_ID=your_client_id
+DISCORD_CLIENT_SECRET=your_client_secret
+DATABASE_URL=postgresql://user:password@localhost:5432/auradb
+REDIS_URL=redis://localhost:6379
+SESSION_SECRET=your_super_secret_session_key
+JWT_SECRET=your_super_secret_jwt_key
+```
+
+### 3. Run Concurrently
+Run both the Bot and Dashboard concurrently via the main orchestrator:
+```bash
+npm start
+```
+Or with auto-reload in development:
+```bash
+npm run dev
+```
+
+---
+
+## 🎛️ Operational Modes
+
+| Command | Mode | Description |
+| :--- | :--- | :--- |
+| `MODE=BOTH node main.js` | BOTH | Runs both Discord Bot and Web Dashboard concurrently in a single process. |
+| `MODE=BOT node main.js` | BOT | Runs Discord Bot worker only (with health check endpoint). |
+| `MODE=DASHBOARD node main.js` | DASHBOARD | Runs Web Dashboard Express server only. |
+
+---
+
+## 🧪 Testing & Verification Scripts
+
+```bash
+# Run syntax linter across all JS files (/bot, /dashboard, /shared)
+npm run lint:syntax
+
+# Perform static audit on all 50+ slash commands
+npm run audit:commands
+
+# Run full smoke tests (Bot commands + Dashboard health endpoint)
+npm run test:smoke
+
+# Run end-to-end command mock test harness
+npm run test:e2e
+```
+
+---
+
+## ☁️ Production Deployment
+
+### WispByte + Cloudflare Deployment
+- **Bot & Dashboard Host**: Deployed on **WispByte** application node using `main.js` (`MODE=BOTH` or split `MODE=BOT` / `MODE=DASHBOARD`).
+- **Edge Routing & CDN**: Proxy web traffic through **Cloudflare** Worker (`dashboard/cloudflare-worker.js`) for SSL, DDoS protection, and global edge caching.
+
+---
+
+## 🎛️ Command Control & Role Settings
+
+Aura Bot v2 includes per-guild command management and role visibility controls directly from the Web Dashboard.
+
+### Features:
+- **Enable / Disable Commands**: Toggle individual slash commands on or off for your server in real-time.
+- **Role Restrictions**: Restrict command execution to specific Discord Role IDs. If configured, only members with one of the allowed roles can execute the command.
+- **Bot Enforcement**: Direct real-time permission check during interaction creation with immediate user feedback via ephemeral embeds.
+- **Redis Cache Invalidation & Realtime Sync**: Instant updates across shards using Redis `aura:config_update` event publishing.
+
+---
+© 2026 Aura Innovations. Enterprise Discord Intelligence Platform.

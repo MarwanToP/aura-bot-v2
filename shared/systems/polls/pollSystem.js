@@ -28,12 +28,6 @@ export const poll = {
       .addBooleanOption(o => o.setName('anonymous').setDescription('Hide who voted'))
     )
     .addSubcommand(s => s
-      .setName('ai')
-      .setDescription('Create a poll with AI-generated options')
-      .addStringOption(o => o.setName('topic').setDescription('Poll topic/question').setRequired(true))
-      .addIntegerOption(o => o.setName('options').setDescription('Number of options (2-6)').setMinValue(2).setMaxValue(6))
-    )
-    .addSubcommand(s => s
       .setName('end')
       .setDescription('End a poll')
       .addStringOption(o => o.setName('message_id').setDescription('Poll message ID').setRequired(true))
@@ -145,12 +139,13 @@ export const poll = {
         return interaction.editReply({ embeds: [buildEmbed({ type: 'error', description: '❌ Poll not found or expired.' })] });
       }
 
-      const totalVotes = pollData.counts.reduce((a, b) => a + b, 0);
-      const results    = pollData.options.map((opt, i) => {
-        const count   = pollData.counts[i] || 0;
+      const counts     = Array.isArray(pollData.counts) ? pollData.counts : [];
+      const totalVotes = counts.reduce((a, b) => a + b, 0);
+      const results    = (pollData.options || []).map((opt, i) => {
+        const count   = counts[i] || 0;
         const pct     = totalVotes > 0 ? Math.round((count / totalVotes) * 100) : 0;
         const bar     = '█'.repeat(Math.round(pct / 5)) + '░'.repeat(20 - Math.round(pct / 5));
-        return `${POLL_EMOJIS[i]} **${opt}**\n${bar} ${pct}% (${count} votes)`;
+        return `${POLL_EMOJIS[i] || '▫️'} **${opt}**\n${bar} ${pct}% (${count} votes)`;
       });
 
       if (sub === 'end' && !interaction.member.permissions.has(PermissionFlagsBits.ManageMessages)) {
@@ -194,14 +189,33 @@ export async function handleButton(client, interaction, args) {
     const userId   = interaction.user.id;
     const previous = pollData.votes[userId];
 
-    // Remove previous vote
-    if (previous !== undefined) {
-      pollData.counts[previous] = Math.max(0, (pollData.counts[previous] || 0) - 1);
+    // Stake-Weighted Voting Multiplier calculation based on user roles
+    let voteWeight = 1.0;
+    if (interaction.member?.roles?.cache) {
+      if (interaction.member.roles.cache.some(r => r.name.toLowerCase().includes('vip') || r.name.toLowerCase().includes('booster'))) {
+        voteWeight = 1.5;
+      } else if (interaction.member.roles.cache.some(r => r.name.toLowerCase().includes('veteran') || r.name.toLowerCase().includes('admin'))) {
+        voteWeight = 2.0;
+      }
     }
 
-    // Add new vote
+    if (!pollData.weightedCounts) {
+      pollData.weightedCounts = new Array(pollData.options.length).fill(0);
+    }
+
+    // Remove previous vote
+    if (previous !== undefined) {
+      const prevWeight = pollData.weights?.[userId] || 1.0;
+      pollData.counts[previous] = Math.max(0, (pollData.counts[previous] || 0) - 1);
+      pollData.weightedCounts[previous] = Math.max(0, (pollData.weightedCounts[previous] || 0) - prevWeight);
+    }
+
+    // Add new vote with weight tracking
+    if (!pollData.weights) pollData.weights = {};
+    pollData.weights[userId] = voteWeight;
     pollData.votes[userId]       = optionIndex;
     pollData.counts[optionIndex] = (pollData.counts[optionIndex] || 0) + 1;
+    pollData.weightedCounts[optionIndex] = (pollData.weightedCounts[optionIndex] || 0) + voteWeight;
 
     await client.redis.setJSON(`poll:${msgId}`, pollData, 86400 * 7);
 
@@ -209,17 +223,19 @@ export async function handleButton(client, interaction, args) {
     const totalVotes = pollData.counts.reduce((a, b) => a + b, 0);
     const optionLines = pollData.options.map((opt, i) => {
       const count = pollData.counts[i] || 0;
+      const wCount = pollData.weightedCounts[i] || count;
       const pct   = totalVotes > 0 ? Math.round((count / totalVotes) * 100) : 0;
-      return `${POLL_EMOJIS[i]} **${opt}** — ${count} votes (${pct}%)`;
+      return `${POLL_EMOJIS[i]} **${opt}** — ${count} votes (${pct}%) • Weighted: ${wCount.toFixed(1)} pts`;
     });
 
     const updatedEmbed = buildEmbed({
       type:        'info',
       title:       `📊 ${pollData.question}`,
       description: optionLines.join('\n'),
-      footer:      `${totalVotes} total votes`,
+      footer:      `${pollData.anonymous ? '🔒 Anonymous • ' : ''}${totalVotes} total votes`,
       timestamp:   true,
     });
+
 
     await interaction.update({ embeds: [updatedEmbed] });
 

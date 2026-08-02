@@ -90,6 +90,11 @@ export const social = {
       alerts.push(alert);
 
       await client.redis.setJSON(alertsKey, alerts, 86400 * 30);
+      try {
+        const { GuildSettings } = client.db.models;
+        const [s] = await GuildSettings.findOrCreate({ where: { guildId: interaction.guildId } });
+        await s.update({ socialAlertsConfig: { ...(s.socialAlertsConfig || {}), alerts } });
+      } catch {}
 
       return interaction.editReply({ embeds: [buildEmbed({ type: 'success', description: `✅ Alert **#${id}** added!\n**Platform:** ${platform}\n**Account:** ${identifier}\n**Channel:** <#${channel.id}>` })] });
     }
@@ -102,6 +107,11 @@ export const social = {
       if (idx === -1) return interaction.editReply({ embeds: [buildEmbed({ type: 'error', description: '❌ Alert not found.' })] });
       alerts.splice(idx, 1);
       await client.redis.setJSON(alertsKey, alerts, 86400 * 30);
+      try {
+        const { GuildSettings } = client.db.models;
+        const [s] = await GuildSettings.findOrCreate({ where: { guildId: interaction.guildId } });
+        await s.update({ socialAlertsConfig: { ...(s.socialAlertsConfig || {}), alerts } });
+      } catch {}
       return interaction.editReply({ embeds: [buildEmbed({ type: 'success', description: `✅ Alert #${id} removed.` })] });
     }
 
@@ -179,7 +189,19 @@ export async function checkSocialAlerts(client) {
     const guilds = client.guilds.cache;
     for (const [guildId] of guilds) {
       const alertsKey = `social:alerts:${guildId}`;
-      const alerts    = await client.redis.getJSON(alertsKey);
+      let alerts = await client.redis.getJSON(alertsKey);
+
+      if (!alerts?.length) {
+        try {
+          const { GuildSettings } = client.db.models;
+          const s = await GuildSettings.findOne({ where: { guildId } });
+          if (s?.socialAlertsConfig?.alerts?.length) {
+            alerts = s.socialAlertsConfig.alerts;
+            await client.redis.setJSON(alertsKey, alerts, 86400 * 30).catch(() => {});
+          }
+        } catch {}
+      }
+
       if (!alerts?.length) continue;
 
       for (const alert of alerts) {

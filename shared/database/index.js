@@ -70,6 +70,9 @@ const GuildSettings = sequelize.define('GuildSettings', {
   verificationRoleId:   { type: DataTypes.STRING, allowNull: true },
   verificationChannelId:{ type: DataTypes.STRING, allowNull: true },
   verificationMessageId:{ type: DataTypes.STRING, allowNull: true },
+  unverifiedRoleId:     { type: DataTypes.STRING, allowNull: true },
+  verificationMode:     { type: DataTypes.STRING(32), defaultValue: 'web' },
+  altAgeLimit:          { type: DataTypes.INTEGER, defaultValue: 7 },
 
   // Welcome
   welcomeEnabled:       { type: DataTypes.BOOLEAN, defaultValue: false },
@@ -86,11 +89,17 @@ const GuildSettings = sequelize.define('GuildSettings', {
   levelingEnabled:      { type: DataTypes.BOOLEAN, defaultValue: true },
   levelUpMessage:       { type: DataTypes.TEXT, allowNull: true },
   xpMultiplier:         { type: DataTypes.FLOAT, defaultValue: 1.0 },
+  xpDecayEnabled:       { type: DataTypes.BOOLEAN, defaultValue: true },
+  xpDecayGraceDays:     { type: DataTypes.INTEGER, defaultValue: 7 },
+  xpDecayHalfLifeDays:  { type: DataTypes.INTEGER, defaultValue: 14 },
 
   // Moderation
   autoModEnabled:       { type: DataTypes.BOOLEAN, defaultValue: false },
   aiModEnabled:         { type: DataTypes.BOOLEAN, defaultValue: false },
   aiModSensitivity:     { type: DataTypes.STRING, defaultValue: 'medium' },
+  autoModConfig:        { type: DataTypes.JSONB, defaultValue: { bannedWords: [], inviteLinks: false, spamThreshold: 5, action: 'timeout', durationMinutes: 10, exemptRoles: [], exemptChannels: [] } },
+  warningConfig:        { type: DataTypes.JSONB, defaultValue: { maxWarnings: 3, defaultAction: 'timeout', durationMinutes: 60 } },
+  appealsConfig:        { type: DataTypes.JSONB, defaultValue: { enabled: false, appealChannelId: null, formatInstructions: '' } },
 
   // Tickets
   ticketEnabled:        { type: DataTypes.BOOLEAN, defaultValue: false },
@@ -108,6 +117,7 @@ const GuildSettings = sequelize.define('GuildSettings', {
   tempVoiceCreatorId:    { type: DataTypes.STRING, allowNull: true },
   tempVoiceCategoryId:   { type: DataTypes.STRING, allowNull: true },
   tempVoiceNameTemplate: { type: DataTypes.STRING, defaultValue: '{user}\'s Room' },
+  voiceTextLinkedChannelId: { type: DataTypes.STRING, allowNull: true },
 
   // Starboard
   starboardEnabled:     { type: DataTypes.BOOLEAN, defaultValue: false },
@@ -119,9 +129,17 @@ const GuildSettings = sequelize.define('GuildSettings', {
   statsMemberChannelId: { type: DataTypes.STRING, allowNull: true },
   statsOnlineChannelId: { type: DataTypes.STRING, allowNull: true },
   statsBotChannelId:    { type: DataTypes.STRING, allowNull: true },
+  statsCustomChannelId: { type: DataTypes.STRING, allowNull: true },
+  statsMemberFormat:   { type: DataTypes.STRING, defaultValue: '👥 Members: {count}' },
+  statsOnlineFormat:   { type: DataTypes.STRING, defaultValue: '🟢 Online: {count}' },
+  statsBotFormat:      { type: DataTypes.STRING, defaultValue: '🤖 Bots: {count}' },
+  statsCustomFormat:   { type: DataTypes.STRING, defaultValue: '🎯 Goal: {count}/{target}' },
+  customGoalTarget:    { type: DataTypes.INTEGER, defaultValue: 1000 },
+
 
   // Invites
   inviteTrackEnabled:   { type: DataTypes.BOOLEAN, defaultValue: false },
+  inviteConfig:         { type: DataTypes.JSONB, defaultValue: { fakeShieldEnabled: true, minAccountAgeDays: 7, rankRewards: [] } },
 
   // AI
   aiChatEnabled:        { type: DataTypes.BOOLEAN, defaultValue: true },
@@ -218,6 +236,7 @@ const Ticket = sequelize.define('Ticket', {
   subject:        { type: DataTypes.STRING, allowNull: true },
   priority:       { type: DataTypes.ENUM('Low','Medium','High','Critical'), defaultValue: 'Medium' },
   status:         { type: DataTypes.ENUM('open','claimed','closed','archived'), defaultValue: 'open' },
+  tier:           { type: DataTypes.INTEGER, defaultValue: 1 },
   claimedBy:      { type: DataTypes.STRING, allowNull: true },
   closedBy:       { type: DataTypes.STRING, allowNull: true },
   closedAt:       { type: DataTypes.DATE, allowNull: true },
@@ -228,6 +247,20 @@ const Ticket = sequelize.define('Ticket', {
 }, {
   tableName: 'tickets', timestamps: true,
   indexes: [{ unique: true, fields: ['guildId', 'ticketId'] }, { fields: ['guildId', 'userId'] }],
+});
+
+// ── 5b. Ticket CSAT ─────────────────────────────────────────────
+const TicketCSAT = sequelize.define('TicketCSAT', {
+  id:           { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
+  ticketId:     { type: DataTypes.STRING, allowNull: false },
+  guildId:      { type: DataTypes.STRING, allowNull: false },
+  userId:       { type: DataTypes.STRING, allowNull: false },
+  rating:       { type: DataTypes.INTEGER, allowNull: false },
+  feedback:     { type: DataTypes.TEXT, allowNull: true },
+  staffId:      { type: DataTypes.STRING, allowNull: true },
+}, {
+  tableName: 'ticket_csat', timestamps: true,
+  indexes: [{ fields: ['guildId', 'ticketId'] }, { fields: ['guildId', 'rating'] }],
 });
 
 // ── 6. Economy ─────────────────────────────────────────────────
@@ -427,10 +460,11 @@ const UserAchievement = sequelize.define('UserAchievement', {
 
 // ── 23. Temp Channel ───────────────────────────────────────────
 const TempChannel = sequelize.define('TempChannel', {
-  guildId:   { type: DataTypes.STRING, allowNull: false },
-  channelId: { type: DataTypes.STRING, allowNull: false },
-  ownerId:   { type: DataTypes.STRING, allowNull: false },
-  expiresAt: { type: DataTypes.DATE, allowNull: true },
+  guildId:       { type: DataTypes.STRING, allowNull: false },
+  channelId:     { type: DataTypes.STRING, allowNull: false },
+  ownerId:       { type: DataTypes.STRING, allowNull: false },
+  textChannelId: { type: DataTypes.STRING, allowNull: true },
+  expiresAt:     { type: DataTypes.DATE, allowNull: true },
 }, { tableName: 'temp_channels', timestamps: true });
 
 // ── 24. Application Form ───────────────────────────────────────
@@ -439,6 +473,7 @@ const ApplicationForm = sequelize.define('ApplicationForm', {
   questions:    { type: DataTypes.JSONB, defaultValue: [] },
   logChannelId: { type: DataTypes.STRING, allowNull: true },
   roleRewardId: { type: DataTypes.STRING, allowNull: true },
+  denyRoleId:   { type: DataTypes.STRING, allowNull: true },
   enabled:      { type: DataTypes.BOOLEAN, defaultValue: false },
   cooldown:     { type: DataTypes.INTEGER, defaultValue: 86400 }, // 24h default
 }, { tableName: 'application_forms', timestamps: true });
@@ -523,15 +558,26 @@ const Suggestion = sequelize.define('Suggestion', {
   indexes: [{ fields: ['guildId', 'status'] }, { fields: ['guildId', 'userId'] }],
 });
 
+const CommandSettings = sequelize.define('CommandSettings', {
+  guildId: { type: DataTypes.STRING, allowNull: false },
+  commandName: { type: DataTypes.STRING, allowNull: false },
+  enabled: { type: DataTypes.BOOLEAN, defaultValue: true },
+  allowedRoles: { type: DataTypes.JSONB, defaultValue: [] },
+}, {
+  tableName: 'command_settings',
+  timestamps: false,
+  indexes: [{ unique: true, fields: ['guildId', 'commandName'] }],
+});
+
 // ── Register all models ───────────────────────────────────────
 const models = {
-  GuildSettings, UserProfile, ModerationCase, Warning, Ticket,
+  GuildSettings, UserProfile, ModerationCase, Warning, Ticket, TicketCSAT,
   Economy, ShopItem, Inventory, Giveaway, GiveawayEntry,
   Birthday, LevelReward, AutoResponder, CustomCommand,
   ReactionRole, StarboardEntry, InviteTrack, GuildCounter,
   Automation, TimedMessage, Achievement, UserAchievement, TempChannel,
   ApplicationForm, TicketPanel, StaffApplication, StaffDuty,
-  StaffFingerprint, Suggestion,
+  StaffFingerprint, Suggestion, CommandSettings,
 };
 
 Object.entries(models).forEach(([name, model]) => {

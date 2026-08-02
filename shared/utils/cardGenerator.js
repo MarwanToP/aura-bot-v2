@@ -59,9 +59,9 @@ export async function generateAuraCard(user, data) {
 
   // Stats Grid
   const stats = [
-    { label: 'AURA POINTS', value: data.balance.toLocaleString(), x: 200 },
-    { label: 'DAILY STREAK', value: `${data.streak} DAYS`, x: 400 },
-    { label: 'REPUTATION', value: data.reputation.toLocaleString(), x: 600 },
+    { label: 'AURA POINTS', value: Number(data.balance || 0).toLocaleString(), x: 200 },
+    { label: 'DAILY STREAK', value: `${data.streak || 0} DAYS`, x: 400 },
+    { label: 'REPUTATION', value: Number(data.reputation || 0).toLocaleString(), x: 600 },
   ];
 
   stats.forEach(s => {

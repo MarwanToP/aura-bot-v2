@@ -1,0 +1,10 @@
+{
+  "name": "@aura/logger",
+  "version": "2.0.0",
+  "type": "module",
+  "main": "index.js",
+  "dependencies": {
+    "winston": "^3.13.0",
+    "winston-daily-rotate-file": "^5.0.0"
+  }
+}

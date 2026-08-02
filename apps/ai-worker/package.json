@@ -1,0 +1,11 @@
+{
+  "name": "@aura/ai-worker",
+  "version": "2.0.0",
+  "type": "module",
+  "main": "src/gemini/pipeline.js",
+  "dependencies": {
+    "@aura/config": "*",
+    "@aura/logger": "*",
+    "@google/generative-ai": "^0.24.1"
+  }
+}

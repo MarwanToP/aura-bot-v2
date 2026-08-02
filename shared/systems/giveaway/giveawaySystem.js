@@ -203,7 +203,7 @@ export const giveaway = {
       const newWinners = shuffled.slice(0, count);
       const winnerMentions = newWinners.map(w => `<@${w.userId}>`).join(', ');
       
-      const channel = await client.channels.fetch(giveaway.channelId).catch(() => null);
+      const channel = interaction.guild?.channels?.cache?.get(giveaway.channelId) || (typeof client.channels?.fetch === 'function' ? await client.channels.fetch(giveaway.channelId).catch(() => null) : null);
       if (channel) {
         await channel.send({
           content: winnerMentions,

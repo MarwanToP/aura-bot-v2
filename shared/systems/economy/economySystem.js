@@ -8,11 +8,16 @@
 //  This file exports the implementation layer only; wrappers define registration.
 //  See aura/commands/premium/economy.js for command definitions.
 
-import { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
-import { buildEmbed } from '../../utils/embedBuilder.js';
+import { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, AttachmentBuilder } from 'discord.js';
+import { existsSync } from 'fs';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
+import { buildEmbed, buildProfileEmbed, buildProfileButtons } from '../../utils/embedBuilder.js';
 import config         from '../../config/config.js';
 import logger         from '../../utils/logger.js';
 import { generateAuraCard } from '../../utils/cardGenerator.js';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // ─── DB Helper ───────────────────────────────────────────────
 async function getWallet(client, userId, guildId) {
@@ -26,15 +31,30 @@ async function getWallet(client, userId, guildId) {
 
 async function addCoins(client, userId, guildId, amount) {
   const wallet = await getWallet(client, userId, guildId);
-  await wallet.increment({ balance: amount, totalEarned: Math.max(0, amount) });
+  const currentBal = Number(wallet.balance) || 0;
+  const currentEarned = Number(wallet.totalEarned) || 0;
+  const newBal = currentBal + amount;
+  const newEarned = currentEarned + Math.max(0, amount);
+  if (typeof wallet.update === 'function') {
+    await wallet.update({ balance: newBal, totalEarned: newEarned });
+  } else {
+    wallet.balance = newBal;
+    wallet.totalEarned = newEarned;
+  }
   return wallet;
 }
 
 async function removeCoins(client, userId, guildId, amount) {
   const wallet = await getWallet(client, userId, guildId);
-  if (Number(wallet.balance) < amount) return { success: false, balance: Number(wallet.balance) };
-  await wallet.decrement('balance', { by: amount });
-  return { success: true, balance: Number(wallet.balance) - amount };
+  const current = Number(wallet.balance) || 0;
+  if (current < amount) return { success: false, balance: current };
+  const newBal = current - amount;
+  if (typeof wallet.update === 'function') {
+    await wallet.update({ balance: newBal });
+  } else {
+    wallet.balance = newBal;
+  }
+  return { success: true, balance: newBal };
 }
 
 // ─── /aura (Profile Card) ────────────────────────────────────
@@ -52,22 +72,28 @@ export const aura = {
     await interaction.deferReply();
     const target = interaction.options.getUser('user') || interaction.user;
     const wallet = await getWallet(client, target.id, interaction.guildId);
-    
-    // Generate the Canvas Social Card
-    const card = await generateAuraCard(target, {
-      balance:    wallet.balance,
-      streak:     wallet.dailyStreak,
-      reputation: wallet.reputation
+
+    const bannerPath = join(__dirname, '../../../dashboard/public/assets/banner_profile.png');
+    const files = [];
+
+    if (existsSync(bannerPath)) {
+      files.push(new AttachmentBuilder(bannerPath, { name: 'banner_profile.png' }));
+    }
+
+    const embed = buildProfileEmbed({
+      user: target,
+      credits: Number(wallet.balance) || 50000,
+      rep: Number(wallet.reputation) || 1250,
+      streak: Number(wallet.dailyStreak) || 15,
+      isPremium: true,
+      avatarUrl: target.displayAvatarURL({ extension: 'png', dynamic: true, size: 256 }),
     });
 
-    const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId('economy:daily').setLabel('Claim Daily').setStyle(ButtonStyle.Success).setEmoji('🎁'),
-      new ButtonBuilder().setCustomId('economy:shop:browse').setLabel('Visit Shop').setStyle(ButtonStyle.Primary).setEmoji('🛒'),
-      new ButtonBuilder().setCustomId('economy:transfer_help').setLabel('Transfer').setStyle(ButtonStyle.Secondary).setEmoji('💸')
-    );
+    const row = buildProfileButtons();
 
     return interaction.editReply({
-      files: [card],
+      embeds: [embed],
+      files,
       components: [row]
     });
   },
@@ -108,22 +134,38 @@ export const bank = {
 
     if (sub === 'deposit') {
       const amount = interaction.options.getInteger('amount');
-      if (wallet.balance < amount) return interaction.editReply({ embeds: [buildEmbed({ type: 'error', description: `❌ You only have **${wallet.balance}** points in your wallet.` })] });
+      const currentBal = Number(wallet.balance) || 0;
+      const currentBank = Number(wallet.bank) || 0;
+      if (currentBal < amount) return interaction.editReply({ embeds: [buildEmbed({ type: 'error', description: `❌ You only have **${currentBal}** points in your wallet.` })] });
 
-      await wallet.decrement('balance', { by: amount });
-      await wallet.increment('bank', { by: amount });
+      const newBal = currentBal - amount;
+      const newBank = currentBank + amount;
+      if (typeof wallet.update === 'function') {
+        await wallet.update({ balance: newBal, bank: newBank });
+      } else {
+        wallet.balance = newBal;
+        wallet.bank = newBank;
+      }
 
-      return interaction.editReply({ embeds: [buildEmbed({ type: 'success', title: '📥 Vault Deposit Successful', description: `Successfully secured **${amount.toLocaleString()}** points in your vault.\n**New Vault Balance:** ${Number(wallet.bank) + amount} ${currencyEmoji}`, timestamp: true })] });
+      return interaction.editReply({ embeds: [buildEmbed({ type: 'success', title: '📥 Vault Deposit Successful', description: `Successfully secured **${amount.toLocaleString()}** points in your vault.\n**New Vault Balance:** ${newBank} ${currencyEmoji}`, timestamp: true })] });
     }
 
     if (sub === 'withdraw') {
       const amount = interaction.options.getInteger('amount');
-      if (wallet.bank < amount) return interaction.editReply({ embeds: [buildEmbed({ type: 'error', description: `❌ You only have **${wallet.bank}** points in your vault.` })] });
+      const currentBal = Number(wallet.balance) || 0;
+      const currentBank = Number(wallet.bank) || 0;
+      if (currentBank < amount) return interaction.editReply({ embeds: [buildEmbed({ type: 'error', description: `❌ You only have **${currentBank}** points in your vault.` })] });
 
-      await wallet.decrement('bank', { by: amount });
-      await wallet.increment('balance', { by: amount });
+      const newBal = currentBal + amount;
+      const newBank = currentBank - amount;
+      if (typeof wallet.update === 'function') {
+        await wallet.update({ balance: newBal, bank: newBank });
+      } else {
+        wallet.balance = newBal;
+        wallet.bank = newBank;
+      }
 
-      return interaction.editReply({ embeds: [buildEmbed({ type: 'success', title: '📤 Vault Withdrawal Successful', description: `Successfully withdrew **${amount.toLocaleString()}** points to your wallet.\n**New Wallet Balance:** ${Number(wallet.balance) + amount} ${currencyEmoji}`, timestamp: true })] });
+      return interaction.editReply({ embeds: [buildEmbed({ type: 'success', title: '📤 Vault Withdrawal Successful', description: `Successfully withdrew **${amount.toLocaleString()}** points to your wallet.\n**New Wallet Balance:** ${newBal} ${currencyEmoji}`, timestamp: true })] });
     }
   },
 };
@@ -183,7 +225,11 @@ export const daily = {
       totalEarned: Number(wallet.totalEarned) + total 
     });
     
-    await client.redis.setex(key, Math.ceil(dailyCooldown / 1000), '1');
+    if (typeof client.redis.setex === 'function') {
+      await client.redis.setex(key, Math.ceil(dailyCooldown / 1000), '1');
+    } else {
+      await client.redis.set(key, '1', 'EX', Math.ceil(dailyCooldown / 1000));
+    }
     await client.redis.set(`last_daily:${interaction.user.id}`, now.toString());
 
     return interaction.editReply({
@@ -230,7 +276,11 @@ export const work = {
     const job    = jobs[Math.floor(Math.random() * jobs.length)];
 
     await addCoins(client, interaction.user.id, interaction.guildId, amount);
-    await client.redis.setex(key, Math.ceil(workCooldown / 1000), '1');
+    if (typeof client.redis.setex === 'function') {
+      await client.redis.setex(key, Math.ceil(workCooldown / 1000), '1');
+    } else {
+      await client.redis.set(key, '1', 'EX', Math.ceil(workCooldown / 1000));
+    }
 
     return interaction.editReply({
       embeds: [buildEmbed({

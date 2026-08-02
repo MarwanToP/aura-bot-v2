@@ -14,7 +14,7 @@ const env = {
   DASHBOARD_DB_ALTER: 'false',
 };
 
-const child = spawn(process.execPath, ['website/server.js'], {
+const child = spawn(process.execPath, ['dashboard/server.js'], {
   env,
   stdio: ['ignore', 'pipe', 'pipe'],
 });
@@ -31,7 +31,7 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 async function waitForHealth() {
   while (Date.now() - startedAt < timeoutMs) {
     if (child.exitCode !== null) {
-      throw new Error(`website/server.js exited early with code ${child.exitCode}`);
+      throw new Error(`dashboard/server.js exited early with code ${child.exitCode}`);
     }
 
     try {

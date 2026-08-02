@@ -1,0 +1,60 @@
+# Aura Bot v2.0 — Render Blueprint (Platform Config)
+services:
+  - type: worker
+    name: aura-bot-worker
+    runtime: docker
+    dockerfilePath: deploy/docker/Dockerfile
+    plan: starter
+    branch: main
+    autoDeploy: true
+    envVars:
+      - key: MODE
+        value: BOT
+      - key: NODE_ENV
+        value: production
+      - key: LOG_LEVEL
+        value: info
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: REDIS_TLS
+        value: "true"
+      - key: DISCORD_TOKEN
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+
+  - type: web
+    name: aura-dashboard-web
+    runtime: docker
+    dockerfilePath: deploy/docker/Dockerfile
+    plan: starter
+    branch: main
+    autoDeploy: true
+    healthCheckPath: /api/health
+    envVars:
+      - key: MODE
+        value: DASHBOARD
+      - key: NODE_ENV
+        value: production
+      - key: LOG_LEVEL
+        value: info
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: DISCORD_CLIENT_ID
+        sync: false
+      - key: DISCORD_CLIENT_SECRET
+        sync: false
+      - key: DISCORD_TOKEN
+        sync: false
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: JWT_SECRET
+        generateValue: true
+      - key: GEMINI_API_KEY
+        sync: false

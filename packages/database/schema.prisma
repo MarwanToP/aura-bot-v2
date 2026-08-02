@@ -1,0 +1,101 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model GuildSettings {
+  guildId               String   @id
+  language              String   @default("en")
+  prefix                String   @default("!")
+  premiumTier           Int      @default(0)
+  premiumExpiry         DateTime?
+  timezone              String   @default("UTC")
+  hijriDates            Boolean  @default(false)
+
+  modLogChannelId       String?
+  auditLogChannelId     String?
+  levelUpChannelId      String?
+  ticketLogChannelId    String?
+  staffLogChannelId     String?
+  welcomeChannelId      String?
+  
+  welcomeEnabled        Boolean  @default(false)
+  welcomeMessage        String?
+  antiNukeEnabled       Boolean  @default(false)
+  antiRaidEnabled       Boolean  @default(false)
+  verificationEnabled   Boolean  @default(false)
+  
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@map("guild_settings")
+}
+
+model UserProfile {
+  id            Int      @id @default(autoincrement())
+  userId        String
+  guildId       String
+  xp            BigInt   @default(0)
+  level         Int      @default(0)
+  reputation    Int      @default(0)
+  totalMessages BigInt   @default(0)
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([userId, guildId])
+  @@map("user_profiles")
+}
+
+model ModerationCase {
+  id          Int       @id @default(autoincrement())
+  caseId      Int
+  guildId     String
+  userId      String
+  moderatorId String
+  type        String
+  reason      String    @default("No reason provided")
+  duration    BigInt?
+  active      Boolean   @default(true)
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([guildId, caseId])
+  @@map("moderation_cases")
+}
+
+model Ticket {
+  id          Int       @id @default(autoincrement())
+  ticketId    String
+  guildId     String
+  userId      String
+  channelId   String
+  category    String    @default("Other")
+  status      String    @default("open")
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([guildId, ticketId])
+  @@map("tickets")
+}
+
+model Economy {
+  id          Int       @id @default(autoincrement())
+  userId      String
+  guildId     String
+  balance     BigInt    @default(0)
+  bank        BigInt    @default(0)
+  dailyStreak Int       @default(0)
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([userId, guildId])
+  @@map("economy")
+}

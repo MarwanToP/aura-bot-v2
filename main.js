@@ -48,7 +48,7 @@ if (shouldRunDashboard) {
   // Start the global alert monitoring loop
   monitor.startAlertLoop();
 
-  import('./website/server.js').catch(err => {
+  import('./dashboard/server.js').catch(err => {
     logger.error('[Dashboard] Critical failure during startup:', err);
     if (!shouldRunBot) {
       process.exit(1);
@@ -100,7 +100,7 @@ if (shouldRunBot) {
 
   if (isMemoryConstrained) {
     logger.info('[Bot] Memory-Saving Mode: Initializing single instance (No Sharding).');
-    import('./aura/bot.js').catch(err => {
+    import('./bot/core/bot.js').catch(err => {
       logger.error('[Bot] Instance failed:', err);
       if (!shouldRunDashboard) {
         process.exit(1);
@@ -125,7 +125,7 @@ function initializeSharding() {
     process.exit(1);
   }
 
-  const manager = new ShardingManager(join(__dirname, 'aura/bot.js'), {
+  const manager = new ShardingManager(join(__dirname, 'bot/core/bot.js'), {
     token:       process.env.DISCORD_TOKEN,
     totalShards,
     respawn:     true,
