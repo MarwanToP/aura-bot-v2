@@ -100,8 +100,11 @@ export default function CommandSettings({ guildId = "1" }) {
                 </div>
 
                 <button
+                  role="switch"
+                  aria-checked={setting.enabled}
+                  aria-label={`Toggle command ${cmd.name}`}
                   onClick={() => toggleCommand(cmd.name, setting.enabled)}
-                  className={`w-11 h-6 rounded-full p-1 transition-colors flex items-center cursor-pointer ${
+                  className={`w-11 h-6 rounded-full p-1 transition-colors flex items-center cursor-pointer focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2 outline-none ${
                     setting.enabled ? "bg-purple-600" : "bg-[#1e2333]"
                   }`}
                 >
