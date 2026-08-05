@@ -91,21 +91,21 @@ export default function GiveawaySettings() {
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="text-[11px] font-mono text-zinc-400 font-bold uppercase">Prize</label>
-              <input type="text" value={prize} onChange={(e) => setPrize(e.target.value)}
+              <label htmlFor="giveaway-prize" className="text-[11px] font-mono text-zinc-400 font-bold uppercase">Prize</label>
+              <input id="giveaway-prize" type="text" value={prize} onChange={(e) => setPrize(e.target.value)}
                 placeholder="e.g. Discord Nitro, Steam Wallet..."
                 className="w-full bg-[#0b0d14] border border-[#1e2333] rounded-xl px-4 py-2.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-purple-500 mt-1"
               />
             </div>
             <div>
-              <label className="text-[11px] font-mono text-zinc-400 font-bold uppercase">Channel</label>
-              <input type="text" value={channel} onChange={(e) => setChannel(e.target.value)}
+              <label htmlFor="giveaway-channel" className="text-[11px] font-mono text-zinc-400 font-bold uppercase">Channel</label>
+              <input id="giveaway-channel" type="text" value={channel} onChange={(e) => setChannel(e.target.value)}
                 className="w-full bg-[#0b0d14] border border-[#1e2333] rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-purple-500 mt-1"
               />
             </div>
             <div>
-              <label className="text-[11px] font-mono text-zinc-400 font-bold uppercase">Winners</label>
-              <input type="number" min={1} max={100} value={winnerCount} onChange={(e) => setWinnerCount(Math.max(1, parseInt(e.target.value) || 1))}
+              <label htmlFor="giveaway-winners" className="text-[11px] font-mono text-zinc-400 font-bold uppercase">Winners</label>
+              <input id="giveaway-winners" type="number" min={1} max={100} value={winnerCount} onChange={(e) => setWinnerCount(Math.max(1, parseInt(e.target.value) || 1))}
                 className="w-full bg-[#0b0d14] border border-[#1e2333] rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-purple-500 mt-1"
               />
             </div>
@@ -189,7 +189,9 @@ export default function GiveawaySettings() {
                     </button>
                   )}
                   <button onClick={() => deleteGiveaway(gw.id)}
-                    className="p-1.5 rounded-lg bg-rose-600/20 border border-rose-500/30 text-rose-400 hover:bg-rose-600/30 transition-all cursor-pointer"
+                    aria-label="Delete giveaway"
+                    title="Delete giveaway"
+                    className="p-1.5 rounded-lg bg-rose-600/20 border border-rose-500/30 text-rose-400 hover:bg-rose-600/30 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-rose-500 focus:outline-none"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
