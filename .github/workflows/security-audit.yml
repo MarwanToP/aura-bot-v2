@@ -19,7 +19,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
 
       - name: Audit Dependencies
         run: npm audit --audit-level=high || true
@@ -27,4 +27,4 @@ jobs:
       - name: Git Secrets Verification
         run: |
           echo "Scanning for accidental secret commits..."
-          ! grep -rE "DISCORD_TOKEN=[a-zA-Z0-9_-]{24,}" . --exclude-dir=node_modules --exclude-dir=.git || exit 1
+          ! grep -rE "DISCORD_TOKEN=[a-zA-Z0-9_-]{24,}" . --exclude-dir=node_modules --exclude-dir=.git | grep -v "your_discord_bot_token_here" || exit 1
