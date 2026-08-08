@@ -100,12 +100,8 @@ export default function CommandSettings({ guildId = "1" }) {
                 </div>
 
                 <button
-                  type="button"
-                  role="switch"
-                  aria-checked={setting.enabled}
-                  aria-label={`Toggle ${cmd.name} command`}
                   onClick={() => toggleCommand(cmd.name, setting.enabled)}
-                  className={`w-11 h-6 rounded-full p-1 transition-colors flex items-center cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 ${
+                  className={`w-11 h-6 rounded-full p-1 transition-colors flex items-center cursor-pointer ${
                     setting.enabled ? "bg-purple-600" : "bg-[#1e2333]"
                   }`}
                 >
@@ -147,7 +143,7 @@ export default function CommandSettings({ guildId = "1" }) {
                     <p className="text-[11px] text-zinc-400">Configure role permissions for this command.</p>
                   </div>
                 </div>
-                <button type="button" onClick={() => setSelectedCmd(null)} className="text-zinc-400 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 rounded" aria-label="Close permissions modal">
+                <button onClick={() => setSelectedCmd(null)} className="text-zinc-400 hover:text-white">
                   <X className="w-4 h-4" />
                 </button>
               </div>
@@ -156,19 +152,16 @@ export default function CommandSettings({ guildId = "1" }) {
                 {["@Administrator", "@Moderator", "@VIP Supporter", "@Everyone"].map((role) => {
                   const isChecked = allowedRoles.includes(role);
                   return (
-                    <button
-                      type="button"
-                      role="checkbox"
-                      aria-checked={isChecked}
+                    <div
                       key={role}
                       onClick={() => toggleRole(role)}
-                      className="w-full flex items-center justify-between p-3 rounded-xl bg-[#0b0d14] border border-[#1e2333] text-xs font-medium cursor-pointer hover:border-purple-500/40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500"
+                      className="flex items-center justify-between p-3 rounded-xl bg-[#0b0d14] border border-[#1e2333] text-xs font-medium cursor-pointer hover:border-purple-500/40 transition-colors"
                     >
                       <span className="text-zinc-200">{role}</span>
                       <div className={`w-5 h-5 rounded-md flex items-center justify-center border ${isChecked ? "bg-purple-600 border-purple-500 text-white" : "border-[#1e2333]"}`}>
                         {isChecked && <Check className="w-3.5 h-3.5" />}
                       </div>
-                    </button>
+                    </div>
                   );
                 })}
               </div>
