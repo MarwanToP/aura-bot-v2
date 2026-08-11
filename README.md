@@ -53,7 +53,7 @@ npm install
 Copy `.env.example` to `.env` and configure your credentials:
 ```env
 MODE=BOTH
-DISCORD_TOKEN=your_bot_token
+DISCORD_TOKEN=mock
 DISCORD_CLIENT_ID=your_client_id
 DISCORD_CLIENT_SECRET=your_client_secret
 DATABASE_URL=postgresql://user:password@localhost:5432/auradb

@@ -135,5 +135,5 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          workingDirectory: aura-ai-worker
+          workingDirectory: apps/ai-worker
           command: deploy
