@@ -153,7 +153,7 @@ export default function EmbedBuilder() {
                         Inline
                       </label>
                     </div>
-                    <button onClick={() => removeField(idx)} className="p-1.5 text-zinc-500 hover:text-rose-400 transition-colors cursor-pointer">
+                    <button aria-label="Remove field" onClick={() => removeField(idx)} className="p-1.5 text-zinc-500 hover:text-rose-400 focus-visible:ring-2 focus-visible:ring-rose-400 transition-colors cursor-pointer outline-none rounded-lg">
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
