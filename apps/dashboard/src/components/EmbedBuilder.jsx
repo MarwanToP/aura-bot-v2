@@ -120,9 +120,9 @@ export default function EmbedBuilder() {
             </div>
 
             <div className="flex items-center gap-1 p-1.5 bg-[#0b0d14] border border-[#1e2333] rounded-xl w-fit">
-              <button className="p-1.5 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-white transition-all cursor-pointer"><Bold className="w-3.5 h-3.5" /></button>
-              <button className="p-1.5 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-white transition-all cursor-pointer"><Italic className="w-3.5 h-3.5" /></button>
-              <button className="p-1.5 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-white transition-all cursor-pointer"><Underline className="w-3.5 h-3.5" /></button>
+              <button aria-label="Bold text" className="p-1.5 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-white transition-all cursor-pointer"><Bold className="w-3.5 h-3.5" /></button>
+              <button aria-label="Italic text" className="p-1.5 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-white transition-all cursor-pointer"><Italic className="w-3.5 h-3.5" /></button>
+              <button aria-label="Underline text" className="p-1.5 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-white transition-all cursor-pointer"><Underline className="w-3.5 h-3.5" /></button>
               <span className="w-px h-5 bg-[#1e2333] mx-1"></span>
               <button className="p-1.5 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-white text-[10px] font-bold cursor-pointer">LINK</button>
               <button className="p-1.5 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-white text-[10px] font-bold cursor-pointer">CODE</button>

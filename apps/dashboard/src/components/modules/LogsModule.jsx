@@ -128,9 +128,9 @@ export default function LogsModule({ guildId = "default" }) {
         <div className="flex items-center justify-between p-4 border-t border-white/10">
           <span className="text-[11px] text-zinc-500">Showing {filtered.length} of {MOCK_CASES.length} cases</span>
           <div className="flex items-center gap-2">
-            <button onClick={() => setPage(Math.max(1, page - 1))} disabled={page === 1} className="p-1.5 rounded-lg bg-white/[0.05] border border-white/10 text-zinc-400 hover:text-white disabled:opacity-50 cursor-pointer"><ChevronLeft className="w-4 h-4" /></button>
+            <button aria-label="Previous page" onClick={() => setPage(Math.max(1, page - 1))} disabled={page === 1} className="p-1.5 rounded-lg bg-white/[0.05] border border-white/10 text-zinc-400 hover:text-white disabled:opacity-50 cursor-pointer"><ChevronLeft className="w-4 h-4" /></button>
             <span className="text-xs font-mono text-zinc-400">Page {page}</span>
-            <button onClick={() => setPage(page + 1)} className="p-1.5 rounded-lg bg-white/[0.05] border border-white/10 text-zinc-400 hover:text-white cursor-pointer"><ChevronRight className="w-4 h-4" /></button>
+            <button aria-label="Next page" onClick={() => setPage(page + 1)} className="p-1.5 rounded-lg bg-white/[0.05] border border-white/10 text-zinc-400 hover:text-white cursor-pointer"><ChevronRight className="w-4 h-4" /></button>
           </div>
         </div>
       </div>

@@ -151,13 +151,13 @@ export default function LogViewer() {
             Showing {filtered.length} of {cases.length} cases
           </span>
           <div className="flex items-center gap-2">
-            <button onClick={() => setPage(Math.max(1, page - 1))} disabled={page === 1}
+            <button aria-label="Previous page" onClick={() => setPage(Math.max(1, page - 1))} disabled={page === 1}
               className="p-1.5 rounded-lg bg-[#0b0d14] border border-[#1e2333] text-zinc-400 hover:text-white disabled:opacity-50 cursor-pointer"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
             <span className="text-xs font-mono text-zinc-400">Page {page}</span>
-            <button onClick={() => setPage(page + 1)}
+            <button aria-label="Next page" onClick={() => setPage(page + 1)}
               className="p-1.5 rounded-lg bg-[#0b0d14] border border-[#1e2333] text-zinc-400 hover:text-white cursor-pointer"
             >
               <ChevronRight className="w-4 h-4" />
