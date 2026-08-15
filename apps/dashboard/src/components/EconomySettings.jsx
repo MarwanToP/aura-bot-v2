@@ -60,7 +60,7 @@ export default function EconomySettings() {
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="text-xs font-bold text-purple-400">₳ {item.price.toLocaleString()}</span>
-                  <button className="p-1.5 text-zinc-500 hover:text-rose-400 transition-colors cursor-pointer">
+                  <button aria-label="Delete item" className="p-1.5 text-zinc-500 hover:text-rose-400 transition-colors cursor-pointer">
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </div>

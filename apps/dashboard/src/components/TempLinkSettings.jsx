@@ -59,7 +59,7 @@ export default function TempLinkSettings() {
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-[10px] text-zinc-500 font-mono">{link.created}</span>
-                  <button className="p-1.5 text-zinc-500 hover:text-rose-400 transition-colors cursor-pointer">
+                  <button aria-label="Delete link" className="p-1.5 text-zinc-500 hover:text-rose-400 transition-colors cursor-pointer">
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </div>
