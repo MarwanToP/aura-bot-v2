@@ -15,7 +15,7 @@ export async function handleVoiceStateUpdate(client, oldState, newState) {
       const category = newState.channel.parent;
 
       const newChannel = await guild.channels.create({
-        name: `🔊 ${member.displayName}'s Room`,
+        name: `🔊 ${member.displayName.slice(0, 80)}'s Room`,
         type: ChannelType.GuildVoice,
         parent: category || undefined,
         permissionOverwrites: [

@@ -8,12 +8,13 @@ export function sanitizePrompt(input) {
   // 1. Truncate inputs over 2000 characters
   const truncated = input.trim().slice(0, 2000);
 
-  // 2. Strip system tags and code fence breaks
-  const sanitized = truncated
-    .replace(/<system>/gi, '')
-    .replace(/<\/system>/gi, '')
+  // 2. Escape XML boundary tags and code fence breaks
+  const xmlEscaped = truncated
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
     .replace(/```/g, "'''");
 
   // 3. Wrap input in explicit boundary tag
-  return `<user_input>\n${sanitized}\n</user_input>`;
+  return `<user_input>\n${xmlEscaped}\n</user_input>`;
 }

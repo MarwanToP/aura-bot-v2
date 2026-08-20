@@ -1,25 +1,44 @@
 import { Router } from 'express';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 import { env } from '../../../../packages/config/src/env.js';
 import { requireAuth } from '../middleware/auth.js';
 
 const router = Router();
 
-// 1. Redirect to Discord OAuth2 Authorization Page
+// 1. Redirect to Discord OAuth2 Authorization Page with CSRF State Token
 router.get('/login', (req, res) => {
-  const discordAuthUrl = `https://discord.com/api/oauth2/authorize?client_id=${env.DISCORD_CLIENT_ID}&redirect_uri=${encodeURIComponent(env.DISCORD_REDIRECT_URI)}&response_type=code&scope=identify%20guilds`;
+  const state = crypto.randomBytes(16).toString('hex');
+  res.cookie('oauth_state', state, {
+    httpOnly: true,
+    secure: env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: 10 * 60 * 1000,
+  });
+
+  const discordAuthUrl = `https://discord.com/api/oauth2/authorize?client_id=${env.DISCORD_CLIENT_ID}&redirect_uri=${encodeURIComponent(env.DISCORD_REDIRECT_URI)}&response_type=code&scope=identify%20guilds&state=${state}`;
   res.redirect(discordAuthUrl);
 });
 
 // 2. Discord OAuth2 Callback Endpoint
 router.get('/callback', async (req, res) => {
-  const { code } = req.query;
+  const { code, state } = req.query;
+  const savedState = req.cookies?.oauth_state;
+
+  res.clearCookie('oauth_state');
 
   if (!code) {
     return res.status(400).json({ error: 'Missing OAuth authorization code' });
   }
 
+  if (!state || !savedState || state !== savedState) {
+    return res.status(403).json({ error: 'CSRF validation failed: Invalid or missing state parameter' });
+  }
+
   try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+
     // Exchange Authorization Code for Token
     const tokenResponse = await fetch('https://discord.com/api/oauth2/token', {
       method: 'POST',
@@ -31,7 +50,8 @@ router.get('/callback', async (req, res) => {
         code: String(code),
         redirect_uri: env.DISCORD_REDIRECT_URI,
       }),
-    });
+      signal: controller.signal,
+    }).finally(() => clearTimeout(timeout));
 
     const tokenData = await tokenResponse.json();
 
@@ -39,10 +59,15 @@ router.get('/callback', async (req, res) => {
       throw new Error(tokenData.error_description || 'Failed to fetch OAuth token');
     }
 
+    const userController = new AbortController();
+    const userTimeout = setTimeout(() => userController.abort(), 10000);
+
     // Fetch User Profile from Discord API
     const userResponse = await fetch('https://discord.com/api/users/@me', {
       headers: { Authorization: `Bearer ${tokenData.access_token}` },
-    });
+      signal: userController.signal,
+    }).finally(() => clearTimeout(userTimeout));
+
     const userData = await userResponse.json();
 
     // Generate Encrypted Session Token
@@ -53,7 +78,7 @@ router.get('/callback', async (req, res) => {
         avatar: userData.avatar,
       },
       env.JWT_SECRET,
-      { expiresIn: '7d' }
+      { expiresIn: '7d', algorithm: 'HS256' }
     );
 
     // Set HttpOnly Cookie
