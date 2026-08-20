@@ -2,6 +2,7 @@ import { Client, GatewayIntentBits, Partials, Collection } from 'discord.js';
 import { env } from '../../../packages/config/src/env.js';
 import { handleInteraction } from './handlers/interactionHandler.js';
 import { handleVoiceStateUpdate } from './modules/tempVoice.js';
+import { loadCommands } from './handlers/commandHandler.js';
 
 // 1. Trap unhandled errors to keep the process alive
 process.on('unhandledRejection', (reason, promise) => {
@@ -67,6 +68,9 @@ client.on('interactionCreate', (interaction) => {
 client.on('voiceStateUpdate', (oldState, newState) => {
   handleVoiceStateUpdate(client, oldState, newState);
 });
+
+// Load commands before logging into Discord
+await loadCommands(client);
 
 // Login
 client.login(env.DISCORD_TOKEN).catch((err) => {
