@@ -11,24 +11,6 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <head>
-        <script src="https://cdn.tailwindcss.com"></script>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              tailwindcss.config = {
-                theme: {
-                  extend: {
-                    colors: {
-                      blurple: '#5865F2',
-                    }
-                  }
-                }
-              }
-            `,
-          }}
-        />
-      </head>
       <body className="bg-[#0b0d14] text-zinc-100 min-h-screen antialiased">
         <MouseGlow />
         <CyberBackground />

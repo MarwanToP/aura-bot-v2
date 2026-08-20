@@ -3,6 +3,8 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+const isProduction = process.env.NODE_ENV === 'production';
+
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   PORT: z.string().transform(Number).default('3000'),
@@ -28,7 +30,29 @@ const _env = envSchema.safeParse(process.env);
 if (!_env.success) {
   console.error('❌ Invalid Environment Variables detected:');
   console.error(JSON.stringify(_env.error.format(), null, 2));
-  if (process.env.NODE_ENV === 'production') {
+  if (isProduction) {
+    process.exit(1);
+  }
+}
+
+// In production, prohibit default fallback secrets
+if (isProduction) {
+  const defaultSecrets = [
+    'super_secret_jwt_key_at_least_32_chars_long',
+    'super_secret_session_key_at_least_32_chars_long',
+    'dummy_client_secret',
+    'dummy_gemini_key',
+  ];
+
+  const foundDefault = defaultSecrets.some((s) =>
+    process.env.JWT_SECRET === s ||
+    process.env.SESSION_SECRET === s ||
+    process.env.DISCORD_CLIENT_SECRET === s ||
+    process.env.GEMINI_API_KEY === s
+  );
+
+  if (foundDefault) {
+    console.error('❌ FATAL: Default fallback secrets detected in production environment!');
     process.exit(1);
   }
 }

@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { requireAuth } from '../middleware/auth.js';
+import { requireGuildAdmin } from '../middleware/guildAuth.js';
 
 const router = Router();
 
@@ -33,7 +34,7 @@ router.get('/', requireAuth, async (req, res) => {
 });
 
 // Update Guild Configuration
-router.post('/:guildId/config', requireAuth, async (req, res) => {
+router.post('/:guildId/config', requireAuth, requireGuildAdmin, async (req, res) => {
   const { guildId } = req.params;
 
   if (!/^\d{17,20}$/.test(guildId)) {

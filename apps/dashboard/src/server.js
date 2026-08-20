@@ -34,6 +34,7 @@ app.get('/health', (req, res) => {
 // 3. API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/guilds', guildRoutes);
+app.use('/api/guilds', moduleRoutes);
 app.use('/api/modules', moduleRoutes);
 
 // 4. Initialize Socket.io Telemetry Server

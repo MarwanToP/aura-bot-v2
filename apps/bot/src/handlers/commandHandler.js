@@ -1,6 +1,6 @@
-import fs from 'fs';
 import path from 'path';
-import { fileURLToPath, pathToFileURL } from 'url';
+import { fileURLToPath } from 'url';
+import { collectCommandModules } from '../utils/commandCollector.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -9,37 +9,14 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
  */
 export async function loadCommands(client) {
   const commandsPath = path.join(__dirname, '../commands');
-  
-  if (!fs.existsSync(commandsPath)) {
-    fs.mkdirSync(commandsPath, { recursive: true });
-    return;
-  }
+  const commands = await collectCommandModules(commandsPath);
 
-  const commandFolders = fs.readdirSync(commandsPath);
-
-  for (const folder of commandFolders) {
-    const folderPath = path.join(commandsPath, folder);
-    
-    // Check if it's a directory
-    if (!fs.statSync(folderPath).isDirectory()) continue;
-
-    const commandFiles = fs.readdirSync(folderPath).filter((file) => file.endsWith('.js'));
-
-    for (const file of commandFiles) {
-      const filePath = path.join(folderPath, file);
-      const commandModule = await import(pathToFileURL(filePath).href);
-      let command = commandModule.default;
-      if (!command || !command.data) {
-        const values = Object.values(commandModule);
-        command = values.find((v) => v && v.data && v.execute) || commandModule;
-      }
-
-      if (command && command.data && command.execute) {
-        client.commands.set(command.data.name, command);
-        console.log(`🔹 Loaded Command: /${command.data.name}`);
-      } else {
-        console.warn(`⚠️ Command at ${filePath} is missing "data" or "execute" property.`);
-      }
+  for (const command of commands) {
+    if (command && command.data && command.execute) {
+      client.commands.set(command.data.name, command);
+      console.log(`🔹 Loaded Command: /${command.data.name}`);
+    } else {
+      console.warn(`⚠️ Command at ${command.filePath} is missing "data" or "execute" property.`);
     }
   }
 }

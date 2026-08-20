@@ -1,10 +1,11 @@
 import { Router } from 'express';
 import { requireAuth } from '../middleware/auth.js';
+import { requireGuildAdmin } from '../middleware/guildAuth.js';
 
 const router = Router();
 
 // Master endpoint returning state for all 6 unified dashboard tabs
-router.get('/:guildId/full-config', requireAuth, async (req, res) => {
+router.get('/:guildId/full-config', requireAuth, requireGuildAdmin, async (req, res) => {
   const { guildId } = req.params;
   try {
     res.json({

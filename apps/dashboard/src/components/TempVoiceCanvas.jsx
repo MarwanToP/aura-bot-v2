@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
+import ToggleSwitch from './ToggleSwitch.jsx';
 
 export default function TempVoiceCanvas({ config }) {
   const [template, setTemplate] = useState(config?.namingTemplate || "🔊 {user}'s Room");
@@ -14,14 +15,7 @@ export default function TempVoiceCanvas({ config }) {
             <h2 className="text-xl font-bold">Dynamic TempVoice Hubs</h2>
             <p className="text-sm text-slate-400">Join-to-Create private on-demand voice rooms.</p>
           </div>
-          <button
-            onClick={() => setEnabled(!enabled)}
-            className={`w-12 h-6 flex items-center rounded-full p-1 transition-colors ${
-              enabled ? 'bg-purple-600 justify-end' : 'bg-slate-700 justify-start'
-            }`}
-          >
-            <div className="w-4 h-4 rounded-full bg-white shadow-md"></div>
-          </button>
+          <ToggleSwitch enabled={enabled} onToggle={setEnabled} />
         </div>
 
         {/* Naming Template Input */}

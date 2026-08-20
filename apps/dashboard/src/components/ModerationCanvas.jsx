@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useState } from 'react';
+import ToggleSwitch from './ToggleSwitch.jsx';
 
-export default function ModerationCanvas({ config }) {
+export default function ModerationCanvas({ config, guildId = '123456789012345678' }) {
   const [sensitivity, setSensitivity] = useState(config?.neuralModeration?.sensitivityScore || 75);
   const [action, setAction] = useState(config?.neuralModeration?.action || 'timeout');
   const [enabled, setEnabled] = useState(config?.neuralModeration?.enabled ?? true);
@@ -11,7 +12,7 @@ export default function ModerationCanvas({ config }) {
   const handleSave = async () => {
     setSaving(true);
     try {
-      await fetch('/api/guilds/123456789012345678/config', {
+      const res = await fetch(`/api/guilds/${guildId}/config`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -20,9 +21,16 @@ export default function ModerationCanvas({ config }) {
           action,
         }),
       });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || `Server error: ${res.status}`);
+      }
+
       alert('Settings saved successfully!');
     } catch (err) {
-      console.error(err);
+      console.error('Failed to save settings:', err);
+      alert(`Error saving settings: ${err.message}`);
     } finally {
       setSaving(false);
     }
@@ -36,14 +44,7 @@ export default function ModerationCanvas({ config }) {
             <h2 className="text-xl font-bold">Neural Auto-Moderation (Gemini 1.5 Flash)</h2>
             <p className="text-sm text-slate-400">AI-powered toxicity, scam, and phishing detection.</p>
           </div>
-          <button
-            onClick={() => setEnabled(!enabled)}
-            className={`w-12 h-6 flex items-center rounded-full p-1 transition-colors ${
-              enabled ? 'bg-purple-600 justify-end' : 'bg-slate-700 justify-start'
-            }`}
-          >
-            <div className="w-4 h-4 rounded-full bg-white shadow-md"></div>
-          </button>
+          <ToggleSwitch enabled={enabled} onToggle={setEnabled} />
         </div>
 
         {/* Sensitivity Range Slider */}
