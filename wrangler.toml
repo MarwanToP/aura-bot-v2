@@ -1,0 +1,14 @@
+name = "aura-dashboard-edge"
+main = "deploy/scripts/cloudflare/setup-cloudflare-zone.mjs"
+compatibility_date = "2026-04-22"
+compatibility_flags = ["nodejs_compat"]
+
+[assets]
+directory = "apps/dashboard/public"
+binding = "ASSETS"
+run_worker_first = ["/api/*", "/auth/*", "/socket.io/*"]
+
+[vars]
+BACKEND_ORIGIN = ""
+NODE_ENV = "production"
+DASHBOARD_STRICT_STARTUP = "true"
