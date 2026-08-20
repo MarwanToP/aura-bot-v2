@@ -3,6 +3,8 @@ import { env } from '../../../packages/config/src/env.js';
 import { handleInteraction } from './handlers/interactionHandler.js';
 import { handleVoiceStateUpdate } from './modules/tempVoice.js';
 import { loadCommands } from './handlers/commandHandler.js';
+import { handleMessageCreate } from './events/messageCreate.js';
+import { initModerationActionSubscriber } from './handlers/actionSubscriber.js';
 
 // 1. Trap unhandled errors to keep the process alive
 process.on('unhandledRejection', (reason, promise) => {
@@ -68,6 +70,13 @@ client.on('interactionCreate', (interaction) => {
 client.on('voiceStateUpdate', (oldState, newState) => {
   handleVoiceStateUpdate(client, oldState, newState);
 });
+
+client.on('messageCreate', (message) => {
+  handleMessageCreate(client, message);
+});
+
+// Initialize AI Moderation Action Subscriber
+initModerationActionSubscriber(client);
 
 // Load commands before logging into Discord
 await loadCommands(client);

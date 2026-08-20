@@ -53,3 +53,6 @@ redis.incrementBounded = async (key, max, windowMs) => {
 };
 
 export default redis;
+
+export * from './src/queue.js';
+

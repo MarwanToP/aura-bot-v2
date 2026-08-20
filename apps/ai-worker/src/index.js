@@ -1,23 +1,31 @@
 import { dequeueAIJob } from './queues/aiQueue.js';
 import { analyzeContent } from './gemini/moderator.js';
+import { pubsubPublisher, ACTION_CHANNEL } from '../../../packages/redis/src/queue.js';
 
 console.log('🤖 Starting Aura AI Worker Service (Gemini 1.5 Flash Neural Engine)...');
 
-let isRunning = true;
-
 async function processLoop() {
-  while (isRunning) {
+  while (true) {
     try {
       const job = await dequeueAIJob(3);
       if (!job) continue;
 
-      console.log(`⚙️ Processing AI Job [${job.id}] - Type: ${job.type}`);
-
       if (job.type === 'MODERATION_ANALYZE') {
-        const { messageText, authorId, guildId } = job.payload;
+        const { messageText, authorId, guildId, channelId, messageId } = job.payload;
         const analysis = await analyzeContent(messageText, authorId, guildId);
-        
-        console.log(`✅ Job [${job.id}] Complete - Flagged: ${analysis.data?.flagged} (Score: ${analysis.data?.severityScore})`);
+
+        if (analysis.success) {
+          await pubsubPublisher.publish(
+            ACTION_CHANNEL,
+            JSON.stringify({
+              guildId,
+              channelId,
+              messageId,
+              authorId,
+              result: analysis.data,
+            })
+          );
+        }
       }
     } catch (error) {
       console.error('❌ Error processing AI job:', error.message);
@@ -25,11 +33,5 @@ async function processLoop() {
     }
   }
 }
-
-process.on('SIGINT', () => {
-  console.log('🛑 Shutting down AI Worker...');
-  isRunning = false;
-  process.exit(0);
-});
 
 processLoop();
