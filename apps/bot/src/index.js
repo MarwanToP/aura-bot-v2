@@ -3,6 +3,15 @@ import { env } from '../../../packages/config/src/env.js';
 import { handleInteraction } from './handlers/interactionHandler.js';
 import { handleVoiceStateUpdate } from './modules/tempVoice.js';
 
+// 1. Trap unhandled errors to keep the process alive
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('🚨 Unhandled Promise Rejection:', reason);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('🚨 Uncaught Exception thrown:', err);
+});
+
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -12,28 +21,58 @@ const client = new Client({
     GatewayIntentBits.GuildMembers,
   ],
   partials: [Partials.Message, Partials.Channel, Partials.Reaction],
+  // Keep-alive websocket options
+  ws: {
+    properties: {
+      browser: 'Discord iOS',
+    },
+  },
 });
 
 client.commands = new Collection();
 
+// Online confirmation
 client.once('ready', () => {
-  console.log(`🤖 Aura Bot v2 online as ${client.user.tag} (Serving ${client.guilds.cache.size} guilds)`);
+  console.log(`\n========================================`);
+  console.log(`✅ AURA BOT IS NOW ONLINE!`);
+  console.log(`🤖 Logged in as: ${client.user.tag}`);
+  console.log(`🌐 Connected Guilds: ${client.guilds.cache.size}`);
+  console.log(`========================================\n`);
+
+  // Set dynamic rich presence
+  client.user.setPresence({
+    activities: [{ name: 'over Aura Servers | /help', type: 3 }], // 3 = WATCHING
+    status: 'online',
+  });
 });
 
-// 1. Slash Command & Interaction Event Listener
+// Auto-reconnect handling
+client.on('shardDisconnect', (event, id) => {
+  console.warn(`⚠️ Shard ${id} disconnected (${event.code}). Attempting to reconnect...`);
+});
+
+client.on('shardReconnecting', (id) => {
+  console.log(`🔄 Shard ${id} reconnecting to Discord Gateway...`);
+});
+
+client.on('shardResume', (id, replayedEvents) => {
+  console.log(`✅ Shard ${id} resumed connection (${replayedEvents} events replayed).`);
+});
+
+// Event Handlers
 client.on('interactionCreate', (interaction) => {
   handleInteraction(client, interaction);
 });
 
-// 2. Voice State Updates (TempVoice Manager)
 client.on('voiceStateUpdate', (oldState, newState) => {
   handleVoiceStateUpdate(client, oldState, newState);
 });
 
-if (process.env.NODE_ENV !== 'test') {
-  client.login(env.DISCORD_TOKEN).catch(err => {
-    console.warn('⚠️ Discord Client login deferred or missing token:', err.message);
-  });
-}
+// Login
+client.login(env.DISCORD_TOKEN).catch((err) => {
+  console.error('❌ FATAL: Bot failed to log in to Discord. Check your DISCORD_TOKEN in .env:');
+  console.error(err.message);
+  process.exit(1);
+});
 
 export default client;
