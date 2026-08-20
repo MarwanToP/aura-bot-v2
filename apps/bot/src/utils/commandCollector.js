@@ -22,15 +22,19 @@ export async function collectCommandModules(commandsPath) {
 
     for (const file of commandFiles) {
       const filePath = path.join(folderPath, file);
-      const commandModule = await import(pathToFileURL(filePath).href);
-      let command = commandModule.default;
-      if (!command || !command.data) {
-        const values = Object.values(commandModule);
-        command = values.find((v) => v && v.data) || commandModule;
-      }
+      try {
+        const commandModule = await import(pathToFileURL(filePath).href);
+        let command = commandModule.default;
+        if (!command || !command.data) {
+          const values = Object.values(commandModule);
+          command = values.find((v) => v && v.data) || commandModule;
+        }
 
-      if (command && command.data) {
-        commands.push({ ...command, filePath });
+        if (command && command.data) {
+          commands.push({ ...command, filePath });
+        }
+      } catch (err) {
+        console.warn(`⚠️ Skipped command at ${filePath}: ${err.message}`);
       }
     }
   }

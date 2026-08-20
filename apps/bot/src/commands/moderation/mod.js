@@ -1,5 +1,5 @@
 import { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } from 'discord.js';
-import { prisma } from '../../../../packages/database/src/client.js';
+import { prisma } from '../../../../../packages/database/src/client.js';
 
 export default {
   data: new SlashCommandBuilder()
