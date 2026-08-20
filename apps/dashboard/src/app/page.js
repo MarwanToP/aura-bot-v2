@@ -7,13 +7,21 @@ import ServerRail from "../components/ServerRail";
 import Sidebar from "../components/Sidebar";
 import Header from "../components/Header";
 import HeroBanner from "../components/HeroBanner";
+import ServerHealthCard from "../components/ServerHealthCard";
+import LiveStatsPanel from "../components/LiveStatsPanel";
 import StatCards from "../components/StatCards";
 import ServerActivityChart from "../components/ServerActivityChart";
 import TopCommandsList from "../components/TopCommandsList";
-import RecentServersList from "../components/RecentServersList";
-import SystemLogsWidget from "../components/SystemLogsWidget";
-import ServerDistributionChart from "../components/ServerDistributionChart";
+import RecentTicketsWidget from "../components/RecentTicketsWidget";
+import ActiveAutomationWidget from "../components/ActiveAutomationWidget";
+import MemberBoostCard from "../components/MemberBoostCard";
+import ServerTimelineWidget from "../components/ServerTimelineWidget";
+import ModerationOverviewWidget from "../components/ModerationOverviewWidget";
 import QuickActionsWidget from "../components/QuickActionsWidget";
+import InviteTrackerWidget from "../components/InviteTrackerWidget";
+import SystemStatusWidget from "../components/SystemStatusWidget";
+
+/* Sub-management views */
 import ModuleSettings from "../components/ModuleSettings";
 import CommandSettings from "../components/CommandSettings";
 import SecuritySettings from "../components/SecuritySettings";
@@ -41,7 +49,7 @@ import EconomySettings from "../components/EconomySettings";
 import ModerationPanel from "../components/ModerationPanel";
 import ControlPanel from "../components/ControlPanel";
 import { useAuth } from "../context/AuthContext";
-import { LogIn, ArrowLeft } from "lucide-react";
+import { LogIn, ArrowLeft, Heart, Activity } from "lucide-react";
 
 export default function DashboardHome() {
   const [viewMode, setViewMode] = useState("landing"); // "landing" | "dashboard"
@@ -60,7 +68,7 @@ export default function DashboardHome() {
       )}
 
       {viewMode === "dashboard" && (
-        <div className="min-h-screen bg-[#0b0d14] text-zinc-100 flex antialiased select-none">
+        <div className="min-h-screen bg-[#07060f] text-zinc-100 flex antialiased select-none font-sans">
           
           {/* 1. Leftmost Dedicated Server Rail */}
           <ServerRail activeServer={activeServer} onSelectServer={setActiveServer} />
@@ -69,50 +77,51 @@ export default function DashboardHome() {
           <Sidebar activeTab={activeTab} onSelectTab={setActiveTab} />
 
           {/* 3. Main Dashboard Content Area */}
-          <div className="flex-1 flex flex-col min-w-0">
+          <div className="flex-1 flex flex-col min-w-0 bg-[#07060f]">
             
-            {/* Top Header */}
+            {/* Top Navigation Header */}
             <Header />
 
             {/* Dynamic Main Body based on Active Sidebar Tab */}
-            <main className="flex-1 p-8 space-y-8 overflow-y-auto">
+            <main className="flex-1 p-6 space-y-6 overflow-y-auto">
               
               {/* Return to Landing Page Quick Action Bar */}
-              <div className="flex items-center justify-between pb-2 border-b border-[#1e2333]">
+              <div className="flex items-center justify-between pb-1 border-b border-purple-500/15">
                 <button
                   onClick={() => setViewMode("landing")}
-                  className="text-xs font-bold text-zinc-400 hover:text-emerald-400 flex items-center gap-2 transition-colors cursor-pointer font-mono"
+                  className="text-xs font-bold text-purple-300 hover:text-white flex items-center gap-2 transition-colors cursor-pointer font-mono"
                 >
                   <ArrowLeft className="w-4 h-4" />
-                  <span>← BACK TO POWER LANDING PAGE</span>
+                  <span>← BACK TO LANDING PAGE</span>
                 </button>
                 <div className="flex items-center gap-3">
-                  <span className="text-[11px] font-mono text-emerald-400 font-bold px-2.5 py-1 rounded bg-emerald-500/10 border border-emerald-500/30">
-                    AURA ENGINE ACTIVE
+                  <span className="text-[10px] font-mono text-purple-300 font-bold px-2.5 py-1 rounded-lg bg-purple-950/60 border border-purple-500/30 flex items-center gap-1.5">
+                    <Activity className="w-3 h-3 text-emerald-400 animate-pulse" />
+                    <span>AURA ENGINE ACTIVE</span>
                   </span>
                 </div>
               </div>
 
-              {/* Prominent Discord OAuth2 Authentication Banner (Guest Mode) */}
+              {/* Discord OAuth Authentication Banner (Guest Mode) */}
               {!isAuthenticated && (
                 <motion.div
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="bg-gradient-to-r from-emerald-500/20 via-amber-500/15 to-pink-500/20 border border-emerald-500/40 rounded-2xl p-5 shadow-2xl flex flex-col md:flex-row items-center justify-between gap-5"
+                  className="bg-gradient-to-r from-purple-900/40 via-indigo-900/30 to-pink-900/30 border border-purple-500/40 rounded-2xl p-4 shadow-xl flex flex-col md:flex-row items-center justify-between gap-4"
                 >
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-emerald-500 flex items-center justify-center text-white shrink-0 shadow-lg shadow-emerald-500/40">
-                      <LogIn className="w-6 h-6" />
+                    <div className="w-10 h-10 rounded-xl bg-purple-600 flex items-center justify-center text-white shrink-0 shadow-lg shadow-purple-500/40 font-bold text-sm">
+                      <LogIn className="w-5 h-5" />
                     </div>
                     <div>
-                      <h3 className="text-sm font-extrabold text-white flex items-center gap-2">
+                      <h3 className="text-xs font-extrabold text-white flex items-center gap-2">
                         Verify Discord Account & Link Dashboard
-                        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/30 text-white border border-emerald-500/50">
+                        <span className="text-[9px] font-mono px-2 py-0.5 rounded bg-purple-500/30 text-purple-200 border border-purple-500/40">
                           OAuth2 Gateway
                         </span>
                       </h3>
-                      <p className="text-xs text-zinc-300 mt-1 max-w-xl leading-relaxed">
-                        Connect your Discord account to verify server ownership, sync your administrator permissions, and access live bot configurations.
+                      <p className="text-[11px] text-zinc-300 mt-0.5 max-w-xl leading-relaxed">
+                        Connect your Discord account to verify server ownership, sync permissions, and access live bot configurations.
                       </p>
                     </div>
                   </div>
@@ -120,7 +129,7 @@ export default function DashboardHome() {
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={login}
-                    className="px-6 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-xs shadow-xl shadow-emerald-500/30 transition-all flex items-center gap-2 shrink-0 cursor-pointer"
+                    className="px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-extrabold text-xs shadow-lg shadow-purple-900/40 transition-all flex items-center gap-2 shrink-0 cursor-pointer"
                   >
                     <LogIn className="w-4 h-4" />
                     <span>Login with Discord</span>
@@ -135,93 +144,122 @@ export default function DashboardHome() {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -12 }}
                   transition={{ duration: 0.2, ease: "easeInOut" }}
-                  className="space-y-8"
+                  className="space-y-6"
                 >
-              {(activeTab === "dashboard" || activeTab === "overview") && (
-                <>
-                  {/* Hero Banner */}
-                  <HeroBanner username={displayName} />
+                  {/* MAIN DASHBOARD OVERVIEW (Matching Photo 3) */}
+                  {(activeTab === "dashboard" || activeTab === "overview") && (
+                    <>
+                      {/* 1. Welcome Hero Banner Card */}
+                      <HeroBanner username={displayName} />
 
-                  {/* 4 Stat Cards */}
-                  <StatCards />
+                      {/* 2. Server Health Radial Gauge (Left) + Live Stats Panel (Right) */}
+                      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                        <div className="lg:col-span-5">
+                          <ServerHealthCard />
+                        </div>
+                        <div className="lg:col-span-7">
+                          <LiveStatsPanel />
+                        </div>
+                      </div>
 
-                  {/* Row 2: Server Activity (2 cols) + Top Commands (1 col) + Recent Servers (1 col) */}
-                  <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-                    <div className="lg:col-span-2">
-                      <ServerActivityChart />
-                    </div>
-                    <div className="lg:col-span-1">
-                      <TopCommandsList />
-                    </div>
-                    <div className="lg:col-span-1">
-                      <RecentServersList />
-                    </div>
-                  </div>
+                      {/* 3. 5 Metric Sparkline Cards Row */}
+                      <StatCards />
 
-                  {/* Row 3: System Logs (1 col) + Server Distribution (1 col) + Quick Actions (1 col) */}
-                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <div className="lg:col-span-1">
-                      <SystemLogsWidget />
-                    </div>
-                    <div className="lg:col-span-1">
-                      <ServerDistributionChart />
-                    </div>
-                    <div className="lg:col-span-1">
-                      <QuickActionsWidget />
-                    </div>
-                  </div>
-                </>
-              )}
+                      {/* 4. Main Chart + Top Commands + Recent Tickets + Active Automation */}
+                      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                        <div className="lg:col-span-6">
+                          <ServerActivityChart />
+                        </div>
+                        <div className="lg:col-span-3">
+                          <TopCommandsList />
+                        </div>
+                        <div className="lg:col-span-3">
+                          <RecentTicketsWidget />
+                        </div>
+                      </div>
 
-              {activeTab === "modules" && <ModuleSettings activeGuild="1" />}
-              {(activeTab === "commands" || activeTab === "customcommands") && <CommandSettings guildId="1" />}
-              {(activeTab === "security" || activeTab === "antiraid" || activeTab === "vipprotection" || activeTab === "automod") && <SecuritySettings guildId="1" />}
-              {activeTab === "tickets" && <TicketSettings />}
-              {activeTab === "invites" && <InviteSettings />}
-              {activeTab === "tempchannels" && <TempVoiceSettings />}
-              {activeTab === "applications" && <ApplicationSettings />}
-              {(activeTab === "twitch" || activeTab === "youtube" || activeTab === "kick" || activeTab === "reddit") && <SocialAlertsSettings />}
-              {activeTab === "welcome" && <WelcomeSettings />}
-              {activeTab === "autoroles" && <AutoRolesSettings />}
-              {activeTab === "embed" && <EmbedBuilder />}
-              {activeTab === "logs" && <LogViewer />}
-              {activeTab === "giveaway" && <GiveawaySettings />}
-              {activeTab === "timedmessages" && <TimedMessages />}
-              {activeTab === "settings" && <ServerSettings />}
-              {activeTab === "backups" && <BackupSettings />}
-              {activeTab === "premium" && <PremiumSettings />}
-              {(activeTab === "utility" || activeTab === "colors" || activeTab === "selfroles") && <UtilityHub />}
-              {activeTab === "responder" && <AutoResponderSettings />}
-              {activeTab === "leveling" && <LevelingSettings />}
-              {activeTab === "starboard" && <StarboardSettings />}
-              {activeTab === "templink" && <TempLinkSettings />}
-              {activeTab === "statistics" && <StatisticsSettings />}
-              {activeTab === "economy" && <EconomySettings />}
-              {activeTab === "moderation" && <ModerationPanel />}
-              {(activeTab === "control-logs" || activeTab === "mod-actions") && <ControlPanel />}
+                      {/* 5. Active Automation + Member Boost + Server Timeline + Moderation Overview + Quick Actions */}
+                      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                        <div className="lg:col-span-3">
+                          <ActiveAutomationWidget />
+                        </div>
+                        <div className="lg:col-span-5">
+                          <MemberBoostCard />
+                        </div>
+                        <div className="lg:col-span-4">
+                          <ServerTimelineWidget />
+                        </div>
+                      </div>
 
-              {activeTab !== "dashboard" && activeTab !== "overview" && activeTab !== "modules" && activeTab !== "commands" && activeTab !== "customcommands" && activeTab !== "security" && activeTab !== "antiraid" && activeTab !== "vipprotection" && activeTab !== "automod" && activeTab !== "tickets" && activeTab !== "invites" && activeTab !== "tempchannels" && activeTab !== "applications" && activeTab !== "twitch" && activeTab !== "youtube" && activeTab !== "kick" && activeTab !== "reddit" && activeTab !== "welcome" && activeTab !== "autoroles" && activeTab !== "embed" && activeTab !== "logs" && activeTab !== "giveaway" && activeTab !== "timedmessages" && activeTab !== "settings" && activeTab !== "backups" && activeTab !== "premium" && activeTab !== "utility" && activeTab !== "colors" && activeTab !== "selfroles" && activeTab !== "responder" && activeTab !== "leveling" && activeTab !== "starboard" && activeTab !== "templink" && activeTab !== "statistics" && activeTab !== "economy" && activeTab !== "moderation" && activeTab !== "control-logs" && activeTab !== "mod-actions" && (
-                <div className="dark-panel p-8 sm:p-10 text-center space-y-4 animate-float-slow">
-                  <div className="inline-block px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-xs font-mono font-bold uppercase tracking-wider">
-                    {activeTab} Management
-                  </div>
-                  <h2 className="text-2xl font-extrabold text-white capitalize">{activeTab.replace("-", " ")} Panel</h2>
-                  <p className="text-xs text-zinc-400 max-w-md mx-auto leading-relaxed">
-                    This tab is fully integrated with the dark obsidian dashboard theme and live gateway shard telemetry.
-                  </p>
-                </div>
-              )}
+                      {/* 6. Moderation Overview + Quick Actions Grid */}
+                      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                        <div className="lg:col-span-6">
+                          <ModerationOverviewWidget />
+                        </div>
+                        <div className="lg:col-span-6">
+                          <QuickActionsWidget />
+                        </div>
+                      </div>
+
+                      {/* 7. Invite Tracker + System Status Panel */}
+                      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                        <div className="lg:col-span-7">
+                          <InviteTrackerWidget />
+                        </div>
+                        <div className="lg:col-span-5">
+                          <SystemStatusWidget />
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  {/* ALL SUB-MANAGEMENT TABS */}
+                  {activeTab === "modules" && <ModuleSettings activeGuild="1" />}
+                  {(activeTab === "commands" || activeTab === "customcommands") && <CommandSettings guildId="1" />}
+                  {(activeTab === "security" || activeTab === "antiraid" || activeTab === "vipprotection" || activeTab === "automod" || activeTab === "auto_moderation" || activeTab === "anti_nuke") && <SecuritySettings guildId="1" />}
+                  {activeTab === "tickets" && <TicketSettings />}
+                  {(activeTab === "invites" || activeTab === "invite_tracker") && <InviteSettings />}
+                  {(activeTab === "tempchannels" || activeTab === "voice") && <TempVoiceSettings />}
+                  {activeTab === "applications" && <ApplicationSettings />}
+                  {(activeTab === "social" || activeTab === "twitch" || activeTab === "youtube") && <SocialAlertsSettings />}
+                  {activeTab === "welcome" && <WelcomeSettings />}
+                  {(activeTab === "autoroles" || activeTab === "reaction_roles") && <AutoRolesSettings />}
+                  {activeTab === "embed" && <EmbedBuilder />}
+                  {activeTab === "logs" && <LogViewer />}
+                  {(activeTab === "giveaway" || activeTab === "giveaways") && <GiveawaySettings />}
+                  {activeTab === "timedmessages" && <TimedMessages />}
+                  {(activeTab === "settings" || activeTab === "servers") && <ServerSettings />}
+                  {activeTab === "backups" && <BackupSettings />}
+                  {activeTab === "premium" && <PremiumSettings />}
+                  {activeTab === "utility" && <UtilityHub />}
+                  {activeTab === "responder" && <AutoResponderSettings />}
+                  {(activeTab === "leveling" || activeTab === "xp_rewards") && <LevelingSettings />}
+                  {activeTab === "starboard" && <StarboardSettings />}
+                  {activeTab === "templink" && <TempLinkSettings />}
+                  {(activeTab === "statistics" || activeTab === "analytics" || activeTab === "serverstats") && <StatisticsSettings />}
+                  {(activeTab === "economy" || activeTab === "leaderboard") && <EconomySettings />}
+                  {(activeTab === "moderation" || activeTab === "members") && <ModerationPanel />}
+                  {(activeTab === "control-logs" || activeTab === "notifications" || activeTab === "automation") && <ControlPanel />}
                 </motion.div>
               </AnimatePresence>
             </main>
 
-            {/* Footer */}
-            <footer className="border-t border-[#1e2333] py-5 px-8 flex items-center justify-between text-xs text-zinc-400">
-              <span>© 2025 Aura Bot. All rights reserved.</span>
-              <div className="flex items-center gap-4 text-[#8b5cf6] font-semibold">
-                <a href="#" className="hover:underline">Discord</a>
-                <a href="#" className="hover:underline">Twitter</a>
-                <a href="#" className="hover:underline">Website</a>
+            {/* Sticky Bottom Status Bar (Matching Photo 3) */}
+            <footer className="sticky bottom-0 z-40 bg-[#07060f]/95 backdrop-blur-md border-t border-purple-500/15 px-6 py-2.5 flex flex-wrap items-center justify-between text-[11px] text-zinc-400 font-mono">
+              <div className="flex items-center gap-6">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className="text-zinc-300 font-bold">Uptime 14d 7h 42m</span>
+                </div>
+                <span className="hidden sm:inline">Servers 24</span>
+                <span className="hidden sm:inline">Users 128.4K</span>
+                <span className="hidden md:inline">Commands 28.7M</span>
+              </div>
+
+              <div className="flex items-center gap-1.5 text-zinc-400">
+                <span>Made with</span>
+                <Heart className="w-3.5 h-3.5 text-purple-400 fill-purple-400" />
+                <span>by Aura Team</span>
               </div>
             </footer>
 
