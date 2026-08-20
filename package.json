@@ -54,6 +54,7 @@
     "react-dom": "^18.3.1",
     "recharts": "^2.12.7",
     "sequelize": "^6.37.3",
+    "semver": "^7.6.2",
     "socket.io": "^4.7.5",
     "winston": "^3.13.0",
     "winston-daily-rotate-file": "^5.0.0",
