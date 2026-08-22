@@ -102,6 +102,19 @@ export async function onGuildBanAdd(client, ban) {
   } catch {}
 }
 
+export async function onWebhookUpdate(client, channel) {
+  if (!channel?.guild) return;
+  try {
+    await new Promise(r => setTimeout(r, 1000));
+    const logs = await channel.guild.fetchAuditLogs({ type: AuditLogEvent.WebhookCreate, limit: 1 });
+    const entry = logs.entries.first();
+    if (!entry || Date.now() - entry.createdTimestamp > 5000 || entry.executor?.id === client.user?.id) return;
+    await handleAntiNuke(client, channel.guild.id, entry.executor.id, 'webhook_create', {
+      targetName: entry.target?.name || channel.name || 'webhook'
+    });
+  } catch {}
+}
+
 export async function onGuildMemberRemove(client, member) {
   try {
     await new Promise(r => setTimeout(r, 1000));

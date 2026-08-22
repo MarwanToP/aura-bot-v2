@@ -111,6 +111,12 @@ export const channelDelete = {
     ]);
   },
 };
+export const webhookUpdate = {
+  name: 'webhookUpdate',
+  async execute(client, channel) {
+    await importAndRun('../systems/antinuke/antiNuke.js', 'onWebhookUpdate', client, channel);
+  },
+};
 
 // ── roleCreate / roleDelete ───────────────────────────────────
 export const roleCreate = {
