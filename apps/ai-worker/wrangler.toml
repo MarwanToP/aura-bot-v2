@@ -1,0 +1,6 @@
+name = "aura"
+main = "src/gemini/pipeline.js"
+compatibility_date = "2024-04-22"
+
+[vars]
+NODE_ENV = "production"
