@@ -29,7 +29,7 @@ export default {
         .addStringOption((opt) => opt.setName('reason').setDescription('Reason for ban').setRequired(true))
     ),
   permissions: [PermissionFlagsBits.ModerateMembers],
-  async execute(interaction) {
+    async execute(client, interaction) {
     const subcommand = interaction.options.getSubcommand();
     const targetUser = interaction.options.getUser('target');
     const reason = interaction.options.getString('reason');

@@ -1,4 +1,3 @@
-import { createCanvas, loadImage } from '@napi-rs/canvas';
 import { AttachmentBuilder }       from 'discord.js';
 import { existsSync }              from 'fs';
 import { join, dirname }           from 'path';
@@ -8,6 +7,15 @@ import logger                      from '../../utils/logger.js';
 import { buildEmbed }              from '../../utils/embedBuilder.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+let createCanvas = null;
+let loadImage = null;
+
+try {
+  ({ createCanvas, loadImage } = await import('@napi-rs/canvas'));
+} catch {
+  createCanvas = null;
+  loadImage = null;
+}
 
 export function xpForLevel(level) { return config.leveling.levelFormula(level); }
 
@@ -285,6 +293,7 @@ export async function recalculateGuildRanks(client, guildId) {
 // ─── Canvas Rank Card ─────────────────────────────────────────
 export async function generateRankCard(member, profile, rank) {
   try {
+    if (!createCanvas || !loadImage) return null;
     const canvas = createCanvas(1000, 280);
     const ctx    = canvas.getContext('2d');
     const xp     = Number(profile.xp);

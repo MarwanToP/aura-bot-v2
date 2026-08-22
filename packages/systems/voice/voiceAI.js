@@ -3,7 +3,6 @@
 // ================================================================
 import { joinVoiceChannel, EndBehaviorType } from '@discordjs/voice';
 import prism from 'prism-media';
-import OpenAI from 'openai';
 import logger from '../../utils/logger.js';
 import fs from 'fs';
 import path from 'path';
@@ -11,10 +10,18 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 let openai = null;
+let OpenAI = null;
+
+try {
+  ({ default: OpenAI } = await import('openai'));
+} catch {
+  OpenAI = null;
+}
 
 function getOpenAI() {
   if (openai) return openai;
   if (!process.env.OPENAI_API_KEY) return null;
+  if (!OpenAI) return null;
   openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
   return openai;
 }

@@ -5,7 +5,7 @@ export default {
     .setName('help')
     .setDescription('View Aura Bot features, active modules, and documentation.'),
   cooldown: 5,
-  async execute(interaction) {
+  async execute(client, interaction) {
     const embed = new EmbedBuilder()
       .setColor('#8b5cf6')
       .setTitle('⚡ Aura Bot v2 — Command & Module Guide')

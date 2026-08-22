@@ -5,7 +5,7 @@ export default {
     .setName('ping')
     .setDescription('Check bot latency and gateway heartbeat.'),
   cooldown: 5,
-  async execute(interaction, client) {
+  async execute(client, interaction) {
     const sent = await interaction.deferReply({ fetchReply: true });
     const roundtrip = sent.createdTimestamp - interaction.createdTimestamp;
 

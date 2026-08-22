@@ -3,11 +3,27 @@
 //  CRUD for the existing AutoResponder model + Redis cache invalidation
 // ================================================================
 import { SlashCommandBuilder, PermissionFlagsBits } from 'discord.js';
-import safeRegex from 'safe-regex';
 import { buildEmbed } from '../../../shared/utils/embedBuilder.js';
 import { Op } from 'sequelize';
 
 const CACHE_KEY = (guildId) => `autoresponder:${guildId}`;
+const NESTED_QUANTIFIER_REGEX = /(\([^)]+\)[+*][+*?])|(\[[^\]]+\][+*][+*?])|(\.\*){2,}|(\+\+)|(\*\*)/;
+
+function isSafeRegexPattern(pattern) {
+  if (typeof pattern !== 'string') return false;
+  if (pattern.length > 300) return false;
+  if (NESTED_QUANTIFIER_REGEX.test(pattern)) return false;
+
+  // Guard against extreme group nesting.
+  let depth = 0;
+  for (const ch of pattern) {
+    if (ch === '(') depth += 1;
+    if (ch === ')') depth = Math.max(0, depth - 1);
+    if (depth > 8) return false;
+  }
+
+  return true;
+}
 
 export const autoresponder = {
   data: new SlashCommandBuilder()
@@ -79,7 +95,7 @@ export const autoresponder = {
               embeds: [buildEmbed({ type: 'error', description: `❌ Invalid regex pattern: ${e.message}` })],
             });
           }
-          if (!safeRegex(trigger, { limit: 25 })) {
+          if (!isSafeRegexPattern(trigger)) {
             return interaction.editReply({
               embeds: [buildEmbed({ type: 'error', description: '❌ Regex pattern rejected: too complex / nested quantifiers (ReDoS guard).' })],
             });

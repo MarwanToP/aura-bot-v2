@@ -5,6 +5,11 @@ import { handleVoiceStateUpdate } from './modules/tempVoice.js';
 import { loadCommands } from './handlers/commandHandler.js';
 import { handleMessageCreate } from './events/messageCreate.js';
 import { initModerationActionSubscriber } from './handlers/actionSubscriber.js';
+import database from '../../../packages/database/index.js';
+import redis from '../../../packages/redis/index.js';
+import i18n from '../../../packages/utils/i18n.js';
+import aiService from '../../../packages/systems/ai/aiService.js';
+import logger from '../../../packages/utils/logger.js';
 
 // 1. Trap unhandled errors to keep the process alive
 process.on('unhandledRejection', (reason, promise) => {
@@ -33,6 +38,12 @@ const client = new Client({
 });
 
 client.commands = new Collection();
+client.db = database;
+client.redis = redis;
+client.i18n = i18n;
+client.ai = aiService;
+client.logger = logger;
+client.voiceSessions = new Map();
 
 // Online confirmation
 client.once('ready', () => {
@@ -77,6 +88,37 @@ client.on('messageCreate', (message) => {
 
 // Initialize AI Moderation Action Subscriber
 initModerationActionSubscriber(client);
+
+async function initializeServices() {
+  try {
+    await database.authenticate();
+    logger.info('[Boot] Database connected');
+  } catch (err) {
+    logger.warn(`[Boot] Database unavailable: ${err.message}`);
+  }
+
+  try {
+    await redis.ping();
+    logger.info('[Boot] Redis connected');
+  } catch (err) {
+    logger.warn(`[Boot] Redis unavailable: ${err.message}`);
+  }
+
+  try {
+    await i18n.init();
+    logger.info('[Boot] i18n initialized');
+  } catch (err) {
+    logger.warn(`[Boot] i18n init failed: ${err.message}`);
+  }
+
+  try {
+    await aiService.init();
+  } catch (err) {
+    logger.warn(`[Boot] AI service init failed: ${err.message}`);
+  }
+}
+
+await initializeServices();
 
 // Load commands before logging into Discord
 await loadCommands(client);

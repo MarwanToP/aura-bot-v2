@@ -7,7 +7,8 @@ export async function handleInteraction(client, interaction) {
     if (!command) return;
 
     // 1. Permission Check
-    if (command.permissions && !hasPermissions(interaction.member, command.permissions)) {
+    const requiredPermissions = command.permissions || command.userPermissions || [];
+    if (requiredPermissions.length && !hasPermissions(interaction.member, requiredPermissions)) {
       return interaction.reply({
         content: '❌ You do not have permission to execute this command.',
         ephemeral: true,
@@ -16,10 +17,13 @@ export async function handleInteraction(client, interaction) {
 
     // 2. Cooldown Enforcement
     if (client.redis) {
-      const cooldown = await checkCooldown(client.redis, interaction.user.id, command.name, command.cooldown || 3);
+      const commandName = command?.data?.name || interaction.commandName;
+      const rawCooldown = command.cooldown ?? 3000;
+      const cooldownSeconds = rawCooldown > 100 ? Math.ceil(rawCooldown / 1000) : rawCooldown;
+      const cooldown = await checkCooldown(client.redis, interaction.user.id, commandName, cooldownSeconds);
       if (cooldown.limited) {
         return interaction.reply({
-          content: `⏳ Please wait ${cooldown.retryAfter}s before using \`/${command.name}\` again.`,
+          content: `⏳ Please wait ${cooldown.retryAfter}s before using \`/${commandName}\` again.`,
           ephemeral: true,
         });
       }
@@ -27,7 +31,7 @@ export async function handleInteraction(client, interaction) {
 
     // 3. Command Execution
     try {
-      await command.execute(interaction, client);
+      await command.execute(client, interaction);
     } catch (error) {
       console.error(`❌ Error executing /${interaction.commandName}:`, error);
       const content = '❌ An internal error occurred while executing this command.';

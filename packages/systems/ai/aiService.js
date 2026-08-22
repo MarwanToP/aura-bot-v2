@@ -3,9 +3,15 @@
 //  Providers: Google Gemini + Cloudflare Workers AI (+ OpenAI image)
 // ================================================================
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import OpenAI from 'openai';
 import config    from '../../config/config.js';
 import logger    from '../../utils/logger.js';
+
+let OpenAI = null;
+try {
+  ({ default: OpenAI } = await import('openai'));
+} catch {
+  OpenAI = null;
+}
 
 class AIService {
   constructor() {
@@ -377,6 +383,7 @@ class AIService {
   _getOpenAI() {
     if (this.openai) return this.openai;
     if (!process.env.OPENAI_API_KEY) return null;
+    if (!OpenAI) return null;
     this.openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
     return this.openai;
   }
