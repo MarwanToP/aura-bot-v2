@@ -112,8 +112,8 @@ export default function GiveawayModule({ guildId = "default" }) {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  {gw.active && <button onClick={() => endGiveaway(gw.id)} className="px-3 py-1.5 rounded-lg bg-cyan-600/20 border border-cyan-500/30 text-cyan-400 text-[10px] font-bold hover:bg-cyan-600/30 cursor-pointer"><CheckCircle className="w-3.5 h-3.5 inline mr-1" />End</button>}
-                  <button onClick={() => deleteGiveaway(gw.id)} className="p-1.5 rounded-lg bg-rose-600/20 border border-rose-500/30 text-rose-400 hover:bg-rose-600/30 cursor-pointer"><Trash2 className="w-3.5 h-3.5" /></button>
+                  {gw.active && <button onClick={() => endGiveaway(gw.id)} className="px-3 py-1.5 rounded-lg bg-cyan-600/20 border border-cyan-500/30 text-cyan-400 text-[10px] font-bold hover:bg-cyan-600/30 cursor-pointer focus-visible:ring-2 focus-visible:ring-cyan-500 focus:outline-none"><CheckCircle className="w-3.5 h-3.5 inline mr-1" />End</button>}
+                  <button aria-label="Delete giveaway" onClick={() => deleteGiveaway(gw.id)} className="p-1.5 rounded-lg bg-rose-600/20 border border-rose-500/30 text-rose-400 hover:bg-rose-600/30 cursor-pointer focus-visible:ring-2 focus-visible:ring-rose-500 focus:outline-none"><Trash2 className="w-3.5 h-3.5" /></button>
                 </div>
               </div>
             </div>
