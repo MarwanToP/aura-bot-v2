@@ -74,8 +74,10 @@ export default function TicketSettings() {
                 </div>
               </div>
               <button
+                type="button"
+                aria-label="Delete panel"
                 onClick={() => setPanels(panels.filter((x) => x.id !== p.id))}
-                className="p-2 text-zinc-500 hover:text-rose-400 transition-colors cursor-pointer"
+                className="p-2 text-zinc-500 hover:text-rose-400 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500 rounded-lg"
               >
                 <Trash2 className="w-4 h-4" />
               </button>
