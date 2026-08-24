@@ -1,6 +1,6 @@
 name = "aura-dashboard-edge"
 main = "website/cloudflare-worker.js"
-compatibility_date = "2024-04-22"
+compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
 
 [assets]
