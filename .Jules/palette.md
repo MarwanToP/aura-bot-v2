@@ -1,0 +1,4 @@
+
+## 2024-08-24 - Cloudflare Worker ES Module Export in Node
+**Learning:** Node.js apps deployed as Cloudflare Workers using the ES Module syntax must have a default export with a `fetch` handler or similar event handler instead of running top-level blocking code like a standalone Node.js script. Top level loops prevent the worker from initializing correctly and cause "Unexpected external import" errors because the worker format assumes Service Worker syntax if no default export is present.
+**Action:** When migrating standalone Node.js apps to Cloudflare Workers, wrap the entry point logic in an `export default { async fetch(...) { ... } }` block and use `ctx.waitUntil(promise)` to run long-running background tasks. Update `wrangler.toml` `compatibility_date` to `2024-09-23` or later when importing built-in Node modules directly without `node:` prefixes.
