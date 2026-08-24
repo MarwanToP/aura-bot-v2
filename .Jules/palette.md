@@ -1,3 +1,0 @@
-## 2024-08-24 - Accessibility focus state & ARIA labels in TicketSettings
-**Learning:** Icon-only buttons used for critical actions (like deleting ticket panels) in `TicketSettings.jsx` lack proper ARIA labels and focus visibility, rendering them inaccessible to screen readers and keyboard users.
-**Action:** Always wrap `<Trash2 />` and other icon-only elements in a `<button type="button">` with an explicit `aria-label` (e.g., "Delete panel") and add standard Tailwind focus state utilities (`focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500`) to ensure they are accessible via keyboard navigation.
