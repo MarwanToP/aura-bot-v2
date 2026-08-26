@@ -44,11 +44,11 @@ export default function AutoResponderSettings() {
                 <p className="text-xs text-zinc-300 mt-2 ml-1">→ {r.response}</p>
               </div>
               <div className="flex items-center gap-2 ml-4">
-                <button onClick={() => toggleResponder(r.id)}
+                <button aria-label="Toggle auto responder" onClick={() => toggleResponder(r.id)}
                   className={`p-2 rounded-lg transition-all cursor-pointer ${r.enabled ? 'bg-emerald-600/20 text-emerald-400' : 'bg-zinc-700/20 text-zinc-400'}`}>
                   {r.enabled ? <ToggleRight className="w-4 h-4" /> : <ToggleLeft className="w-4 h-4" />}
                 </button>
-                <button className="p-2 rounded-lg bg-rose-600/20 text-rose-400 hover:bg-rose-600/30 cursor-pointer">
+                <button aria-label="Delete auto responder" className="p-2 rounded-lg bg-rose-600/20 text-rose-400 hover:bg-rose-600/30 cursor-pointer">
                   <Trash2 className="w-4 h-4" />
                 </button>
               </div>
