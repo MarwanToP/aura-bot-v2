@@ -104,10 +104,12 @@ export default function TimedMessagesModule({ guildId = "default" }) {
               </div>
               <div className="flex items-center gap-2 ml-4 shrink-0">
                 <button onClick={() => toggleMessage(msg.id)}
-                  className={`p-2 rounded-lg transition-all cursor-pointer ${msg.enabled ? 'bg-emerald-600/20 text-emerald-400 border border-emerald-500/30' : 'bg-white/[0.05] text-zinc-400 border border-white/10'}`}>
+                  aria-label={msg.enabled ? 'Pause message' : 'Resume message'}
+                  title={msg.enabled ? 'Pause message' : 'Resume message'}
+                  className={`p-2 rounded-lg transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${msg.enabled ? 'bg-emerald-600/20 text-emerald-400 border border-emerald-500/30' : 'bg-white/[0.05] text-zinc-400 border border-white/10'}`}>
                   <ToggleRight className="w-4 h-4" />
                 </button>
-                <button onClick={() => deleteMessage(msg.id)} className="p-2 rounded-lg bg-rose-600/20 border border-rose-500/30 text-rose-400 hover:bg-rose-600/30 cursor-pointer">
+                <button onClick={() => deleteMessage(msg.id)} aria-label="Delete message" title="Delete message" className="p-2 rounded-lg bg-rose-600/20 border border-rose-500/30 text-rose-400 hover:bg-rose-600/30 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500">
                   <Trash2 className="w-4 h-4" />
                 </button>
               </div>
