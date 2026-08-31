@@ -35,3 +35,5 @@ async function processLoop() {
 }
 
 processLoop();
+
+export default { async fetch(request, env, ctx) { return new Response('Aura AI Worker Active'); } };
