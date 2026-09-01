@@ -30,7 +30,7 @@ jobs:
           cache: 'pnpm'
 
       - name: Install dependencies
-        run: pnpm install
+        run: npm install -g pnpm && pnpm install
 
       - name: Check syntax (project JS)
         run: pnpm run lint:syntax
@@ -141,7 +141,7 @@ jobs:
           cache: 'pnpm'
 
       - name: Install dependencies
-        run: pnpm install
+        run: npm install -g pnpm && pnpm install
 
       - name: Deploy Dashboard Edge Worker
         uses: cloudflare/wrangler-action@v3
