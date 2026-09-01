@@ -5,6 +5,6 @@
   "main": "index.js",
   "dependencies": {
     "ioredis": "^5.10.1",
-    "@aura/logger": "*"
+    "@aura/logger": "workspace:*"
   }
 }

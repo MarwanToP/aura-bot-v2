@@ -8,10 +8,10 @@
     "dev": "nodemon src/index.js"
   },
   "dependencies": {
-    "@aura/config": "*",
-    "@aura/database": "*",
-    "@aura/logger": "*",
-    "@aura/redis": "*",
+    "@aura/config": "workspace:*",
+    "@aura/database": "workspace:*",
+    "@aura/logger": "workspace:*",
+    "@aura/redis": "workspace:*",
     "discord.js": "^14.15.3"
   }
 }
