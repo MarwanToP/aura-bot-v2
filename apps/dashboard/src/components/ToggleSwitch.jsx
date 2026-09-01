@@ -2,13 +2,16 @@
 
 import React from 'react';
 
-export default function ToggleSwitch({ enabled, onToggle, disabled = false }) {
+export default function ToggleSwitch({ enabled, onToggle, disabled = false, ariaLabel = "Toggle" }) {
   return (
     <button
       type="button"
+      role="switch"
+      aria-checked={enabled}
+      aria-label={ariaLabel}
       disabled={disabled}
       onClick={() => onToggle && onToggle(!enabled)}
-      className={`w-12 h-6 flex items-center rounded-full p-1 transition-colors cursor-pointer disabled:opacity-50 ${
+      className={`w-12 h-6 flex items-center rounded-full p-1 transition-colors cursor-pointer disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0b0d14] ${
         enabled ? 'bg-purple-600 justify-end' : 'bg-slate-700 justify-start'
       }`}
     >
