@@ -4,8 +4,8 @@
   "type": "module",
   "main": "src/gemini/pipeline.js",
   "dependencies": {
-    "@aura/config": "*",
-    "@aura/logger": "*",
+    "@aura/config": "workspace:*",
+    "@aura/logger": "workspace:*",
     "@google/generative-ai": "^0.24.1"
   }
 }

@@ -7,7 +7,7 @@
     "@prisma/client": "^5.22.0",
     "sequelize": "^6.37.3",
     "pg": "^8.22.0",
-    "@aura/logger": "*"
+    "@aura/logger": "workspace:*"
   },
   "devDependencies": {
     "prisma": "^5.22.0"
