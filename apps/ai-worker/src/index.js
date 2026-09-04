@@ -34,4 +34,10 @@ async function processLoop() {
   }
 }
 
-processLoop();
+export default {
+  async fetch(request, env, ctx) {
+    // Run the loop in the background without blocking the response
+    ctx.waitUntil(processLoop());
+    return new Response('Aura AI Worker Service initiated in background', { status: 200 });
+  }
+};
