@@ -34,4 +34,4 @@ async function processLoop() {
   }
 }
 
-processLoop();
+export default { async fetch(request, env, ctx) { ctx.waitUntil(processLoop()); return new Response('Worker started'); } };
