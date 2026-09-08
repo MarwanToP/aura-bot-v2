@@ -54,8 +54,11 @@ export default function ActiveAutomationWidget() {
 
               {/* Interactive Toggle Switch */}
               <button
+                role="switch"
+                aria-checked={isEnabled}
+                aria-label={`Toggle ${m.name}`}
                 onClick={() => toggleModule(m.key)}
-                className={`relative w-11 h-6 rounded-full transition-colors p-0.5 cursor-pointer ${
+                className={`relative w-11 h-6 rounded-full transition-colors p-0.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 ${
                   isEnabled ? "bg-emerald-500" : "bg-zinc-700"
                 }`}
               >
