@@ -1,3 +1,0 @@
-## 2024-05-15 - ARIA Roles for Custom Interactive Elements
-**Learning:** Generic components used as custom toggles or checkboxes (like custom toggle switches built with a button or div element) require ARIA roles and states (e.g., `role="switch"`, `aria-checked`) for screen readers to recognize their purpose and state. Relying only on visual indicators (like background color) is not sufficient for accessibility. Keyboard focus indicators using `focus-visible` are also important for non-mouse users.
-**Action:** When implementing custom interactive components such as switches, always add appropriate ARIA roles, ARIA states, and keyboard focus classes (e.g. `focus-visible:ring-2 focus-visible:ring-purple-500`) to ensure they are accessible.
