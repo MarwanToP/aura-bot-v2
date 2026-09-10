@@ -6,6 +6,10 @@
   "dependencies": {
     "@aura/config": "*",
     "@aura/logger": "*",
-    "@google/generative-ai": "^0.24.1"
+    "@google/generative-ai": "^0.24.1",
+    "ioredis": "^6.0.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260908.1"
   }
 }
