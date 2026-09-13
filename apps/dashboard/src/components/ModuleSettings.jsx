@@ -101,8 +101,12 @@ export default function ModuleSettings({ activeGuild = "default" }) {
 
                   {/* Toggle Switch */}
                   <button
+                    type="button"
+                    role="switch"
+                    aria-checked={mod.enabled}
+                    aria-label={`Toggle ${mod.name}`}
                     onClick={(e) => toggleModule(mod.id, e)}
-                    className={`w-11 h-6 rounded-full p-1 transition-colors flex items-center ${
+                    className={`w-11 h-6 rounded-full p-1 transition-colors flex items-center focus-visible:ring-2 focus-visible:ring-purple-400 focus-visible:outline-none ${
                       mod.enabled ? "bg-purple-600" : "bg-[#1e2333]"
                     }`}
                   >
