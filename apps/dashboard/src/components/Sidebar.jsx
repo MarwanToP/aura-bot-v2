@@ -237,20 +237,26 @@ export default function Sidebar({ activeTab, onSelectTab, setActiveTab }) {
         {/* Action icons bar */}
         <div className="flex items-center justify-between pt-1 border-t border-white/5">
           <button
+            type="button"
+            aria-label="Settings"
             onClick={() => handleTabSelect && handleTabSelect("settings")}
-            className="p-1.5 text-zinc-400 hover:text-white hover:bg-purple-500/15 rounded-lg transition-colors cursor-pointer"
+            className="p-1.5 text-zinc-400 hover:text-white hover:bg-purple-500/15 rounded-lg transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-purple-500 focus:outline-none"
             title="Settings"
           >
             <Settings className="w-3.5 h-3.5" />
           </button>
           <button
-            className="p-1.5 text-zinc-400 hover:text-white hover:bg-purple-500/15 rounded-lg transition-colors cursor-pointer"
+            type="button"
+            aria-label="Help & Support"
+            className="p-1.5 text-zinc-400 hover:text-white hover:bg-purple-500/15 rounded-lg transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-purple-500 focus:outline-none"
             title="Help & Support"
           >
             <HelpCircle className="w-3.5 h-3.5" />
           </button>
           <button
-            className="p-1.5 text-zinc-400 hover:text-red-400 hover:bg-red-500/15 rounded-lg transition-colors cursor-pointer"
+            type="button"
+            aria-label="Logout"
+            className="p-1.5 text-zinc-400 hover:text-red-400 hover:bg-red-500/15 rounded-lg transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-red-500 focus:outline-none"
             title="Logout"
           >
             <LogOut className="w-3.5 h-3.5" />
