@@ -34,9 +34,4 @@ async function processLoop() {
   }
 }
 
-export default {
-  async fetch(request, env, ctx) {
-    ctx.waitUntil(processLoop());
-    return new Response("AI Worker Running", { status: 200 });
-  }
-};
+processLoop();
