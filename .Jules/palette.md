@@ -1,0 +1,3 @@
+## 2026-09-24 - ToggleSwitch Accessibility & Focus States
+**Learning:** Generic reusable UI components like ToggleSwitches often lack proper `aria` attributes (`aria-label`, `aria-checked`, `role="switch"`) and focus indicators, making them completely inaccessible to screen reader and keyboard users.
+**Action:** When implementing custom toggle inputs, always include a `role="switch"`, `aria-checked={enabled}`, and visible focus states (e.g., `focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 focus:outline-none`) to ensure comprehensive accessibility. Add a default/optional `aria-label` or `aria-labelledby` prop.
