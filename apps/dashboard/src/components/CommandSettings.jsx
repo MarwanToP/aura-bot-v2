@@ -100,8 +100,11 @@ export default function CommandSettings({ guildId = "1" }) {
                 </div>
 
                 <button
+                  role="switch"
+                  aria-checked={setting.enabled}
+                  aria-label={`Toggle ${cmd.name} command`}
                   onClick={() => toggleCommand(cmd.name, setting.enabled)}
-                  className={`w-11 h-6 rounded-full p-1 transition-colors flex items-center cursor-pointer ${
+                  className={`w-11 h-6 rounded-full p-1 transition-colors flex items-center cursor-pointer focus:outline-none focus:ring-2 focus:ring-purple-500/40 ${
                     setting.enabled ? "bg-purple-600" : "bg-[#1e2333]"
                   }`}
                 >
@@ -143,7 +146,7 @@ export default function CommandSettings({ guildId = "1" }) {
                     <p className="text-[11px] text-zinc-400">Configure role permissions for this command.</p>
                   </div>
                 </div>
-                <button onClick={() => setSelectedCmd(null)} className="text-zinc-400 hover:text-white">
+                <button aria-label="Close permissions modal" onClick={() => setSelectedCmd(null)} className="text-zinc-400 hover:text-white focus:outline-none focus:ring-2 focus:ring-purple-500/40 rounded-sm">
                   <X className="w-4 h-4" />
                 </button>
               </div>
