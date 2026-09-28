@@ -15,7 +15,7 @@ export default function TempVoiceCanvas({ config }) {
             <h2 className="text-xl font-bold">Dynamic TempVoice Hubs</h2>
             <p className="text-sm text-slate-400">Join-to-Create private on-demand voice rooms.</p>
           </div>
-          <ToggleSwitch enabled={enabled} onToggle={setEnabled} />
+          <ToggleSwitch enabled={enabled} onToggle={setEnabled} ariaLabel="Enable Temp Voice" />
         </div>
 
         {/* Naming Template Input */}
