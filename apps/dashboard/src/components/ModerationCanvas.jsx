@@ -44,7 +44,7 @@ export default function ModerationCanvas({ config, guildId = '123456789012345678
             <h2 className="text-xl font-bold">Neural Auto-Moderation (Gemini 1.5 Flash)</h2>
             <p className="text-sm text-slate-400">AI-powered toxicity, scam, and phishing detection.</p>
           </div>
-          <ToggleSwitch enabled={enabled} onToggle={setEnabled} ariaLabel="Enable Neural Auto-Moderation" />
+          <ToggleSwitch enabled={enabled} onToggle={setEnabled} />
         </div>
 
         {/* Sensitivity Range Slider */}

@@ -1,3 +1,0 @@
-## 2026-09-28 - ToggleSwitch Accessibility Improvement
-**Learning:** Generic, reusable components (like custom toggles) often miss critical accessibility attributes (like `aria-label`, `aria-checked`, and `role="switch"`). Implementing these attributes as optional props (e.g., `ariaLabel`) with sensible default values ensures the component remains flexible and reusable while significantly improving screen reader compatibility and keyboard navigation.
-**Action:** Always verify custom interactive components include appropriate ARIA roles and labels, and provide customizable props for specific context descriptions.
