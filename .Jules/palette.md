@@ -1,0 +1,3 @@
+## 2026-10-13 - Add Accessibility to ToggleSwitch
+**Learning:** Generic, custom toggle elements often lack fundamental semantics when visually designed using just colors and shapes, making them practically invisible or confusing for screen reader users and untabbable for keyboard-only navigation. Relying solely on `onClick` without standard HTML attributes degrades the experience.
+**Action:** Always ensure custom switches implement `role="switch"`, dynamically bind `aria-checked`, accept customizable labels like `aria-label`, and possess explicit focus rings (e.g. `focus:ring-1`) for visibility.
