@@ -6,6 +6,7 @@ import { SlashCommandBuilder, PermissionFlagsBits, ChannelType, MessageFlags } f
 import { buildEmbed }  from '../../../shared/utils/embedBuilder.js';
 import { levelFromXp, getLeaderboard, getUserRank, generateRankCard, applyXpDecay } from '../../../shared/systems/leveling/levelingSystem.js';
 import { activateLockdown, liftLockdown, isInLockdown } from '../../../shared/systems/antinuke/antiRaid.js';
+import { invalidateRestrictionCache } from '../../../shared/systems/customization/customizationSystem.js';
 import config          from '../../../shared/config/config.js';
 
 // ─── /settings ────────────────────────────────────────────────
@@ -183,6 +184,10 @@ export const settings = {
 
     await settings.update(updates);
     for (const key of staleCacheKeys) await invalidateCache(client, key);
+    // The restriction settings (command blacklist / disabled channels) are
+    // cached from the SAME guild-settings row for 300 s. Without this the
+    // new value only took effect after the TTL.
+    await invalidateRestrictionCache(client, interaction.guildId);
     return interaction.editReply({ embeds: [buildEmbed({ type: 'success', description: `✅ Settings updated successfully.` })] });
   },
 };
@@ -390,23 +395,29 @@ export const ping = {
   cooldown: 5000,
   async execute(client, interaction) {
     // A deferred interaction has no message resource yet, so the roundtrip has
-    // to be measured from the reply that was actually sent.
+    // to be measured from the reply that was actually sent. When that read
+    // fails the only honest number left is the time since the interaction was
+    // created — it is labelled as such instead of being passed off as a
+    // roundtrip.
     await interaction.deferReply();
     let sent = null;
     try {
       sent = await interaction.fetchReply();
     } catch { /* fall back to the local clock below */ }
-    const delay = sent?.createdTimestamp
+    const measured = Boolean(sent?.createdTimestamp);
+    const delay = measured
       ? Math.max(0, sent.createdTimestamp - interaction.createdTimestamp)
       : Math.max(0, Date.now() - interaction.createdTimestamp);
-    
+    const latencyLabel = measured ? 'Roundtrip Latency' : 'Response Time';
+    const wsPing = client?.ws?.ping !== undefined ? `${Math.round(client.ws.ping)}ms` : 'N/A';
+
     return interaction.editReply({ 
       embeds: [buildEmbed({ 
         type: 'primary', 
         title: '🏓 Pong!', 
         fields: [
-          { name: 'Bot Latency', value: `\`${delay}ms\``, inline: true },
-          { name: 'API Latency', value: `\`${Math.round(client.ws.ping)}ms\``, inline: true },
+          { name: latencyLabel, value: `\`${delay}ms\``, inline: true },
+          { name: 'API Latency', value: `\`${wsPing}\``, inline: true },
           { name: 'Uptime', value: `<t:${Math.floor(client.readyTimestamp / 1000)}:R>`, inline: false }
         ],
         timestamp: true 

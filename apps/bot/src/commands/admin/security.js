@@ -8,6 +8,9 @@ import config from '../../../../../packages/config/index.js';
 
 const onOff = (v) => (v ? '🟢 ENABLED' : '🔴 DISABLED');
 const windowLabel = (ms) => `${Math.round(ms / 60000)}m`;
+// A failed settings read must never be rendered as "DISABLED" — that would
+// be a false all-clear on a security-status command.
+const STATE_UNAVAILABLE = '❔ State unavailable';
 
 export const securityCommand = {
   data: new SlashCommandBuilder()
@@ -44,7 +47,16 @@ export const securityCommand = {
       const sub = interaction.options.getSubcommand();
       if (sub === 'status') {
         const { GuildSettings } = client.db.models;
-        const settings = await GuildSettings.findOne({ where: { guildId: interaction.guildId } }).catch(() => null);
+        // A failed read is NOT the same as "not enabled": the state is
+        // simply unknown and must be reported as such.
+        let settings = null;
+        let settingsReadFailed = false;
+        try {
+          settings = await GuildSettings.findOne({ where: { guildId: interaction.guildId } });
+        } catch {
+          settings = null;
+          settingsReadFailed = true;
+        }
         const wl = settings?.antiNukeConfig || {};
         const wlUsers = Array.isArray(wl.whitelistUsers) ? wl.whitelistUsers.length : 0;
         const wlRoles = Array.isArray(wl.whitelistRoles) ? wl.whitelistRoles.length : 0;
@@ -54,22 +66,28 @@ export const securityCommand = {
         const lockdownText = lockedDown === null ? '❔ Unknown' : (lockedDown ? '🔴 ACTIVE' : '🟢 Inactive');
 
         const t = config.antiNuke;
-        const verificationText = settings?.verificationEnabled
-          ? (settings.verificationRoleId
-            ? `🟢 ENABLED (role: <@&${settings.verificationRoleId}>)`
-            : '🟢 ENABLED (⚠️ no verification role configured)')
-          : '🔴 DISABLED';
-        const whitelistText = (wlUsers === 0 && wlRoles === 0)
-          ? 'Not configured'
-          : `**${wlUsers}** user(s) • **${wlRoles}** role(s)`;
+        const antiNukeText = settingsReadFailed ? STATE_UNAVAILABLE : onOff(settings?.antiNukeEnabled);
+        const antiRaidText = settingsReadFailed ? STATE_UNAVAILABLE : onOff(settings?.antiRaidEnabled);
+        const verificationText = settingsReadFailed
+          ? STATE_UNAVAILABLE
+          : (settings?.verificationEnabled
+            ? (settings.verificationRoleId
+              ? `🟢 ENABLED (role: <@&${settings.verificationRoleId}>)`
+              : '🟢 ENABLED (⚠️ no verification role configured)')
+            : '🔴 DISABLED');
+        const whitelistText = settingsReadFailed
+          ? STATE_UNAVAILABLE
+          : ((wlUsers === 0 && wlRoles === 0)
+            ? 'Not configured'
+            : `**${wlUsers}** user(s) • **${wlRoles}** role(s)`);
 
         return interaction.editReply({
           embeds: [buildEmbed({
             type: 'info',
             title: '🛡️ Server Security Shield Status',
             description: [
-              `• **Anti-Nuke Protection:** ${onOff(settings?.antiNukeEnabled)} (ban ${t.banThreshold.count}/${windowLabel(t.banThreshold.window)}, kick ${t.kickThreshold.count}/${windowLabel(t.kickThreshold.window)}, channel-delete ${t.channelDeleteThreshold.count}/${windowLabel(t.channelDeleteThreshold.window)}, role-delete ${t.roleDeleteThreshold.count}/${windowLabel(t.roleDeleteThreshold.window)}, webhook ${t.webhookCreateThreshold.count}/${windowLabel(t.webhookCreateThreshold.window)})`,
-              `• **Anti-Raid Filter:** ${onOff(settings?.antiRaidEnabled)} (${t.joinRaidThreshold.count} joins/${Math.round(t.joinRaidThreshold.window / 1000)}s)`,
+              `• **Anti-Nuke Protection:** ${antiNukeText} (ban ${t.banThreshold.count}/${windowLabel(t.banThreshold.window)}, kick ${t.kickThreshold.count}/${windowLabel(t.kickThreshold.window)}, channel-delete ${t.channelDeleteThreshold.count}/${windowLabel(t.channelDeleteThreshold.window)}, role-delete ${t.roleDeleteThreshold.count}/${windowLabel(t.roleDeleteThreshold.window)}, webhook ${t.webhookCreateThreshold.count}/${windowLabel(t.webhookCreateThreshold.window)})`,
+              `• **Anti-Raid Filter:** ${antiRaidText} (${t.joinRaidThreshold.count} joins/${Math.round(t.joinRaidThreshold.window / 1000)}s)`,
               `• **Verification:** ${verificationText}`,
               `• **Whitelist:** ${whitelistText}`,
               `• **Lockdown:** ${lockdownText}`,

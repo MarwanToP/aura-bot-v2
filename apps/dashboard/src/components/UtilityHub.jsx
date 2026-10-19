@@ -390,14 +390,19 @@ export default function UtilityHub({ guildId }) {
                 type="button"
                 onClick={() => setSelectedColor(c.hex)}
                 title={`Select ${c.name} (${c.hex})`}
-                className={`rounded-xl p-3 text-[10px] font-bold text-white transition-all [text-shadow:0_1px_2px_rgba(0,0,0,0.6)] ${
+                aria-label={`Select ${c.name} (${c.hex})`}
+                className={`rounded-xl p-3 text-[10px] font-bold transition-all ${
                   selectedColor === c.hex
                     ? "scale-[1.03] ring-2 ring-[#7C5CFF] ring-offset-2 ring-offset-[#0A0F1A]"
                     : "opacity-80 hover:opacity-100 hover:scale-[1.02]"
                 }`}
                 style={{ backgroundColor: c.hex }}
               >
-                {c.name}
+                {/* the name sits on a dark pill so the label always clears 4.5:1
+                    on every swatch — the colour is named, never the only cue */}
+                <span className="rounded-md bg-[#05070D]/75 px-1.5 py-0.5 text-white">
+                  {c.name}
+                </span>
               </button>
             ))}
           </div>

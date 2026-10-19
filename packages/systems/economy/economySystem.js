@@ -24,13 +24,72 @@ import { generateAuraCard } from '../../utils/cardGenerator.js';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // ─── DB Helper ───────────────────────────────────────────────
-async function getWallet(client, userId, guildId) {
+/** Spread an optional transaction into a Sequelize call's options. */
+function txOptions(options = {}) {
+  return options.transaction ? { transaction: options.transaction } : {};
+}
+
+async function getWallet(client, userId, guildId, options = {}) {
   const { Economy } = client.db.models;
   const [wallet] = await Economy.findOrCreate({
     where:    { userId, guildId },
     defaults: { balance: 0, bank: 0, totalEarned: 0, reputation: 0, dailyStreak: 0 },
+    ...txOptions(options),
   });
   return wallet;
+}
+
+/**
+ * Run `fn` inside a database transaction.
+ *
+ * `client.db` is the Sequelize instance in production, so the callback gets a
+ * real transaction handle: Sequelize commits it when the callback resolves and
+ * rolls it back when it throws. That is what makes a money move atomic — the
+ * debit leg and the credit leg of a /bank deposit either both land or neither
+ * does, so a database error between them can no longer destroy or duplicate
+ * the amount. A client without a transaction API (a test double) simply runs
+ * the work without one.
+ */
+async function runInTransaction(client, fn) {
+  const db = client.db;
+  if (db && typeof db.transaction === 'function') {
+    return db.transaction((t) => fn(t));
+  }
+  return fn(null);
+}
+
+// ─── Redis cooldown helpers ──────────────────────────────────
+/** Render a remaining cooldown (milliseconds) as `Xh Ym`. */
+function cooldownLeft(ms) {
+  const total = Math.max(0, Number(ms) || 0);
+  const hours = Math.floor(total / 3600000);
+  const minutes = Math.floor((total % 3600000) / 60000);
+  return `${hours}h ${minutes}m`;
+}
+
+/**
+ * Atomically claim a cooldown slot.
+ *
+ * `SET key value EX <seconds> NX` only succeeds when the key does not exist
+ * yet, so exactly one of N concurrent callers wins the slot and only the
+ * winner may pay out. The TTL travels with the very same command, so the slot
+ * frees itself when the cooldown is over.
+ *
+ * @returns {Promise<boolean>} true when this caller won the slot.
+ */
+async function claimCooldown(client, key, ttlSeconds) {
+  const redis = client.redis;
+  if (!redis) return true;
+  if (typeof redis.set === 'function') {
+    const res = await redis.set(key, '1', 'EX', ttlSeconds, 'NX');
+    return res !== null && res !== undefined && res !== false;
+  }
+  if (typeof redis.setex === 'function') {
+    // No atomic NX available — keep the previous (racy) behaviour.
+    await redis.setex(key, ttlSeconds, '1');
+    return true;
+  }
+  return true;
 }
 
 // ─── Atomic balance helpers ───────────────────────────────────
@@ -40,23 +99,64 @@ async function getWallet(client, userId, guildId) {
 // one's result. The previous read-modify-write (`wallet.update({ balance:
 // newBal })`) silently lost coins whenever two of them interleaved.
 
+/**
+ * Parse what Sequelize's `increment`/`decrement` returned.
+ *
+ * Sequelize 6.x answers a static `Model.increment()/decrement()` with
+ * `[ [rows, rowCount] ]` on PostgreSQL: the UPDATE carries a `RETURNING *`
+ * clause, the query layer answers `[rows, rowCount]` and the model wraps that
+ * once more. The other shapes seen in the wild — `[rows]`, `[count]`, `[row]` —
+ * are accepted as well, so the parser stays correct for any driver.
+ *
+ * @returns {{ count: number, row: object|null }} `count` is how many rows were
+ *          really touched, `row` is the stored row after the update.
+ */
+function parseIncrementResult(result) {
+  const parsed = { count: 0, row: null };
+  if (!Array.isArray(result)) {
+    if (result && typeof result === 'object') { parsed.count = 1; parsed.row = result; }
+    return parsed;
+  }
+
+  const payload = result[0];
+
+  // Sequelize 6.x: [[rows, rowCount]] — the rows are nested one level deeper.
+  if (Array.isArray(payload) && payload.length === 2 && Array.isArray(payload[0]) && typeof payload[1] === 'number') {
+    const [rows, count] = payload;
+    parsed.count = Number.isFinite(count) ? count : rows.length;
+    parsed.row = rows[0] ?? null;
+    return parsed;
+  }
+
+  // [rows]
+  if (Array.isArray(payload)) {
+    parsed.count = payload.length;
+    parsed.row = payload[0] ?? null;
+    return parsed;
+  }
+
+  // [count] — a driver that only reports how many rows were touched.
+  if (typeof payload === 'number') {
+    parsed.count = payload;
+    return parsed;
+  }
+
+  // [row]
+  if (payload && typeof payload === 'object') {
+    parsed.count = 1;
+    parsed.row = payload;
+  }
+  return parsed;
+}
+
 /** Number of rows an `increment`/`decrement` call touched. */
 function affectedCount(result) {
-  if (!Array.isArray(result)) return 0;
-  const first = result[0];
-  if (Array.isArray(first)) return first.length;   // Sequelize: [rows]
-  if (typeof first === 'number') return first;       // test double: [count]
-  if (first && typeof first === 'object') return 1;
-  return 0;
+  return parseIncrementResult(result).count;
 }
 
 /** The updated row an `increment`/`decrement` call returned (if the driver returns one). */
 function updatedRow(result) {
-  if (!Array.isArray(result)) return null;
-  const first = result[0];
-  if (Array.isArray(first)) return first[0] ?? null;
-  if (first && typeof first === 'object') return first;
-  return null;
+  return parseIncrementResult(result).row;
 }
 
 /**
@@ -68,16 +168,18 @@ function updatedRow(result) {
  */
 async function creditColumn(client, userId, guildId, column, amount, options = {}) {
   const { Economy } = client.db.models;
-  const wallet = await getWallet(client, userId, guildId);
+  const wallet = await getWallet(client, userId, guildId, options);
   const delta  = Number(amount) || 0;
   if (!delta) return wallet;
 
   const fields = { [column]: delta };
   if (options.trackEarned && delta > 0) fields.totalEarned = delta;
 
-  const result = await Economy.increment(fields, { where: { userId, guildId } });
+  const result = await Economy.increment(fields, { where: { userId, guildId }, ...txOptions(options) });
   const row    = updatedRow(result);
 
+  // The row returned by the UPDATE is the value that is actually stored, so
+  // the reported balance can never drift away from the database.
   wallet[column] = row?.[column] !== undefined
     ? Number(row[column])
     : (Number(wallet[column]) || 0) + delta;
@@ -100,9 +202,9 @@ async function creditColumn(client, userId, guildId, column, amount, options = {
  *
  * @returns {{ success: boolean, balance: number }}
  */
-async function debitColumn(client, userId, guildId, column, amount) {
+async function debitColumn(client, userId, guildId, column, amount, options = {}) {
   const { Economy } = client.db.models;
-  const wallet = await getWallet(client, userId, guildId);
+  const wallet = await getWallet(client, userId, guildId, options);
   const by     = Number(amount) || 0;
   if (by <= 0) return { success: true, balance: Number(wallet[column]) || 0 };
 
@@ -114,11 +216,12 @@ async function debitColumn(client, userId, guildId, column, amount) {
   const result = await Economy.decrement(column, {
     by,
     where: { userId, guildId, [column]: { [Op.gte]: by } },
+    ...txOptions(options),
   });
 
   if (!affectedCount(result)) {
-    // Somebody else changed the value in the meantime — report the current one.
-    const latest = await getWallet(client, userId, guildId);
+    // Nobody else changed the value in the meantime — report the current one.
+    const latest = await getWallet(client, userId, guildId, options);
     return { success: false, balance: Number(latest[column]) || 0 };
   }
 
@@ -137,8 +240,8 @@ async function addCoins(client, userId, guildId, amount, options = {}) {
 }
 
 /** Atomically remove `amount` credits from a wallet (never below zero). */
-async function removeCoins(client, userId, guildId, amount) {
-  return debitColumn(client, userId, guildId, 'balance', amount);
+async function removeCoins(client, userId, guildId, amount, options = {}) {
+  return debitColumn(client, userId, guildId, 'balance', amount, options);
 }
 
 // ─── /aura (Profile Card) ────────────────────────────────────
@@ -249,26 +352,44 @@ export const bank = {
       );
     }
 
-    if (sub === 'deposit') {
+    if (sub === 'deposit' || sub === 'withdraw') {
       const amount = interaction.options.getInteger('amount');
-      // Atomic debit from the wallet + atomic credit to the vault.
-      const debit = await debitColumn(client, interaction.user.id, interaction.guildId, 'balance', amount);
-      if (!debit.success) return interaction.editReply({ embeds: [buildEmbed({ type: 'error', description: `❌ You only have **${debit.balance}** points in your wallet.` })] });
+      try {
+        // Both legs of the move run inside ONE transaction. Two independent
+        // writes could destroy or duplicate the amount when the database
+        // failed between them; the transaction commits both or neither.
+        const moved = await runInTransaction(client, async (t) => {
+          if (sub === 'deposit') {
+            // Atomic debit from the wallet + atomic credit to the vault.
+            const debit = await debitColumn(client, interaction.user.id, interaction.guildId, 'balance', amount, { transaction: t });
+            if (!debit.success) return { ok: false, balance: debit.balance };
 
-      const vault = await creditColumn(client, interaction.user.id, interaction.guildId, 'bank', amount);
+            const vault = await creditColumn(client, interaction.user.id, interaction.guildId, 'bank', amount, { transaction: t });
+            return { ok: true, value: Number(vault.bank) || 0 };
+          }
 
-      return interaction.editReply({ embeds: [buildEmbed({ type: 'success', title: '📥 Vault Deposit Successful', description: `Successfully secured **${amount.toLocaleString()}** points in your vault.\n**New Vault Balance:** ${Number(vault.bank).toLocaleString()} ${currencyEmoji}`, timestamp: true })] });
-    }
+          // Atomic debit from the vault + atomic credit to the wallet.
+          const debit = await debitColumn(client, interaction.user.id, interaction.guildId, 'bank', amount, { transaction: t });
+          if (!debit.success) return { ok: false, balance: debit.balance };
 
-    if (sub === 'withdraw') {
-      const amount = interaction.options.getInteger('amount');
-      // Atomic debit from the vault + atomic credit to the wallet.
-      const debit = await debitColumn(client, interaction.user.id, interaction.guildId, 'bank', amount);
-      if (!debit.success) return interaction.editReply({ embeds: [buildEmbed({ type: 'error', description: `❌ You only have **${debit.balance}** points in your vault.` })] });
+          const wallet = await creditColumn(client, interaction.user.id, interaction.guildId, 'balance', amount, { trackEarned: false, transaction: t });
+          return { ok: true, value: Number(wallet.balance) || 0 };
+        });
 
-      const wallet = await creditColumn(client, interaction.user.id, interaction.guildId, 'balance', amount, { trackEarned: false });
+        if (!moved.ok) {
+          const where = sub === 'deposit' ? 'wallet' : 'vault';
+          return interaction.editReply({ embeds: [buildEmbed({ type: 'error', description: `❌ You only have **${moved.balance}** points in your ${where}.` })] });
+        }
 
-      return interaction.editReply({ embeds: [buildEmbed({ type: 'success', title: '📤 Vault Withdrawal Successful', description: `Successfully withdrew **${amount.toLocaleString()}** points to your wallet.\n**New Wallet Balance:** ${Number(wallet.balance).toLocaleString()} ${currencyEmoji}`, timestamp: true })] });
+        if (sub === 'deposit') {
+          return interaction.editReply({ embeds: [buildEmbed({ type: 'success', title: '📥 Vault Deposit Successful', description: `Successfully secured **${amount.toLocaleString()}** points in your vault.\n**New Vault Balance:** ${moved.value.toLocaleString()} ${currencyEmoji}`, timestamp: true })] });
+        }
+
+        return interaction.editReply({ embeds: [buildEmbed({ type: 'success', title: '📤 Vault Withdrawal Successful', description: `Successfully withdrew **${amount.toLocaleString()}** points to your wallet.\n**New Wallet Balance:** ${moved.value.toLocaleString()} ${currencyEmoji}`, timestamp: true })] });
+      } catch {
+        // The transaction rolled back — nothing was moved.
+        return interaction.editReply({ embeds: [buildEmbed({ type: 'error', description: '❌ The vault transaction could not be completed — nothing was changed.' })] }).catch(() => {});
+      }
     }
   },
 };
@@ -295,53 +416,62 @@ export const daily = {
     const ttl = await client.redis.pttl(key);
 
     if (ttl > 0) {
-      const hours   = Math.floor(ttl / 3600000);
-      const minutes = Math.floor((ttl % 3600000) / 60000);
-      return interaction.editReply({ embeds: [buildEmbed({ type: 'warning', description: `⏳ Daily reward resets in **${hours}h ${minutes}m**.` })] });
+      return interaction.editReply({ embeds: [buildEmbed({ type: 'warning', description: `⏳ Daily reward resets in **${cooldownLeft(ttl)}**.` })] });
     }
 
-    const wallet = await getWallet(client, interaction.user.id, interaction.guildId);
-    
-    // Streak logic
-    const lastDaily = await client.redis.get(`last_daily:${interaction.user.id}`);
-    const now = Date.now();
-    let currentStreak = wallet.dailyStreak;
+    // Claim the reward slot BEFORE the payout. `SET ... NX` is atomic, so two
+    // concurrent claims can never both pay out — the cooldown key is created
+    // by the very same command that carries the TTL, so it still expires on
+    // its own.
+    const claimed = await claimCooldown(client, key, Math.ceil(dailyCooldown / 1000));
+    if (!claimed) {
+      const remaining = await client.redis.pttl(key);
+      return interaction.editReply({ embeds: [buildEmbed({ type: 'warning', description: `⏳ Daily reward resets in **${cooldownLeft(remaining)}**.` })] });
+    }
 
-    if (lastDaily) {
-      const diff = now - parseInt(lastDaily);
-      if (diff < 48 * 60 * 60 * 1000) { // Within 48 hours
-        currentStreak += 1;
+    try {
+      const wallet = await getWallet(client, interaction.user.id, interaction.guildId);
+
+      // Streak logic
+      const lastDaily = await client.redis.get(`last_daily:${interaction.user.id}`);
+      const now = Date.now();
+      let currentStreak = wallet.dailyStreak;
+
+      if (lastDaily) {
+        const diff = now - parseInt(lastDaily);
+        if (diff < 48 * 60 * 60 * 1000) { // Within 48 hours
+          currentStreak += 1;
+        } else {
+          currentStreak = 1;
+        }
       } else {
         currentStreak = 1;
       }
-    } else {
-      currentStreak = 1;
+
+      const baseAmount = Math.floor(Math.random() * (dailyReward.max - dailyReward.min + 1)) + dailyReward.min;
+      const bonus      = (currentStreak - 1) * streakBonus;
+      const total      = baseAmount + bonus;
+
+      // Atomic credit — the database adds the reward itself, so two concurrent
+      // /daily claims can never overwrite each other.
+      const credited = await addCoins(client, interaction.user.id, interaction.guildId, total);
+      await credited.update({ dailyStreak: currentStreak });
+
+      await client.redis.set(`last_daily:${interaction.user.id}`, now.toString());
+
+      return interaction.editReply({
+        embeds: [buildEmbed({
+          type:        'economy',
+          title:       `${currencyEmoji} Daily Points Claimed!`,
+          description: `You received **${total.toLocaleString()} ${currencyEmoji}**!\n🔥 **Streak:** ${currentStreak} days (+${bonus} bonus)\n**New Balance:** ${Number(credited.balance).toLocaleString()}`,
+          timestamp:   true,
+        })],
+      });
+    } catch (err) {
+      // The payout failed — release the claim so the reward is not lost.
+      await client.redis.del(key).catch(() => {});
+      throw err;
     }
-
-    const baseAmount = Math.floor(Math.random() * (dailyReward.max - dailyReward.min + 1)) + dailyReward.min;
-    const bonus      = (currentStreak - 1) * streakBonus;
-    const total      = baseAmount + bonus;
-
-    // Atomic credit — the database adds the reward itself, so two concurrent
-    // /daily claims can never overwrite each other.
-    const credited = await addCoins(client, interaction.user.id, interaction.guildId, total);
-    await credited.update({ dailyStreak: currentStreak });
-
-    if (typeof client.redis.setex === 'function') {
-      await client.redis.setex(key, Math.ceil(dailyCooldown / 1000), '1');
-    } else {
-      await client.redis.set(key, '1', 'EX', Math.ceil(dailyCooldown / 1000));
-    }
-    await client.redis.set(`last_daily:${interaction.user.id}`, now.toString());
-
-    return interaction.editReply({
-      embeds: [buildEmbed({
-        type:        'economy',
-        title:       `${currencyEmoji} Daily Points Claimed!`,
-        description: `You received **${total.toLocaleString()} ${currencyEmoji}**!\n🔥 **Streak:** ${currentStreak} days (+${bonus} bonus)\n**New Balance:** ${Number(credited.balance).toLocaleString()}`,
-        timestamp:   true,
-      })],
-    });
   },
 };
 
@@ -362,9 +492,7 @@ export const work = {
     const ttl = await client.redis.pttl(key);
 
     if (ttl > 0) {
-      const hours   = Math.floor(ttl / 3600000);
-      const minutes = Math.floor((ttl % 3600000) / 60000);
-      return interaction.editReply({ embeds: [buildEmbed({ type: 'warning', description: `⏳ You can work again in **${hours}h ${minutes}m**.` })] });
+      return interaction.editReply({ embeds: [buildEmbed({ type: 'warning', description: `⏳ You can work again in **${cooldownLeft(ttl)}**.` })] });
     }
 
     const jobs = [
@@ -377,11 +505,20 @@ export const work = {
     const amount = Math.floor(Math.random() * (workReward.max - workReward.min + 1)) + workReward.min;
     const job    = jobs[Math.floor(Math.random() * jobs.length)];
 
-    await addCoins(client, interaction.user.id, interaction.guildId, amount);
-    if (typeof client.redis.setex === 'function') {
-      await client.redis.setex(key, Math.ceil(workCooldown / 1000), '1');
-    } else {
-      await client.redis.set(key, '1', 'EX', Math.ceil(workCooldown / 1000));
+    // Claim the slot before the payout (same atomic SET NX as /daily), so two
+    // concurrent shifts can never both pay out.
+    const claimed = await claimCooldown(client, key, Math.ceil(workCooldown / 1000));
+    if (!claimed) {
+      const remaining = await client.redis.pttl(key);
+      return interaction.editReply({ embeds: [buildEmbed({ type: 'warning', description: `⏳ You can work again in **${cooldownLeft(remaining)}**.` })] });
+    }
+
+    try {
+      await addCoins(client, interaction.user.id, interaction.guildId, amount);
+    } catch (err) {
+      // The payout failed — release the claim so the shift is not lost.
+      await client.redis.del(key).catch(() => {});
+      throw err;
     }
 
     return interaction.editReply({
@@ -549,10 +686,22 @@ export const transfer = {
     const fee    = Math.floor(amount * config.economy.transferFee);
     const net    = amount - fee;
 
-    const result = await removeCoins(client, interaction.user.id, interaction.guildId, amount);
-    if (!result.success) return interaction.editReply({ embeds: [buildEmbed({ type: 'error', description: `❌ Insufficient funds.` })] });
+    // Debit and credit run in ONE transaction: a failure between the two legs
+    // can no longer destroy the transferred credits.
+    let result;
+    try {
+      result = await runInTransaction(client, async (t) => {
+        const debit = await removeCoins(client, interaction.user.id, interaction.guildId, amount, { transaction: t });
+        if (!debit.success) return { success: false, balance: debit.balance };
 
-    await addCoins(client, target.id, interaction.guildId, net);
+        await addCoins(client, target.id, interaction.guildId, net, { transaction: t });
+        return { success: true, balance: debit.balance };
+      });
+    } catch {
+      return interaction.editReply({ embeds: [buildEmbed({ type: 'error', description: '❌ The transfer could not be completed — nothing was changed.' })] }).catch(() => {});
+    }
+
+    if (!result.success) return interaction.editReply({ embeds: [buildEmbed({ type: 'error', description: `❌ Insufficient funds.` })] });
 
     return interaction.editReply({ embeds: [buildEmbed({ type: 'success', description: `✅ Transferred **${net.toLocaleString()} ${currencyEmoji}** to <@${target.id}> (Fee: ${fee})\n**Your Balance:** ${result.balance.toLocaleString()} credits` })] });
   },
@@ -648,34 +797,52 @@ const GAMBLE_BET     = 100;
 
 /** `economy:gamble` — a 50/50 coin flip on a fixed stake. */
 async function handleGamble(client, interaction) {
+  // Ack FIRST. The gamble touches the database twice (debit, maybe payout);
+  // on a cold/autoscaled Postgres that can cross Discord's 3-second
+  // deadline, and a lost ack would leave the wager debited while the user
+  // only sees "This interaction failed". Deferring before the first query
+  // keeps the single-ack rule intact.
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral }).catch(() => {});
+
   const { currencyEmoji, gamblingMax } = config.economy;
   const maxBet  = Math.min(GAMBLE_BET, Number(gamblingMax) || GAMBLE_BET);
   const wallet  = await getWallet(client, interaction.user.id, interaction.guildId);
   const balance = Number(wallet.balance) || 0;
 
   if (balance < GAMBLE_MIN_BET) {
-    return interaction.reply({
+    return interaction.editReply({
       embeds: [buildEmbed({ type: 'error', title: '🎲 Aura Gamble', description: `❌ You need at least **${GAMBLE_MIN_BET} ${currencyEmoji}** to gamble.` })],
-      flags: MessageFlags.Ephemeral,
     });
   }
 
-  const bet   = Math.min(maxBet, balance);
-  const debit = await removeCoins(client, interaction.user.id, interaction.guildId, bet);
-  if (!debit.success) {
-    return interaction.reply({
-      embeds: [buildEmbed({ type: 'error', title: '🎲 Aura Gamble', description: `❌ You only have **${debit.balance}** ${currencyEmoji} to gamble.` })],
-      flags: MessageFlags.Ephemeral,
+  const bet = Math.min(maxBet, balance);
+
+  // The wager and its payout share one transaction: a failing payout can
+  // never swallow the stake.
+  const result = await runInTransaction(client, async (t) => {
+    const debit = await removeCoins(client, interaction.user.id, interaction.guildId, bet, { transaction: t });
+    if (!debit.success) return { success: false, balance: debit.balance };
+
+    // Fair 1:1 payout — the stake comes back plus an equal win.
+    const won = Math.random() < 0.5;
+    let newBalance = debit.balance;
+    if (won) {
+      const credited = await addCoins(client, interaction.user.id, interaction.guildId, bet * 2, { trackEarned: false, transaction: t });
+      const stored = Number(credited.balance);
+      newBalance = Number.isFinite(stored) ? stored : debit.balance + bet * 2;
+    }
+    return { success: true, won, newBalance };
+  });
+
+  if (!result.success) {
+    return interaction.editReply({
+      embeds: [buildEmbed({ type: 'error', title: '🎲 Aura Gamble', description: `❌ You only have **${result.balance}** ${currencyEmoji} to gamble.` })],
     });
   }
 
-  // Fair 1:1 payout — the stake comes back plus an equal win.
-  const won = Math.random() < 0.5;
-  if (won) await addCoins(client, interaction.user.id, interaction.guildId, bet * 2, { trackEarned: false });
+  const { won, newBalance } = result;
 
-  const newBalance = won ? debit.balance + bet * 2 : debit.balance;
-
-  return interaction.reply({
+  return interaction.editReply({
     embeds: [buildEmbed({
       type: won ? 'success' : 'error',
       title: '🎲 Aura Gamble',
@@ -684,7 +851,6 @@ async function handleGamble(client, interaction) {
         : `💀 **Tails!** You lost your **${bet.toLocaleString()} ${currencyEmoji}** wager.\n**New Balance:** ${newBalance.toLocaleString()}`,
       footer: '50/50 coin flip — win to double your wager',
     })],
-    flags: MessageFlags.Ephemeral,
   });
 }
 
@@ -774,9 +940,15 @@ export async function handleModal(client, interaction, action) {
   if (action !== 'transfer_modal') return;
 
   const { currencyEmoji } = config.economy;
-  const reply = (payload) => interaction.reply({ ...payload, flags: MessageFlags.Ephemeral });
 
   try {
+    // Ack FIRST. The transfer moves money before it answers, so a modal
+    // submit that is never acknowledged leaves the client spinning forever —
+    // and a lost ack would mean the credits are already gone. Deferring
+    // before the first query keeps the single-ack rule intact.
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral }).catch(() => {});
+    const reply = (payload) => interaction.editReply(payload);
+
     const recipientRaw = String(interaction.fields?.getTextInputValue?.('recipient') ?? '').trim();
     const amountRaw    = String(interaction.fields?.getTextInputValue?.('amount') ?? '').trim();
 
@@ -809,21 +981,28 @@ export async function handleModal(client, interaction, action) {
     const fee = Math.floor(amount * config.economy.transferFee);
     const net = amount - fee;
 
-    // Atomic debit + atomic credit — the same helpers /transfer uses.
-    const debit = await removeCoins(client, interaction.user.id, interaction.guildId, amount);
-    if (!debit.success) {
+    // Atomic debit + atomic credit — the same helpers /transfer uses. Both
+    // legs share one transaction, so a failure between them can never
+    // destroy the transferred credits.
+    const result = await runInTransaction(client, async (t) => {
+      const debit = await removeCoins(client, interaction.user.id, interaction.guildId, amount, { transaction: t });
+      if (!debit.success) return { success: false, balance: debit.balance };
+
+      await addCoins(client, recipient.id, interaction.guildId, net, { transaction: t });
+      return { success: true, balance: debit.balance };
+    });
+
+    if (!result.success) {
       return reply({ embeds: [buildEmbed({ type: 'error', title: '💸 Transfer', description: '❌ Insufficient funds.' })] });
     }
-
-    await addCoins(client, recipient.id, interaction.guildId, net);
 
     return reply({ embeds: [buildEmbed({
       type: 'success',
       title: '💸 Transfer Complete',
-      description: `✅ Transferred **${net.toLocaleString()} ${currencyEmoji}** to <@${recipient.id}> (Fee: ${fee})\n**Your Balance:** ${debit.balance.toLocaleString()} credits`,
+      description: `✅ Transferred **${net.toLocaleString()} ${currencyEmoji}** to <@${recipient.id}> (Fee: ${fee})\n**Your Balance:** ${result.balance.toLocaleString()} credits`,
     })] });
   } catch {
-    return reply({ embeds: [buildEmbed({ type: 'error', title: '💸 Transfer', description: '❌ Something went wrong while processing the transfer.' })] }).catch(() => {});
+    return interaction.editReply({ embeds: [buildEmbed({ type: 'error', title: '💸 Transfer', description: '❌ Something went wrong while processing the transfer.' })] }).catch(() => {});
   }
 }
 

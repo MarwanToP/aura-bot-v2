@@ -477,7 +477,7 @@ export default function GiveawaySettings({ guildId }) {
 
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <h4 className="truncate text-xs font-bold text-white">{gw.prize}</h4>
+                      <h3 className="truncate text-xs font-bold text-white">{gw.prize}</h3>
                       <span
                         className={`chip ${
                           gw.active ? "chip-green" : "chip-cyan"

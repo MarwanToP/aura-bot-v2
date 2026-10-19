@@ -12,6 +12,11 @@
 //    --all-guilds   deploy to every joined guild, then globally
 //    --dry-run      audit only, no Discord API request
 //    --force        publish even if a file failed to import (dangerous)
+//
+//  A command whose `data.toJSON()` throws is FATAL and is never published:
+//  Discord's PUT REPLACES the whole command set, so publishing anyway would
+//  DELETE that command from Discord while it still exists at runtime.
+//  --force does not override this.
 // ================================================================
 import 'dotenv/config';
 import { Collection } from 'discord.js';
@@ -35,6 +40,10 @@ const logger = {
   error: (msg) => console.error(msg),
 };
 
+// Every Discord API request is bounded: a stalled connection used to hang
+// the whole deploy for minutes without any output.
+const DISCORD_API_TIMEOUT_MS = 20_000;
+
 async function collectCommands() {
   // Minimal client stub: the loader only needs `commands` (a Collection) and
   // `logger`. The real client is not required to enumerate commands.
@@ -42,19 +51,23 @@ async function collectCommands() {
   const audit = await loadCommands(client);
 
   const payloads = [];
-  let invalidExports = 0;
+  const invalidExportDetails = [];
   for (const [name, command] of client.commands) {
     try {
       const json = command.data.toJSON();
       if (!json?.name) throw new Error('missing name');
       payloads.push(json);
     } catch (err) {
-      invalidExports += 1;
-      console.warn(`  ⚠ Invalid command payload for /${name}: ${err.message}`);
+      invalidExportDetails.push({ name, error: err?.message || String(err) });
     }
   }
 
-  return { payloads, audit, invalidExports };
+  return {
+    payloads,
+    audit,
+    invalidExports: invalidExportDetails.length,
+    invalidExportDetails,
+  };
 }
 
 async function putWithRateLimitRetry(url, body) {
@@ -68,6 +81,7 @@ async function putWithRateLimitRetry(url, body) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(body),
+      signal: AbortSignal.timeout(DISCORD_API_TIMEOUT_MS),
     });
     const data = await res.json().catch(() => ({}));
     if (res.ok) return data;
@@ -83,6 +97,42 @@ async function putWithRateLimitRetry(url, body) {
   throw new Error('Exceeded max retries due to rate limiting.');
 }
 
+/**
+ * Every guild the bot has joined.
+ *
+ * The endpoint answers with at most 200 guilds per request, so the list is
+ * paginated with the `after` parameter — otherwise every guild beyond the
+ * first 200 was silently skipped.
+ */
+async function fetchJoinedGuilds() {
+  const guilds = [];
+  let after = null;
+
+  for (let page = 0; page < 100; page++) {
+    const url = new URL('https://discord.com/api/v10/users/@me/guilds');
+    url.searchParams.set('limit', '200');
+    if (after) url.searchParams.set('after', after);
+
+    const res = await fetch(url, {
+      headers: { Authorization: `Bot ${process.env.DISCORD_TOKEN}` },
+      signal: AbortSignal.timeout(DISCORD_API_TIMEOUT_MS),
+    });
+    const data = await res.json().catch(() => null);
+
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}: ${data?.message || 'unknown error'}`);
+    }
+    if (!Array.isArray(data) || data.length === 0) break;
+
+    guilds.push(...data);
+    if (data.length < 200) break;
+    after = data[data.length - 1]?.id;
+    if (!after) break;
+  }
+
+  return guilds;
+}
+
 async function deploy() {
   if (!process.env.DISCORD_CLIENT_ID) {
     throw new Error('Missing DISCORD_CLIENT_ID in environment.');
@@ -94,7 +144,7 @@ async function deploy() {
     throw new Error('Guild deploy requested but no guild ID was provided. Pass --guild <ID> or set DISCORD_GUILD_ID.');
   }
 
-  const { payloads, audit, invalidExports } = await collectCommands();
+  const { payloads, audit, invalidExports, invalidExportDetails } = await collectCommands();
 
   console.log(`\n📋 Command Audit | files=${audit.filesScanned} modules=${audit.modulesLoaded} validExports=${audit.registered} invalidExports=${invalidExports} duplicateAliasesSkipped=${audit.duplicateAliasesSkipped} duplicatesSkipped=${audit.duplicatesSkipped} duplicatesOverwritten=${audit.duplicatesOverwritten} importFailures=${audit.importFailures}`);
 
@@ -108,6 +158,18 @@ async function deploy() {
       process.exit(1);
     }
     console.warn('⚠️ --force given: publishing despite import failures.');
+  }
+
+  if (invalidExports > 0) {
+    // Discord's PUT REPLACES the whole command set: a command that cannot be
+    // serialized would be DELETED from Discord while it still works at
+    // runtime. Nothing is published — the deploy is aborted.
+    console.error(`\n❌ ${invalidExports} command(s) could not be serialized (data.toJSON() failed) — publishing would DELETE them from Discord:`);
+    for (const detail of invalidExportDetails) {
+      console.error(`   • /${detail.name}: ${detail.error}`);
+    }
+    console.error('\n🛑 Aborting without publishing anything. Fix the command definition and run the deploy again.');
+    process.exit(1);
   }
 
   console.log(`\n🚀 ${dryRun ? 'Dry-run for' : 'Deploying'} ${payloads.length} commands...`);
@@ -127,22 +189,22 @@ async function deploy() {
       console.log(`✅ Deployed ${res.length} commands to guild ${guildId} (instant)`);
     } else if (args.includes('--all-guilds')) {
       console.log('\n🌐 Fetching bot guilds for instant multi-guild deployment...');
-      const gRes = await fetch('https://discord.com/api/v10/users/@me/guilds', {
-        headers: { Authorization: `Bot ${process.env.DISCORD_TOKEN}` },
-      });
-      const guilds = await gRes.json().catch(() => []);
-      if (Array.isArray(guilds)) {
-        for (const g of guilds) {
-          try {
-            console.log(`  ⏳ Deploying to ${g.name || g.id}...`);
-            const res = await putWithRateLimitRetry(`https://discord.com/api/v10/applications/${clientId}/guilds/${g.id}/commands`, payloads);
-            console.log(`  ✅ Deployed ${res.length} commands to guild ${g.name || g.id}`);
-          } catch (err) {
-            console.warn(`  ❌ Failed to deploy to guild ${g.id}: ${err.message}`);
-          }
+      let guilds = [];
+      try {
+        guilds = await fetchJoinedGuilds();
+      } catch (err) {
+        console.warn(`⚠️ Could not fetch the joined guilds: ${err.message}`);
+      }
+      console.log(`Found ${guilds.length} joined guilds.`);
+      for (const g of guilds) {
+        try {
+          console.log(`  ⏳ Deploying to ${g.name || g.id}...`);
+          const res = await putWithRateLimitRetry(`https://discord.com/api/v10/applications/${clientId}/guilds/${g.id}/commands`, payloads);
+          console.log(`  ✅ Deployed ${res.length} commands to guild ${g.name || g.id}`);
+        } catch (err) {
+          console.warn(`  ❌ Failed to deploy to guild ${g.id}: ${err.message}`);
         }
       }
-      console.log(`Found ${Array.isArray(guilds) ? guilds.length : 0} joined guilds.`);
       console.log('\n⏳ Registering global commands...');
       try {
         const res = await putWithRateLimitRetry(`https://discord.com/api/v10/applications/${clientId}/commands`, payloads);

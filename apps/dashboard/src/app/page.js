@@ -216,19 +216,19 @@ export default function DashboardHome() {
                           <LogIn className="h-5 w-5" />
                         </span>
                         <div>
-                          <h3 className="font-display flex flex-wrap items-center gap-2 text-[13px] font-extrabold text-white">
+                          <h2 className="font-display flex flex-wrap items-center gap-2 text-[13px] font-extrabold text-white">
                             Verify Discord Account &amp; Link Dashboard
                             <span className="chip chip-violet text-[9px] font-semibold tracking-wide">
                               SECURE SIGN-IN
                             </span>
-                          </h3>
+                          </h2>
                           <p className="mt-1 max-w-xl font-body text-[11px] leading-relaxed text-slate-400">
                             Connect your Discord account to verify server ownership, sync permissions,
                             and access live bot configurations.
                           </p>
                         </div>
                       </div>
-                      <motion.button
+                      <motion.button type="button"
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
                         onClick={login}
@@ -253,19 +253,19 @@ export default function DashboardHome() {
                           <ServerOff className="h-5 w-5" />
                         </span>
                         <div>
-                          <h3 className="font-display flex flex-wrap items-center gap-2 text-[13px] font-extrabold text-white">
+                          <h2 className="font-display flex flex-wrap items-center gap-2 text-[13px] font-extrabold text-white">
                             Servers unavailable
                             <span className="chip chip-amber text-[9px] font-semibold tracking-wide">
                               DEMO DATA
                             </span>
-                          </h3>
+                          </h2>
                           <p className="mt-1 max-w-xl font-body text-[11px] leading-relaxed text-slate-400">
                             We couldn&apos;t reach Discord to load your servers, so every panel below
                             is showing demo data. Nothing here is live.
                           </p>
                         </div>
                       </div>
-                      <motion.button
+                      <motion.button type="button"
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
                         onClick={() => setGuildReload((c) => c + 1)}

@@ -200,8 +200,20 @@ const bootHealthCheck = runDependencyHealthCheck(client).catch((err) => {
 // Initialize AI Moderation Action Subscriber
 initModerationActionSubscriber(client);
 
-// Load commands before logging into Discord
-await loadCommands(client);
+// Load commands before logging into Discord.
+//
+// The loader itself is defensive (a file that cannot be imported is
+// reported, not fatal), but the DIRECTORY SCAN it performs is not: a file
+// that disappears between readdirSync and statSync (deploy, rsync, Docker
+// layer swap) makes the scan throw ENOENT. This used to be a top-level
+// `await`, so the rejection aborted the module evaluation and the process
+// exited BEFORE the bot ever logged in. The call is now guarded: the bot
+// always boots, it just starts with fewer commands.
+try {
+  await loadCommands(client);
+} catch (err) {
+  console.error('[Boot] Command load failed:', err?.message || err);
+}
 
 // Command registry health signal — reported after loadCommands so the
 // count reflects the real registry.

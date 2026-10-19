@@ -14,7 +14,7 @@
 //  • Raw action numbers are never shown: every event is mapped to a
 //    readable label.
 // ================================================================
-import { SlashCommandBuilder, PermissionFlagsBits, MessageFlags, AuditLogEvent } from 'discord.js';
+import { SlashCommandBuilder, PermissionFlagsBits, MessageFlags, AuditLogEvent, GuildMember, Role, User, GuildChannel } from 'discord.js';
 import { buildEmbed } from '../../../../../packages/utils/embedBuilder.js';
 
 // ─── Action catalogue ─────────────────────────────────────────────
@@ -188,15 +188,36 @@ function describeTarget(entry) {
   const id = target?.id ?? entry?.targetId ?? null;
   if (!id) return '—';
 
-  if (target?.username) {
-    const label = target.tag || target.globalName || target.username;
-    return `<@${id}> (\`${label}\`)`;
+  // Explicit class checks first, structural checks only as a fallback for
+  // the plain objects the API/mocks hand over.
+  //
+  // A GuildMember carries the User it wraps — that is what tells a member
+  // apart from a role. A Role has a position and a permission set but NO
+  // user and NO type. A channel has a type — checking the role markers
+  // first would render a voice channel as a role mention.
+  const isMember = target instanceof GuildMember
+    || (!!target.user && typeof target.user === 'object');
+  const isRole = target instanceof Role
+    || (target.type === undefined && target.position !== undefined && target.permissions !== undefined);
+  const isChannel = target instanceof GuildChannel
+    || (target.type !== undefined && typeof target.name === 'string');
+  const isUser = target instanceof User
+    || (typeof target.username === 'string' || typeof target.tag === 'string');
+
+  if (isMember) {
+    const user = target.user ?? target;
+    const label = user?.tag || user?.globalName || user?.username;
+    return label ? `<@${id}> (\`${label}\`)` : `<@${id}>`;
   }
-  if (target?.permissions !== undefined && target?.position !== undefined) {
+  if (isRole) {
     return `<@&${id}> (**${target.name}**)`;
   }
-  if (target?.type !== undefined && target?.name) {
+  if (isChannel) {
     return `<#${id}> (**${target.name}**)`;
+  }
+  if (isUser) {
+    const label = target.tag || target.globalName || target.username;
+    return `<@${id}> (\`${label}\`)`;
   }
   if (target?.name) {
     return `**${target.name}** (\`${id}\`)`;

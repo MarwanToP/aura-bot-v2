@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ShieldCheck,
@@ -85,6 +85,9 @@ export default function VerificationModule({ guildId = null }) {
 
   const [roles, setRoles] = useState([]);
   const [channels, setChannels] = useState([]);
+
+  /* Refs to the verification-mode radio buttons — used for roving focus. */
+  const modeOptionRefs = useRef([]);
 
   // Interactive Panel Preview Test Modal State
   const [testModalOpen, setTestModalOpen] = useState(false);
@@ -235,6 +238,32 @@ export default function VerificationModule({ guildId = null }) {
     { days: 30, label: "30 Days", badge: "Strict" },
   ];
 
+  /* Roving tabindex: the checked option is the group's single tab stop. */
+  const selectedModeIndex = Math.max(
+    0,
+    verificationModes.findIndex((m) => m.id === settings.verificationMode)
+  );
+
+  /* Arrow keys move between the options and select the focused one (radiogroup). */
+  const handleModeKeyDown = (event, index) => {
+    const total = verificationModes.length;
+    let nextIndex = null;
+    if (event.key === "ArrowRight" || event.key === "ArrowDown") {
+      nextIndex = (index + 1) % total;
+    } else if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
+      nextIndex = (index - 1 + total) % total;
+    } else if (event.key === "Home") {
+      nextIndex = 0;
+    } else if (event.key === "End") {
+      nextIndex = total - 1;
+    }
+    if (nextIndex === null) return;
+    event.preventDefault();
+    setSettings((prev) => ({ ...prev, verificationMode: verificationModes[nextIndex].id }));
+    const nextOption = modeOptionRefs.current[nextIndex];
+    if (nextOption) nextOption.focus();
+  };
+
   if (loading) {
     return (
       <div className="glass-card flex min-h-[400px] flex-col items-center justify-center p-8 text-white">
@@ -285,7 +314,7 @@ export default function VerificationModule({ guildId = null }) {
           </span>
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2.5">
-              <h1 className="card-title">Verification Gateway</h1>
+              <h2 className="card-title">Verification Gateway</h2>
               <span className={`chip ${settings.verificationEnabled ? "chip-green" : ""}`}>
                 {settings.verificationEnabled ? "Verification active" : "Disabled"}
               </span>
@@ -297,15 +326,16 @@ export default function VerificationModule({ guildId = null }) {
         </div>
 
         <div className="flex items-center gap-2 self-end sm:self-auto">
-          <button
+          <button type="button"
             onClick={fetchVerificationData}
             className="btn-icon h-9 w-9 rounded-xl"
             title="Reload configuration"
+            aria-label="Reload configuration"
           >
             <RefreshCw className="h-4 w-4" />
           </button>
 
-          <button
+          <button type="button"
             onClick={handleSave}
             disabled={saving}
             className="btn-primary"
@@ -349,23 +379,36 @@ export default function VerificationModule({ guildId = null }) {
           </div>
 
           <div>
-            <span className="section-label mb-3 flex items-center gap-2">
+            <span className="section-label mb-3 flex items-center gap-2 text-slate-400">
               <Sliders className="h-3.5 w-3.5 text-[#A9C2FF]" />
               Verification Challenge Mode
             </span>
 
-            <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-3">
-              {verificationModes.map((mode) => {
+            <div
+              role="radiogroup"
+              aria-label="Verification Challenge Mode"
+              className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-3"
+            >
+              {verificationModes.map((mode, index) => {
                 const Icon = mode.icon;
                 const isSelected = settings.verificationMode === mode.id;
 
                 return (
-                  <div
+                  <button
                     key={mode.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={isSelected}
+                    aria-label={mode.title}
+                    tabIndex={index === selectedModeIndex ? 0 : -1}
+                    ref={(el) => {
+                      modeOptionRefs.current[index] = el;
+                    }}
                     onClick={() =>
                       setSettings((prev) => ({ ...prev, verificationMode: mode.id }))
                     }
-                    className={`relative cursor-pointer rounded-xl border p-4 transition-colors ${
+                    onKeyDown={(event) => handleModeKeyDown(event, index)}
+                    className={`relative block w-full appearance-none cursor-pointer rounded-xl border p-4 text-left text-inherit font-inherit transition-colors ${
                       isSelected
                         ? "border-[#4C7DFF]/45 bg-[#4C7DFF]/[0.10] shadow-[0_12px_30px_rgba(76,125,255,0.18)]"
                         : "border-white/[0.07] bg-white/[0.02] hover:border-white/[0.14] hover:bg-white/[0.04]"
@@ -373,12 +416,14 @@ export default function VerificationModule({ guildId = null }) {
                   >
                     <div className="mb-3 flex items-start justify-between">
                       <span
+                        aria-hidden="true"
                         className="flex h-8 w-8 items-center justify-center rounded-lg"
                         style={{ backgroundColor: `${mode.color}1A`, color: mode.color }}
                       >
                         <Icon className="h-4 w-4" />
                       </span>
                       <span
+                        aria-hidden="true"
                         className={`flex h-4 w-4 items-center justify-center rounded-full border ${
                           isSelected
                             ? "border-[#34D399] bg-[#34D399]/20 text-[#34D399]"
@@ -394,7 +439,7 @@ export default function VerificationModule({ guildId = null }) {
                       {mode.subtitle}
                     </p>
                     <p className="text-[11px] leading-relaxed text-slate-400">{mode.description}</p>
-                  </div>
+                  </button>
                 );
               })}
             </div>
@@ -418,7 +463,12 @@ export default function VerificationModule({ guildId = null }) {
           <div className="space-y-4">
             <div>
               <div className="mb-2 flex items-center justify-between gap-3">
-                <label className="text-xs font-semibold text-slate-300">Minimum Account Age Limit</label>
+                <label
+                  htmlFor="alt-age-limit"
+                  className="text-xs font-semibold text-slate-300"
+                >
+                  Minimum Account Age Limit
+                </label>
                 <span className="chip chip-amber font-mono">
                   {settings.altAgeLimit === 0 ? "Disabled (0 days)" : `${settings.altAgeLimit} Days Old`}
                 </span>
@@ -426,6 +476,7 @@ export default function VerificationModule({ guildId = null }) {
 
               {/* Slider control */}
               <input
+                id="alt-age-limit"
                 type="range"
                 min="0"
                 max="90"
@@ -449,13 +500,14 @@ export default function VerificationModule({ guildId = null }) {
                   <button
                     key={preset.days}
                     type="button"
+                    aria-pressed={isActive}
                     onClick={() =>
                       setSettings((prev) => ({ ...prev, altAgeLimit: preset.days }))
                     }
                     className={`cursor-pointer rounded-xl border px-2 py-2 text-center transition-colors ${
                       isActive
                         ? "border-[#FBBF24]/45 bg-[#FBBF24]/[0.10] text-[#FCD34D]"
-                        : "border-white/[0.07] bg-white/[0.02] text-slate-500 hover:border-white/[0.14] hover:text-slate-300"
+                        : "border-white/[0.07] bg-white/[0.02] text-slate-300 hover:border-white/[0.14] hover:text-slate-200"
                     }`}
                   >
                     <div className="font-mono text-xs font-bold">{preset.days}d</div>
@@ -495,13 +547,17 @@ export default function VerificationModule({ guildId = null }) {
           <div className="space-y-4">
             {/* Verified role selector */}
             <div>
-              <label className="mb-1.5 flex items-center gap-2 text-xs font-semibold text-slate-300">
+              <label
+                htmlFor="verification-role"
+                className="mb-1.5 flex items-center gap-2 text-xs font-semibold text-slate-300"
+              >
                 <UserCheck className="h-3.5 w-3.5 text-[#6EE7B7]" />
                 Verified Role (Granted upon completion)
               </label>
 
               {roles.length > 0 ? (
                 <select
+                  id="verification-role"
                   value={settings.verificationRoleId}
                   onChange={(e) =>
                     setSettings((prev) => ({ ...prev, verificationRoleId: e.target.value }))
@@ -517,6 +573,7 @@ export default function VerificationModule({ guildId = null }) {
                 </select>
               ) : (
                 <input
+                  id="verification-role"
                   type="text"
                   placeholder="Role ID e.g. 1128439813574934590"
                   value={settings.verificationRoleId}
@@ -530,13 +587,17 @@ export default function VerificationModule({ guildId = null }) {
 
             {/* Unverified role selector */}
             <div>
-              <label className="mb-1.5 flex items-center gap-2 text-xs font-semibold text-slate-300">
+              <label
+                htmlFor="unverified-role"
+                className="mb-1.5 flex items-center gap-2 text-xs font-semibold text-slate-300"
+              >
                 <UserX className="h-3.5 w-3.5 text-[#FCA5A5]" />
                 Unverified Role (Assigned upon joining)
               </label>
 
               {roles.length > 0 ? (
                 <select
+                  id="unverified-role"
                   value={settings.unverifiedRoleId}
                   onChange={(e) =>
                     setSettings((prev) => ({ ...prev, unverifiedRoleId: e.target.value }))
@@ -552,6 +613,7 @@ export default function VerificationModule({ guildId = null }) {
                 </select>
               ) : (
                 <input
+                  id="unverified-role"
                   type="text"
                   placeholder="Role ID e.g. 1128439813574934591"
                   value={settings.unverifiedRoleId}
@@ -565,13 +627,17 @@ export default function VerificationModule({ guildId = null }) {
 
             {/* Gateway channel selector */}
             <div>
-              <label className="mb-1.5 flex items-center gap-2 text-xs font-semibold text-slate-300">
+              <label
+                htmlFor="verification-channel"
+                className="mb-1.5 flex items-center gap-2 text-xs font-semibold text-slate-300"
+              >
                 <Hash className="h-3.5 w-3.5 text-[#A9C2FF]" />
                 Verification Gateway Channel
               </label>
 
               {channels.length > 0 ? (
                 <select
+                  id="verification-channel"
                   value={settings.verificationChannelId}
                   onChange={(e) =>
                     setSettings((prev) => ({ ...prev, verificationChannelId: e.target.value }))
@@ -587,6 +653,7 @@ export default function VerificationModule({ guildId = null }) {
                 </select>
               ) : (
                 <input
+                  id="verification-channel"
                   type="text"
                   placeholder="Channel ID e.g. 1128439813574934600"
                   value={settings.verificationChannelId}
@@ -630,7 +697,7 @@ export default function VerificationModule({ guildId = null }) {
                 {/* Bot header */}
                 <div className="mb-1 flex items-center gap-2">
                   <span className="text-sm font-semibold text-white">Aura Security Gate</span>
-                  <span className="rounded bg-[#4C7DFF] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white">
+                  <span className="rounded bg-[#3A62E0] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white ring-1 ring-inset ring-white/30">
                     BOT
                   </span>
                   <span className="text-xs text-zinc-400">Today at 12:00 PM</span>
@@ -667,9 +734,9 @@ export default function VerificationModule({ guildId = null }) {
                 {/* Interactive action button row */}
                 <div className="mt-3 flex flex-wrap items-center gap-3">
                   {settings.verificationMode === "web" && (
-                    <button
+                    <button type="button"
                       onClick={openTestModal}
-                      className="flex cursor-pointer items-center gap-2 rounded-md bg-[#4C7DFF] px-4 py-2 text-xs font-medium text-white shadow-md transition-all hover:opacity-90"
+                      className="flex cursor-pointer items-center gap-2 rounded-md bg-[#3A62E0] px-4 py-2 text-xs font-medium text-white shadow-md ring-1 ring-inset ring-white/30 transition-all hover:opacity-90"
                     >
                       <ExternalLink className="h-3.5 w-3.5" />
                       Verify via Web Portal
@@ -677,7 +744,7 @@ export default function VerificationModule({ guildId = null }) {
                   )}
 
                   {settings.verificationMode === "button" && (
-                    <button
+                    <button type="button"
                       onClick={openTestModal}
                       className="flex cursor-pointer items-center gap-2 rounded-md bg-[#34D399] px-4 py-2 text-xs font-bold text-[#06120C] shadow-md transition-all hover:opacity-90"
                     >
@@ -687,9 +754,9 @@ export default function VerificationModule({ guildId = null }) {
                   )}
 
                   {settings.verificationMode === "math" && (
-                    <button
+                    <button type="button"
                       onClick={openTestModal}
-                      className="flex cursor-pointer items-center gap-2 rounded-md bg-[#7C5CFF] px-4 py-2 text-xs font-medium text-white shadow-md transition-all hover:opacity-90"
+                      className="flex cursor-pointer items-center gap-2 rounded-md bg-[#7049F5] px-4 py-2 text-xs font-medium text-white shadow-md ring-1 ring-inset ring-white/30 transition-all hover:opacity-90"
                     >
                       <Calculator className="h-3.5 w-3.5" />
                       Solve Math Challenge
@@ -721,9 +788,10 @@ export default function VerificationModule({ guildId = null }) {
               exit={{ scale: 0.9, opacity: 0 }}
               className="modal-surface relative w-full max-w-md p-6 shadow-2xl"
             >
-              <button
+              <button type="button"
                 onClick={() => setTestModalOpen(false)}
                 className="btn-icon absolute right-4 top-4 h-9 w-9 rounded-xl"
+                aria-label="Close interactive preview"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -749,7 +817,7 @@ export default function VerificationModule({ guildId = null }) {
                     link to be securely redirected to an OAuth + hCaptcha page. Upon passing
                     hCaptcha, the bot assigns the Verified Role automatically.
                   </div>
-                  <button
+                  <button type="button"
                     onClick={() => setTestResult("success")}
                     className="btn-primary w-full"
                   >
@@ -768,7 +836,7 @@ export default function VerificationModule({ guildId = null }) {
                     </code>
                     .
                   </div>
-                  <button
+                  <button type="button"
                     onClick={() => setTestResult("success")}
                     className="btn-primary w-full"
                   >
@@ -780,13 +848,19 @@ export default function VerificationModule({ guildId = null }) {
               {settings.verificationMode === "math" && (
                 <form onSubmit={handleTestSubmit} className="space-y-4 py-2">
                   <div className="space-y-2 rounded-xl border border-[#7C5CFF]/25 bg-[#7C5CFF]/[0.08] p-4 text-center">
-                    <p className="text-xs font-medium text-slate-300">Solve the equation to verify:</p>
+                    <label
+                      htmlFor="math-challenge-answer"
+                      className="block text-xs font-medium text-slate-300"
+                    >
+                      Solve the equation to verify:
+                    </label>
                     <div className="rounded-lg border border-[#7C5CFF]/25 bg-white/[0.03] py-2 font-mono text-2xl font-bold tracking-widest text-white">
                       {testMath.a} + {testMath.b} = ?
                     </div>
                   </div>
 
                   <input
+                    id="math-challenge-answer"
                     type="number"
                     placeholder="Enter the sum..."
                     value={testInput}

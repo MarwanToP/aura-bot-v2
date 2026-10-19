@@ -338,19 +338,22 @@ const btnGhost = "btn-glass";
 const statusChip = (status) =>
   status === "approved" ? "chip-green" : status === "rejected" ? "chip-red" : "chip-amber";
 
-function Field({ label, hint, children, className = "" }) {
+function Field({ label, hint, children, className = "", htmlFor }) {
   return (
-    <label className={`block min-w-0 ${className}`}>
-      <span className="section-label mb-1.5 block">{label}</span>
+    <div className={`block min-w-0 ${className}`}>
+      <label htmlFor={htmlFor} className="section-label mb-1.5 block">
+        {label}
+      </label>
       {children}
       {hint && <span className="mt-1.5 block text-[10px] text-slate-500">{hint}</span>}
-    </label>
+    </div>
   );
 }
 
-function RoleSelect({ value, onChange }) {
+function RoleSelect({ value, onChange, id }) {
   return (
     <select
+      id={id}
       value={value || ""}
       onChange={(e) => onChange(e.target.value || null)}
       className={`${selectCls} w-full text-xs`}
@@ -575,16 +578,22 @@ function BuilderView({
           </div>
 
           <div className="mt-4 space-y-4">
-            <Field label="Form name">
+            <Field label="Form name" htmlFor="app-form-name">
               <input
+                id="app-form-name"
                 className={inputCls}
                 value={activeForm.name}
                 onChange={(e) => patchForm({ name: e.target.value })}
                 placeholder="Staff Moderator Application"
               />
             </Field>
-            <Field label="Description" hint="Shown on the apply panel and above the form.">
+            <Field
+              label="Description"
+              htmlFor="app-form-description"
+              hint="Shown on the apply panel and above the form."
+            >
               <textarea
+                id="app-form-description"
                 rows={2}
                 className="glass-textarea min-h-[4.5rem] resize-none"
                 value={activeForm.description || ""}
@@ -618,6 +627,7 @@ function BuilderView({
                   <GripVertical className="h-4 w-4 shrink-0 text-slate-600" />
                   <input
                     className="glass-input flex-1 px-3 py-2 text-xs"
+                    aria-label={`Question ${i + 1} text`}
                     value={q.label}
                     onChange={(e) => patchQuestion(q.id, { label: e.target.value })}
                     placeholder={`Question ${i + 1}`}
@@ -636,6 +646,7 @@ function BuilderView({
                   <select
                     value={q.type}
                     onChange={(e) => patchQuestion(q.id, { type: e.target.value })}
+                    aria-label={`Question ${i + 1} answer type`}
                     className="glass-select w-auto py-1.5 text-[11px] font-semibold"
                   >
                     <option value="short">Short text</option>
@@ -706,26 +717,56 @@ function BuilderView({
           </div>
 
           <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            <Field label="Accept role" hint="Granted when approved">
-              <RoleSelect value={activeForm.acceptRole} onChange={(v) => patchForm({ acceptRole: v })} />
-            </Field>
-            <Field label="Reject role" hint="Granted when rejected">
-              <RoleSelect value={activeForm.rejectRole} onChange={(v) => patchForm({ rejectRole: v })} />
-            </Field>
-            <Field label="Remove on accept" hint="Stripped from the member when approved">
-              <RoleSelect value={activeForm.removeRole} onChange={(v) => patchForm({ removeRole: v })} />
-            </Field>
-            <Field label="Required to apply" hint="Applicants must already have this role">
+            <Field label="Accept role" htmlFor="app-accept-role" hint="Granted when approved">
               <RoleSelect
+                id="app-accept-role"
+                value={activeForm.acceptRole}
+                onChange={(v) => patchForm({ acceptRole: v })}
+              />
+            </Field>
+            <Field label="Reject role" htmlFor="app-reject-role" hint="Granted when rejected">
+              <RoleSelect
+                id="app-reject-role"
+                value={activeForm.rejectRole}
+                onChange={(v) => patchForm({ rejectRole: v })}
+              />
+            </Field>
+            <Field
+              label="Remove on accept"
+              htmlFor="app-remove-role"
+              hint="Stripped from the member when approved"
+            >
+              <RoleSelect
+                id="app-remove-role"
+                value={activeForm.removeRole}
+                onChange={(v) => patchForm({ removeRole: v })}
+              />
+            </Field>
+            <Field
+              label="Required to apply"
+              htmlFor="app-required-role"
+              hint="Applicants must already have this role"
+            >
+              <RoleSelect
+                id="app-required-role"
                 value={activeForm.requiredRole}
                 onChange={(v) => patchForm({ requiredRole: v })}
               />
             </Field>
-            <Field label="Ping on submission" hint="Mentioned in the review channel">
-              <RoleSelect value={activeForm.pingRole} onChange={(v) => patchForm({ pingRole: v })} />
-            </Field>
-            <Field label="Reviewer role" hint="Who can approve or deny">
+            <Field
+              label="Ping on submission"
+              htmlFor="app-ping-role"
+              hint="Mentioned in the review channel"
+            >
               <RoleSelect
+                id="app-ping-role"
+                value={activeForm.pingRole}
+                onChange={(v) => patchForm({ pingRole: v })}
+              />
+            </Field>
+            <Field label="Reviewer role" htmlFor="app-reviewer-role" hint="Who can approve or deny">
+              <RoleSelect
+                id="app-reviewer-role"
                 value={activeForm.managerRole}
                 onChange={(v) => patchForm({ managerRole: v })}
               />
@@ -742,16 +783,26 @@ function BuilderView({
             <h3 className="card-title">Review workflow</h3>
           </div>
           <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field label="Review channel" hint="Where new submissions are posted with Approve / Reject buttons">
+            <Field
+              label="Review channel"
+              htmlFor="app-review-channel"
+              hint="Where new submissions are posted with Approve / Reject buttons"
+            >
               <input
+                id="app-review-channel"
                 className={inputCls}
                 value={activeForm.logChannel || ""}
                 onChange={(e) => patchForm({ logChannel: e.target.value })}
                 placeholder="#application-review"
               />
             </Field>
-            <Field label="Cooldown (hours)" hint="How long applicants must wait before applying again">
+            <Field
+              label="Cooldown (hours)"
+              htmlFor="app-cooldown-hours"
+              hint="How long applicants must wait before applying again"
+            >
               <input
+                id="app-cooldown-hours"
                 type="number"
                 min="0"
                 className={inputCls}
@@ -774,7 +825,7 @@ function BuilderView({
               <button
                 type="button"
                 onClick={deleteForm}
-                className="px-2 text-[11px] font-semibold text-slate-500 transition-colors hover:text-[#FCA5A5]"
+                className="inline-flex min-h-[24px] items-center px-2 text-[11px] font-semibold text-slate-500 transition-colors hover:text-[#FCA5A5]"
               >
                 Delete form
               </button>
@@ -855,7 +906,7 @@ function BuilderView({
                     {q.required && <span className="ml-1 text-[#F87171]">*</span>}
                   </div>
                   <div
-                    className={`mt-1 flex items-center rounded-md border border-white/[0.05] bg-white/[0.04] px-2 text-[9px] text-slate-600 ${
+                    className={`mt-1 flex items-center rounded-md border border-white/[0.05] bg-white/[0.04] px-2 text-[9px] text-slate-400 ${
                       q.type === "paragraph" ? "h-8" : "h-5"
                     }`}
                   >
@@ -873,13 +924,13 @@ function BuilderView({
               <div className="truncate text-[11px] font-bold text-white">
                 📝 New Application — {activeForm.name || "Untitled"}
               </div>
-              <div className="mt-1.5 text-[10px] text-slate-500">
+              <div className="mt-1.5 text-[10px] text-slate-400">
                 User: @applicant · ID: a1b2c3…
               </div>
               <div className="mt-2 space-y-1.5">
                 {activeForm.questions.slice(0, 2).map((q) => (
                   <div key={q.id} className="rounded-md bg-white/[0.03] px-2.5 py-1.5">
-                    <div className="truncate text-[9px] font-bold text-slate-500">
+                    <div className="truncate text-[9px] font-bold text-slate-400">
                       {q.label || "Untitled question"}
                     </div>
                     <div className="text-[10px] italic text-slate-400">applicant response…</div>
@@ -894,7 +945,7 @@ function BuilderView({
                   ✕ Reject
                 </span>
               </div>
-              <div className="mt-2 text-[9px] text-slate-600">
+              <div className="mt-2 text-[9px] text-slate-400">
                 {activeForm.pingRole
                   ? `Pings ${activeForm.pingRole} on new submissions`
                   : "No ping role set"}
@@ -986,6 +1037,7 @@ function SubmissionsView({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search applicants or forms…"
+            aria-label="Search applicants and forms"
             className="glass-input py-2 pl-9 text-xs"
           />
         </div>

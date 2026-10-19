@@ -296,6 +296,7 @@ export default function LogViewer({ guildId }) {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by case ID, member, moderator, or reason…"
+            aria-label="Search moderation logs by case ID, member, moderator, or reason"
             className="glass-input py-2 pl-9 pr-3 text-xs"
           />
         </div>
@@ -307,6 +308,7 @@ export default function LogViewer({ guildId }) {
               setTypeFilter(e.target.value);
               setPage(1);
             }}
+            aria-label="Filter moderation logs by case type"
             className="glass-select w-full py-2 text-xs sm:w-48"
           >
             <option value="all">All Types</option>

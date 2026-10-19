@@ -36,6 +36,7 @@ function Toggle({ enabled, onChange, title }) {
       type="button"
       onClick={() => onChange(!enabled)}
       title={title}
+      aria-label={title}
       aria-pressed={enabled}
       className={`toggle-track ${enabled ? "toggle-track-on" : ""}`}
     >
@@ -431,12 +432,15 @@ export default function WelcomeSettings({ guildId }) {
 
             {welcomeEnabled && (
               <div className="mt-5 space-y-4">
-                <label className="block">
-                  <span className="section-label mb-1.5 block">Channel</span>
+                <div className="block">
+                  <label htmlFor="welcome-channel" className="section-label mb-1.5 block">
+                    Channel
+                  </label>
                   {!live ? (
                     <span className="relative block">
                       <Hash className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-600" />
                       <input
+                        id="welcome-channel"
                         type="text"
                         value={welcomeChannel}
                         onChange={(e) => setWelcomeChannel(e.target.value)}
@@ -456,6 +460,7 @@ export default function WelcomeSettings({ guildId }) {
                     </div>
                   ) : channels ? (
                     <select
+                      id="welcome-channel"
                       value={welcomeChannelId}
                       onChange={(e) => setWelcomeChannelId(e.target.value)}
                       className="glass-select"
@@ -469,6 +474,7 @@ export default function WelcomeSettings({ guildId }) {
                     </select>
                   ) : (
                     <input
+                      id="welcome-channel"
                       type="text"
                       value={welcomeChannelId}
                       onChange={(e) => setWelcomeChannelId(e.target.value)}
@@ -482,18 +488,19 @@ export default function WelcomeSettings({ guildId }) {
                       {channelLabel(channels, welcomeChannelId) || "none selected"}
                     </span>
                   ) : null}
-                </label>
-                <label className="block">
-                  <span className="section-label mb-1.5 block">
+                </div>
+                <div className="block">
+                  <label htmlFor="welcome-message" className="section-label mb-1.5 block">
                     Message (use {"{user}"}, {"{guild}"}, {"{memberCount}"})
-                  </span>
+                  </label>
                   <textarea
+                    id="welcome-message"
                     value={welcomeMsg}
                     onChange={(e) => setWelcomeMsg(e.target.value)}
                     rows={3}
                     className="glass-textarea"
                   />
-                </label>
+                </div>
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-xs text-slate-300">Show welcome card</span>
                   <Toggle
@@ -527,12 +534,15 @@ export default function WelcomeSettings({ guildId }) {
 
             {farewellEnabled && (
               <div className="mt-5 space-y-4">
-                <label className="block">
-                  <span className="section-label mb-1.5 block">Channel</span>
+                <div className="block">
+                  <label htmlFor="farewell-channel" className="section-label mb-1.5 block">
+                    Channel
+                  </label>
                   {!live ? (
                     <span className="relative block">
                       <Hash className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-600" />
                       <input
+                        id="farewell-channel"
                         type="text"
                         value={farewellChannel}
                         onChange={(e) => setFarewellChannel(e.target.value)}
@@ -552,6 +562,7 @@ export default function WelcomeSettings({ guildId }) {
                     </div>
                   ) : channels ? (
                     <select
+                      id="farewell-channel"
                       value={farewellChannelId}
                       onChange={(e) => setFarewellChannelId(e.target.value)}
                       className="glass-select"
@@ -565,6 +576,7 @@ export default function WelcomeSettings({ guildId }) {
                     </select>
                   ) : (
                     <input
+                      id="farewell-channel"
                       type="text"
                       value={farewellChannelId}
                       onChange={(e) => setFarewellChannelId(e.target.value)}
@@ -578,16 +590,19 @@ export default function WelcomeSettings({ guildId }) {
                       {channelLabel(channels, farewellChannelId) || "none selected"}
                     </span>
                   ) : null}
-                </label>
-                <label className="block">
-                  <span className="section-label mb-1.5 block">Farewell message</span>
+                </div>
+                <div className="block">
+                  <label htmlFor="farewell-message" className="section-label mb-1.5 block">
+                    Farewell message
+                  </label>
                   <textarea
+                    id="farewell-message"
                     value={farewellMsg}
                     onChange={(e) => setFarewellMsg(e.target.value)}
                     rows={3}
                     className="glass-textarea"
                   />
-                </label>
+                </div>
               </div>
             )}
           </motion.section>
@@ -627,9 +642,12 @@ export default function WelcomeSettings({ guildId }) {
             </div>
 
             <div className="mt-5">
-              <span className="section-label mb-1.5 block">Text color</span>
+              <label htmlFor="welcome-card-color" className="section-label mb-1.5 block">
+                Text color
+              </label>
               <div className="mt-1 flex items-center gap-3">
                 <input
+                  id="welcome-card-color"
                   type="color"
                   value={cardColor}
                   onChange={(e) => setCardColor(e.target.value)}
@@ -641,8 +659,11 @@ export default function WelcomeSettings({ guildId }) {
 
             <div className="mt-5 grid grid-cols-2 gap-4">
               <div>
-                <span className="section-label mb-1.5 block">Avatar X</span>
+                <label htmlFor="welcome-avatar-x" className="section-label mb-1.5 block">
+                  Avatar X
+                </label>
                 <input
+                  id="welcome-avatar-x"
                   type="range"
                   min={10}
                   max={200}
@@ -653,8 +674,11 @@ export default function WelcomeSettings({ guildId }) {
                 <span className="text-[10px] text-slate-500">{avatarX}px</span>
               </div>
               <div>
-                <span className="section-label mb-1.5 block">Avatar Y</span>
+                <label htmlFor="welcome-avatar-y" className="section-label mb-1.5 block">
+                  Avatar Y
+                </label>
                 <input
+                  id="welcome-avatar-y"
                   type="range"
                   min={10}
                   max={200}
@@ -665,8 +689,11 @@ export default function WelcomeSettings({ guildId }) {
                 <span className="text-[10px] text-slate-500">{avatarY}px</span>
               </div>
               <div>
-                <span className="section-label mb-1.5 block">Text X</span>
+                <label htmlFor="welcome-text-x" className="section-label mb-1.5 block">
+                  Text X
+                </label>
                 <input
+                  id="welcome-text-x"
                   type="range"
                   min={10}
                   max={400}
@@ -677,8 +704,11 @@ export default function WelcomeSettings({ guildId }) {
                 <span className="text-[10px] text-slate-500">{textX}px</span>
               </div>
               <div>
-                <span className="section-label mb-1.5 block">Text Y</span>
+                <label htmlFor="welcome-text-y" className="section-label mb-1.5 block">
+                  Text Y
+                </label>
                 <input
+                  id="welcome-text-y"
                   type="range"
                   min={10}
                   max={300}
@@ -707,14 +737,17 @@ export default function WelcomeSettings({ guildId }) {
               </div>
               <div className="flex items-center gap-2">
                 <input
+                  id="welcome-preview-username"
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   placeholder="Username"
+                  aria-label="Preview username"
                   title={live ? "Preview only — a sample member name" : undefined}
                   className="glass-input h-9 w-28 py-0"
                 />
                 <input
+                  id="welcome-preview-server"
                   type="text"
                   value={serverName}
                   onChange={(e) => {
@@ -722,6 +755,7 @@ export default function WelcomeSettings({ guildId }) {
                     setServerName(e.target.value);
                   }}
                   placeholder="Server"
+                  aria-label="Preview server name"
                   title={live ? "Preview only — the name shown on the card" : undefined}
                   className="glass-input h-9 w-28 py-0"
                 />

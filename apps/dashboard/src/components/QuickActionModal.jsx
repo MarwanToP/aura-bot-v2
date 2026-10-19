@@ -81,7 +81,7 @@ export default function QuickActionModal({ action, open, isOpen, onClose, onSucc
             className="modal-surface relative w-full max-w-lg p-6 text-white"
             onClick={(e) => e.stopPropagation()}
           >
-            <button
+            <button type="button"
               onClick={() => onClose && onClose()}
               className="btn-icon absolute right-4 top-4 h-8 w-8 rounded-[11px]"
               aria-label="Close"

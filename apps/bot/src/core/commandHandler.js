@@ -49,7 +49,11 @@ export async function loadCommands(client) {
 async function loadDir(client, dirPath, allowOverwrite = true, audit) {
   for (const entry of readdirSync(dirPath)) {
     const full  = join(dirPath, entry);
-    const isDir = statSync(full).isDirectory();
+    // Tolerant stat: a file that vanishes between readdirSync and statSync
+    // (e.g. during a deploy / layer swap) must not abort the whole scan.
+    const stat = statSync(full, { throwIfNoEntry: false });
+    if (!stat) continue;
+    const isDir = stat.isDirectory();
     if (isDir) { await loadDir(client, full, allowOverwrite, audit); continue; }
     if (!entry.endsWith('.js')) continue;
     audit.filesScanned += 1;

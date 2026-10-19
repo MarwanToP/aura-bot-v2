@@ -1,6 +1,16 @@
-import React from "react";
+"use client";
+
+import React, { useId } from "react";
 
 export default function AuraLogo({ size = "md", className = "", showRing = true }) {
+  // Per-instance id prefix so multiple <AuraLogo /> instances on the same page
+  // never emit duplicate SVG ids (invalid HTML + wrong url(#...) resolution).
+  const uid = useId().replace(/[^a-zA-Z0-9_]/g, "");
+  const gid = `auraGlyphGrad-${uid}`;
+  const sid = `auraStarGrad-${uid}`;
+  const sheid = `auraSheenGrad-${uid}`;
+  const glow = `softAuraGlow-${uid}`;
+
   const dimensions = {
     xs: "w-6 h-6",
     sm: "w-8 h-8",
@@ -27,26 +37,26 @@ export default function AuraLogo({ size = "md", className = "", showRing = true 
         >
           <defs>
             {/* Primary Aura Gradient: Soft Violet to Cool Blue */}
-            <linearGradient id="auraGlyphGrad" x1="50%" y1="0%" x2="50%" y2="100%">
+            <linearGradient id={gid} x1="50%" y1="0%" x2="50%" y2="100%">
               <stop offset="0%" stopColor="#9B82FF" />
               <stop offset="45%" stopColor="#7C5CFF" />
               <stop offset="100%" stopColor="#5B8CFF" />
             </linearGradient>
 
             {/* Glowing Star Gradient */}
-            <linearGradient id="auraStarGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <linearGradient id={sid} x1="0%" y1="0%" x2="100%" y2="100%">
               <stop offset="0%" stopColor="#FFFFFF" />
               <stop offset="50%" stopColor="#C4B5FD" />
               <stop offset="100%" stopColor="#93C5FD" />
             </linearGradient>
 
             {/* Subtle Top Specular Sheen */}
-            <linearGradient id="auraSheenGrad" x1="50%" y1="0%" x2="50%" y2="60%">
+            <linearGradient id={sheid} x1="50%" y1="0%" x2="50%" y2="60%">
               <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.6" />
               <stop offset="100%" stopColor="#FFFFFF" stopOpacity="0" />
             </linearGradient>
 
-            <filter id="softAuraGlow" x="-20%" y="-20%" width="140%" height="140%">
+            <filter id={glow} x="-20%" y="-20%" width="140%" height="140%">
               <feGaussianBlur stdDeviation="2.5" result="glow" />
               <feMerge>
                 <feMergeNode in="glow" />
@@ -67,8 +77,8 @@ export default function AuraLogo({ size = "md", className = "", showRing = true 
                L 56 154 
                L 36 168 
                Z"
-            fill="url(#auraGlyphGrad)"
-            filter="url(#softAuraGlow)"
+            fill={`url(#${gid})`}
+            filter={`url(#${glow})`}
           />
 
           {/* Top Sheen Accent */}
@@ -78,7 +88,7 @@ export default function AuraLogo({ size = "md", className = "", showRing = true 
                L 100 82 
                L 72 88 
                Z"
-            fill="url(#auraSheenGrad)"
+            fill={`url(#${sheid})`}
             opacity="0.8"
           />
 
@@ -90,7 +100,7 @@ export default function AuraLogo({ size = "md", className = "", showRing = true 
                Q 100 102 87 102 
                Q 100 102 100 80 
                Z"
-            fill="url(#auraStarGrad)"
+            fill={`url(#${sid})`}
             filter="drop-shadow(0px 0px 4px rgba(255, 255, 255, 0.9))"
           />
         </svg>

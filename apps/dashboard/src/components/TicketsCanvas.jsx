@@ -427,7 +427,7 @@ export default function TicketsCanvas({ guildId }) {
         </div>
 
         <div className="flex items-center gap-2">
-          <button
+          <button type="button"
             onClick={() => setShowCatModal(true)}
             disabled={realMode}
             title={realMode ? readOnlyHint : undefined}
@@ -487,7 +487,7 @@ export default function TicketsCanvas({ guildId }) {
 
       {/* Tabs Navigation */}
       <div className="inline-flex flex-wrap items-center gap-1.5 rounded-2xl border border-white/[0.08] bg-white/[0.03] p-1.5 backdrop-blur-xl">
-        <button
+        <button type="button"
           onClick={() => setActiveTab('tickets')}
           className={`seg-tab ${activeTab === 'tickets' ? 'seg-tab-active' : ''}`}
         >
@@ -495,7 +495,7 @@ export default function TicketsCanvas({ guildId }) {
           <span>Active Tickets ({tickets.length})</span>
         </button>
 
-        <button
+        <button type="button"
           onClick={() => setActiveTab('categories')}
           className={`seg-tab ${activeTab === 'categories' ? 'seg-tab-active' : ''}`}
         >
@@ -503,7 +503,7 @@ export default function TicketsCanvas({ guildId }) {
           <span>Support Categories ({categories.length})</span>
         </button>
 
-        <button
+        <button type="button"
           onClick={() => setActiveTab('transcripts')}
           className={`seg-tab ${activeTab === 'transcripts' ? 'seg-tab-active' : ''}`}
         >
@@ -522,6 +522,7 @@ export default function TicketsCanvas({ guildId }) {
               <input
                 type="text"
                 placeholder="Search ticket ID, user, subject..."
+                aria-label="Search tickets by ID, user, or subject"
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
                 className="glass-input py-2 pl-9 pr-3 text-xs"
@@ -533,6 +534,7 @@ export default function TicketsCanvas({ guildId }) {
               <select
                 value={statusFilter}
                 onChange={e => setStatusFilter(e.target.value)}
+                aria-label="Filter tickets by status"
                 className="glass-select w-full py-2 text-xs sm:w-44"
               >
                 <option value="all">All Statuses</option>
@@ -605,7 +607,7 @@ export default function TicketsCanvas({ guildId }) {
                       <td className="text-right">
                         <div className="flex items-center justify-end gap-1.5">
                           {ticket.status === 'open' && (
-                            <button
+                            <button type="button"
                               onClick={() => handleClaim(ticket.id)}
                               disabled={realMode}
                               title={realMode ? readOnlyHint : undefined}
@@ -616,7 +618,7 @@ export default function TicketsCanvas({ guildId }) {
                           )}
                           {ticket.status !== 'closed' && (
                             <>
-                              <button
+                              <button type="button"
                                 onClick={() => handleEscalate(ticket.id)}
                                 disabled={realMode}
                                 title={realMode ? readOnlyHint : undefined}
@@ -624,7 +626,7 @@ export default function TicketsCanvas({ guildId }) {
                               >
                                 Escalate
                               </button>
-                              <button
+                              <button type="button"
                                 onClick={() => handleClose(ticket.id)}
                                 disabled={realMode}
                                 title={realMode ? readOnlyHint : undefined}
@@ -747,7 +749,7 @@ export default function TicketsCanvas({ guildId }) {
                           View Transcript
                         </a>
                       ) : (
-                        <button className={VIEW_TRANSCRIPT_CLS}>View Transcript</button>
+                        <button type="button" className={VIEW_TRANSCRIPT_CLS}>View Transcript</button>
                       )}
                     </div>
                   </div>
@@ -767,8 +769,9 @@ export default function TicketsCanvas({ guildId }) {
 
             <form onSubmit={handleAddCategory} className="mt-5 space-y-4">
               <div>
-                <label className="micro-label block">Category Name</label>
+                <label className="micro-label block" htmlFor="ticket-category-name">Category Name</label>
                 <input
+                  id="ticket-category-name"
                   type="text"
                   placeholder="e.g. VIP Support, Ban Appeals"
                   value={newCatName}
@@ -779,8 +782,9 @@ export default function TicketsCanvas({ guildId }) {
               </div>
 
               <div>
-                <label className="micro-label block">Emoji</label>
+                <label className="micro-label block" htmlFor="ticket-category-emoji">Emoji</label>
                 <input
+                  id="ticket-category-emoji"
                   type="text"
                   placeholder="e.g. 🎫, 🔧, 💳"
                   value={newCatEmoji}

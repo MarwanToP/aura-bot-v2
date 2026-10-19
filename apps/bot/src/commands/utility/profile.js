@@ -17,7 +17,7 @@
 //  • Every value is read from the real data layer; a missing row is
 //    rendered as "—" / 0 instead of being invented.
 // ================================================================
-import { SlashCommandBuilder } from 'discord.js';
+import { SlashCommandBuilder, PermissionFlagsBits } from 'discord.js';
 import { buildEmbed } from '../../../../../packages/utils/embedBuilder.js';
 import config from '../../../../../packages/config/index.js';
 
@@ -106,6 +106,51 @@ async function readSafely(client, label, fn, fallback = null) {
   }
 }
 
+// ─── Moderation visibility ─────────────────────────────────────────
+//
+// The moderation case / warning counters are staff-facing data (the same
+// numbers /case, /warnings and the mod log show). They are only rendered
+// for the member themselves or for a caller that moderates the server —
+// otherwise any member could enumerate the moderation history of every
+// other member through a public embed.
+const MODERATION_PERMISSIONS = [
+  PermissionFlagsBits.ModerateMembers,
+  PermissionFlagsBits.ManageGuild,
+];
+
+/** The caller's permission bitfield (guild interaction → member permissions). */
+function callerPermissions(interaction) {
+  return interaction?.memberPermissions ?? interaction?.member?.permissions ?? null;
+}
+
+/** True when the caller may see moderation data for other members. */
+function canViewModeration(interaction) {
+  const perms = callerPermissions(interaction);
+  if (!perms || typeof perms.has !== 'function') return false;
+  return MODERATION_PERMISSIONS.some(bit => perms.has(bit));
+}
+
+// ─── Card rendering ────────────────────────────────────────────────
+//
+// A stuck native renderer must never leave /profile deferred forever, so
+// the render is bounded (same guard as the economy card) and the command
+// falls back to the text embed.
+const CARD_RENDER_TIMEOUT_MS = 4_000;
+
+async function renderCardSafely(generate, user, data) {
+  let timer;
+  try {
+    return await Promise.race([
+      generate(user, data),
+      new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error('card render timed out')), CARD_RENDER_TIMEOUT_MS);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 // ─── /profile ────────────────────────────────────────────────────
 export const profile = {
   data: new SlashCommandBuilder()
@@ -127,6 +172,11 @@ export const profile = {
       const guildId = interaction.guildId;
       const models = client.db?.models ?? {};
 
+      // Moderation counters are only read AND shown for the member itself
+      // or for a caller that moderates the server.
+      const isSelf = target?.id === interaction.user?.id;
+      const showModeration = isSelf || canViewModeration(interaction);
+
       // ── Data layer (Sequelize) ────────────────────────────────
       const [profileRow, economyRow, modCases, warnings] = await Promise.all([
         models.UserProfile
@@ -137,11 +187,11 @@ export const profile = {
           ? readSafely(client, 'economy', () =>
               models.Economy.findOne({ where: { userId: target.id, guildId } }))
           : null,
-        models.ModerationCase
+        showModeration && models.ModerationCase
           ? readSafely(client, 'moderation cases', () =>
               models.ModerationCase.count({ where: { guildId, userId: target.id } }), 0)
           : 0,
-        models.Warning
+        showModeration && models.Warning
           ? readSafely(client, 'warnings', () =>
               models.Warning.count({ where: { guildId, userId: target.id } }), 0)
           : 0,
@@ -174,12 +224,14 @@ export const profile = {
       // ── Optional visual card ──────────────────────────────────
       // Imported inside the handler on purpose: the native canvas
       // module is optional and must never break this command file.
+      // The render itself is bounded — a stuck renderer must not leave
+      // the interaction deferred forever.
       let card = null;
       try {
         const { generateAuraCard } = await import('../../../../../packages/utils/cardGenerator.js')
           .catch(() => ({}));
         if (typeof generateAuraCard === 'function') {
-          card = await generateAuraCard(target, { balance, streak, reputation });
+          card = await renderCardSafely(generateAuraCard, target, { balance, streak, reputation });
         }
       } catch (err) {
         client.logger?.warn?.(`[Profile] card render failed: ${err?.message || err}`);
@@ -199,11 +251,13 @@ export const profile = {
         { name: '💰 Balance', value: `${balance.toLocaleString('en-US')} coins`, inline: true },
         { name: '🏦 Vault', value: `${bank.toLocaleString('en-US')} coins`, inline: true },
         { name: '🔥 Daily streak', value: `${streak} day${streak === 1 ? '' : 's'}`, inline: true },
-        {
+        // The moderation line is omitted for anyone who may not see it —
+        // without a hint that it was omitted.
+        ...(showModeration ? [{
           name: '🛡️ Moderation',
           value: `${toNumber(modCases)} case(s) • ${toNumber(warnings)} warning(s)`,
           inline: true,
-        },
+        }] : []),
         {
           name: '📈 XP progress',
           value: `${progressBar(progress)}\n${currentXp.toLocaleString('en-US')}/${nextLevelXp.toLocaleString('en-US')} XP (${progress}%)`,

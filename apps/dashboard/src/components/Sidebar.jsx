@@ -218,7 +218,7 @@ export default function Sidebar({
     >
       {/* ── 1. Brand ─────────────────────────────────────────── */}
       <div className={`mb-4 flex items-center px-1 ${collapsed ? "justify-center" : "justify-between"}`}>
-        <button
+        <button type="button"
           onClick={onLogoClick}
           title="Aura Bot — back to landing page"
           className="group flex min-w-0 cursor-pointer items-center gap-2.5 overflow-hidden"
@@ -247,7 +247,7 @@ export default function Sidebar({
         </button>
 
         {!collapsed && (
-          <button
+          <button type="button"
             onClick={() => setCollapsed(true)}
             title="Collapse sidebar"
             aria-label="Collapse sidebar"
@@ -259,7 +259,7 @@ export default function Sidebar({
       </div>
 
       {collapsed && (
-        <button
+        <button type="button"
           onClick={() => setCollapsed(false)}
           title="Expand sidebar"
           aria-label="Expand sidebar"
@@ -271,7 +271,7 @@ export default function Sidebar({
 
       {/* ── 2. Server selector ───────────────────────────────── */}
       <div className="relative mb-4">
-        <button
+        <button type="button"
           onClick={() => setServerDropdownOpen(!serverDropdownOpen)}
           title={selectedServer.name}
           className={`group flex w-full cursor-pointer items-center gap-2.5 rounded-2xl border border-white/[0.08] bg-white/[0.035] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] transition-colors ${
@@ -319,7 +319,7 @@ export default function Sidebar({
                 Select server
               </div>
               {servers.map((g) => (
-                <button
+                <button type="button"
                   key={g.id}
                   onClick={() => {
                     if (onSelectServer) onSelectServer(g.id);
@@ -379,7 +379,7 @@ export default function Sidebar({
                   (item.id === "analytics" && activeTab === "statistics");
 
                 return (
-                  <motion.button
+                  <motion.button type="button"
                     key={item.id}
                     variants={navItem}
                     onClick={() => handleTabSelect && handleTabSelect(item.id)}
@@ -495,7 +495,7 @@ export default function Sidebar({
             <p className="card-sub relative mt-1 font-body leading-relaxed">
               Unlock more features and take your server to the next level.
             </p>
-            <button
+            <button type="button"
               onClick={() => handleTabSelect && handleTabSelect("premium")}
               className="btn-glass relative mt-3 w-full border-[#4C7DFF]/40 text-[11px] text-[#A9C2FF] transition-colors hover:border-[#4C7DFF]/70 hover:text-white"
             >
@@ -503,7 +503,7 @@ export default function Sidebar({
             </button>
           </div>
         ) : (
-          <button
+          <button type="button"
             onClick={() => handleTabSelect && handleTabSelect("premium")}
             title="Premium Plan"
             aria-label="Premium Plan"

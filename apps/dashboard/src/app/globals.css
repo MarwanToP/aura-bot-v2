@@ -640,7 +640,7 @@ body {
     transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
   }
   .glass-input::placeholder {
-    color: #64748B;
+    color: #94A3B8;
   }
   .glass-input:hover {
     border-color: rgba(255, 255, 255, 0.14);
@@ -763,7 +763,7 @@ body {
     font-weight: 700;
     letter-spacing: 0.18em;
     text-transform: uppercase;
-    color: #64748B;
+    color: #94A3B8;
   }
   .micro-label-accent {
     color: #7C9BFF;

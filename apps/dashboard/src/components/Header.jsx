@@ -114,7 +114,7 @@ export default function Header({ onNavigate, title = "Overview" }) {
 
         {/* Right — search · notifications · profile */}
         <div className="flex shrink-0 items-center gap-2 md:gap-2.5">
-          <button
+          <button type="button"
             onClick={() => setPaletteOpen(true)}
             title="Search anything (⌘K)"
             aria-label="Search anything"
@@ -131,7 +131,7 @@ export default function Header({ onNavigate, title = "Overview" }) {
 
           {/* Notifications */}
           <div className="relative">
-            <button
+            <button type="button"
               onClick={() => setNotificationsOpen(!notificationsOpen)}
               aria-label="Notifications"
               title="Notifications"
@@ -156,7 +156,7 @@ export default function Header({ onNavigate, title = "Overview" }) {
                 >
                   <div className="mb-2 flex items-center justify-between border-b border-white/[0.07] pb-2">
                     <span className="card-title text-[13px]">Notifications</span>
-                    <button className="btn-ghost px-1.5 py-1 text-[10px] text-[#7C9BFF]">
+                    <button type="button" className="btn-ghost px-1.5 py-1 text-[10px] text-[#7C9BFF]">
                       Mark all as read
                     </button>
                   </div>
@@ -202,7 +202,7 @@ export default function Header({ onNavigate, title = "Overview" }) {
 
           {/* Profile */}
           <div className="relative">
-            <button
+            <button type="button"
               onClick={() => setProfileOpen(!profileOpen)}
               aria-label="Account menu"
               className={`glass-pill h-auto cursor-pointer items-center gap-2.5 rounded-full py-1.5 pl-1.5 pr-3 transition-colors ${
@@ -267,7 +267,7 @@ export default function Header({ onNavigate, title = "Overview" }) {
                         : "Sign in to link your Discord account"}
                     </div>
                   </div>
-                  <button
+                  <button type="button"
                     onClick={() => {
                       if (onNavigate) onNavigate("settings");
                       setProfileOpen(false);
@@ -276,7 +276,7 @@ export default function Header({ onNavigate, title = "Overview" }) {
                   >
                     Bot Settings
                   </button>
-                  <button
+                  <button type="button"
                     onClick={() => {
                       if (onNavigate) onNavigate("premium");
                       setProfileOpen(false);
@@ -287,7 +287,7 @@ export default function Header({ onNavigate, title = "Overview" }) {
                   </button>
                   <div className="my-1 h-px bg-white/[0.07]" />
                   {isAuthenticated ? (
-                    <button
+                    <button type="button"
                       onClick={() => {
                         setProfileOpen(false);
                         logout();
@@ -298,7 +298,7 @@ export default function Header({ onNavigate, title = "Overview" }) {
                       Log out
                     </button>
                   ) : (
-                    <button
+                    <button type="button"
                       onClick={() => {
                         setProfileOpen(false);
                         login();
@@ -362,7 +362,7 @@ export default function Header({ onNavigate, title = "Overview" }) {
                 </div>
               ) : (
                 results.map((r, i) => (
-                  <button
+                  <button type="button"
                     key={r.id}
                     onClick={() => selectResult(r)}
                     className={`flex w-full cursor-pointer items-center justify-between rounded-xl border px-3 py-2.5 text-left text-xs transition-colors ${

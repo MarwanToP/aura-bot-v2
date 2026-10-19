@@ -10,7 +10,9 @@ import RSSParser      from 'rss-parser';
 import axios          from 'axios';
 import logger         from '../../utils/logger.js';
 import dns            from 'node:dns/promises';
+import dnsCallback    from 'node:dns';
 import net            from 'node:net';
+import https          from 'node:https';
 
 const rssParser = new RSSParser();
 
@@ -39,9 +41,40 @@ const KNOWN_HOSTS = new Set([
   'kick.com', 'www.kick.com',
 ]);
 
+// Feed hosts (RSS / podcast). A feed URL is only accepted when it points at
+// one of these hosts — an allow-list, exactly like every other platform.
+// `hostAllowed` also accepts every subdomain of a listed host, so
+// "feeds.feedburner.com" is covered by "feedburner.com".
+//
+// The list is deliberately explicit: an arbitrary host would turn the feed
+// monitor into a server-side request proxy (blind SSRF / port scan) even
+// when the address itself is public.
+const FEED_HOSTS = [
+  'feedburner.com',
+  'megaphone.fm',
+  'anchor.fm',
+  'podcasts.apple.com',
+  'simplecast.com',
+  'pocketcasts.com',
+  'art19.com',
+  'libsyn.com',
+  'acast.com',
+  'podbean.com',
+  'buzzsprout.com',
+  'substack.com',
+  'medium.com',
+  'wordpress.com',
+  'wp.com',
+  'blogspot.com',
+  'blogger.com',
+  'youtube.com',
+  'reddit.com',
+];
+
 // Per-platform host allow-list: a URL identifier has to live on one of the
-// platform's own domains. 'rss'/'podcast' monitor arbitrary feeds, so they
-// accept any host — but only a public one (see assertPublicHost).
+// platform's own domains. 'rss'/'podcast' use the feed allow-list above —
+// they only ever fetch a known feed host, and that host additionally has to
+// resolve to a public address (see assertPublicHost / guardedLookup).
 const PLATFORM_HOSTS = {
   reddit:    ['reddit.com', 'www.reddit.com', 'old.reddit.com', 'np.reddit.com'],
   youtube:   ['youtube.com', 'www.youtube.com', 'm.youtube.com', 'youtu.be'],
@@ -51,8 +84,8 @@ const PLATFORM_HOSTS = {
   tiktok:    ['tiktok.com', 'www.tiktok.com'],
   bluesky:   ['bsky.app', 'www.bsky.app', 'bsky.social'],
   kick:      ['kick.com', 'www.kick.com'],
-  rss:       null,
-  podcast:   null,
+  rss:       FEED_HOSTS,
+  podcast:   FEED_HOSTS,
 };
 
 // Platforms whose identifier is a plain account name / channel id.
@@ -148,6 +181,196 @@ function handleFromUrl(url) {
   return segments[segments.length - 1].replace(/^@/, '') || null;
 }
 
+// ═══════════════════════════════════════════════════════════════
+//  Feed fetching (redirect + rebinding hardened)
+//
+//  The feed is fetched by hand instead of through `rssParser.parseURL`:
+//  rss-parser follows up to 5 redirects on its own and re-requests the
+//  Location target WITHOUT any validation, so a public feed URL that
+//  answers with "302 Location: http://169.254.169.254/…" would make the
+//  bot read the cloud metadata service (blind SSRF / internal port scan).
+//
+//  Every hop is therefore resolved and validated here before a request is
+//  made, and the request itself runs through an agent whose `lookup`
+//  refuses a private address: the address that was validated is the
+//  address that is connected, so a resolver that answers with a public IP
+//  first and a private IP second (DNS rebinding / TOCTOU) is rejected at
+//  connect time instead of being trusted.
+const FEED_MAX_REDIRECTS = 5;
+const FEED_TIMEOUT_MS   = 10_000;
+const FEED_MAX_BYTES    = 5 * 1024 * 1024;
+
+/**
+ * A DNS lookup that refuses to hand out a private / reserved address.
+ * Installed on the HTTP(S) agent, so it runs for EVERY socket the agent
+ * opens — the address the socket connects to is exactly the address that
+ * was checked here.
+ */
+function guardedLookup(hostname, options, callback) {
+  const wantsAll = Boolean(options?.all);
+  const lookupOptions = { all: true, verbatim: true };
+  if (options?.family) lookupOptions.family = options.family;
+  if (options?.hints) lookupOptions.hints = options.hints;
+
+  dnsCallback.lookup(hostname, lookupOptions, (err, addresses) => {
+    if (err) return callback(err);
+    const list = Array.isArray(addresses) ? addresses : [];
+    if (!list.length) return callback(new Error(`Could not resolve "${hostname}".`));
+    for (const entry of list) {
+      if (isPrivateAddress(entry.address)) {
+        return callback(new Error(`"${hostname}" resolves to a private or reserved address.`));
+      }
+    }
+    if (wantsAll) return callback(null, list);
+    return callback(null, list[0].address, list[0].family);
+  });
+}
+
+const guardedHttpsAgent = new https.Agent({ lookup: guardedLookup });
+
+/**
+ * Validate a feed URL: https only, a host on the feed allow-list and a host
+ * that resolves to a public address.
+ * @returns {Promise<{ ok: true, url: string } | { ok: false, reason: string }>}
+ */
+async function validateFeedUrl(raw, platform = 'feed') {
+  let url;
+  try {
+    url = new URL(raw);
+  } catch {
+    return { ok: false, reason: 'That does not look like a valid URL.' };
+  }
+
+  const scheme = url.protocol.replace(':', '').toLowerCase();
+  const host   = url.hostname.toLowerCase().replace(/\.$/, '');
+
+  if (scheme !== 'https') {
+    return { ok: false, reason: `Unsupported URL scheme "${scheme}://" — use https://.` };
+  }
+  if (!hostAllowed(host, FEED_HOSTS)) {
+    return { ok: false, reason: `A ${platform} identifier must point at a supported feed host (got "${host}").` };
+  }
+
+  const publicCheck = await assertPublicHost(host);
+  if (!publicCheck.ok) return publicCheck;
+
+  return { ok: true, url: url.toString() };
+}
+
+/**
+ * Normalise a bare feed host ("feeds.feedburner.com/show") into an https
+ * URL. Anything that is not a host-like value returns `null`.
+ */
+function normalizeFeedHost(raw) {
+  const value = String(raw || '').trim();
+  if (!value || /\s/.test(value)) return null;
+  if (!/^[a-z0-9.-]+(:\d+)?(\/|$)/i.test(value)) return null;
+  if (!value.includes('.')) return null;
+  try {
+    const url = new URL(`https://${value}`);
+    if (!url.hostname.includes('.')) return null;
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
+/** One feed request. Redirects are NOT followed here — the caller does it. */
+function requestFeed(url) {
+  return new Promise((resolve) => {
+    let target;
+    try {
+      target = new URL(url);
+    } catch {
+      resolve({ status: 0, error: 'invalid url' });
+      return;
+    }
+    if (target.protocol !== 'https:') {
+      resolve({ status: 0, error: 'unsupported scheme' });
+      return;
+    }
+
+    const req = https.request(target, {
+      agent: guardedHttpsAgent,
+      headers: {
+        'User-Agent': 'AuraBot/2.0 (feed monitor)',
+        Accept: 'application/rss+xml, application/xml;q=0.9, */*;q=0.8',
+      },
+      timeout: FEED_TIMEOUT_MS,
+    }, (res) => {
+      const status   = res.statusCode || 0;
+      const location = res.headers?.location;
+
+      if (status >= 300 && status < 400) {
+        res.resume();
+        resolve({ status, location, body: '' });
+        return;
+      }
+
+      let size = 0;
+      const chunks = [];
+      res.setEncoding('utf8');
+      res.on('data', (chunk) => {
+        size += chunk.length;
+        if (size > FEED_MAX_BYTES) {
+          req.destroy(new Error('feed too large'));
+          resolve({ status, body: '', error: 'the feed is too large' });
+          return;
+        }
+        chunks.push(chunk);
+      });
+      res.on('end', () => resolve({ status, body: chunks.join('') }));
+      res.on('error', (err) => resolve({ status, body: '', error: err?.message || 'read error' }));
+    });
+
+    req.on('timeout', () => req.destroy(new Error('request timed out')));
+    req.on('error', (err) => resolve({ status: 0, error: err?.message || 'request failed' }));
+    req.end();
+  });
+}
+
+/**
+ * Fetch a feed, following up to FEED_MAX_REDIRECTS redirects by hand and
+ * re-validating EVERY hop (scheme, allow-list, public address). A redirect
+ * to a private address is never followed.
+ * @returns {Promise<{ ok: true, feed: object } | { ok: false, reason: string }>}
+ */
+async function fetchFeed(identifier, platform = 'feed') {
+  let current = identifier;
+
+  for (let hop = 0; hop <= FEED_MAX_REDIRECTS; hop++) {
+    const check = await validateFeedUrl(current, platform);
+    if (!check.ok) return { ok: false, reason: check.reason };
+    current = check.url;
+
+    const res = await requestFeed(current);
+    if (res.error) return { ok: false, reason: res.error };
+
+    if (res.status >= 300 && res.status < 400) {
+      if (!res.location) return { ok: false, reason: 'The feed redirected without a target.' };
+      if (hop === FEED_MAX_REDIRECTS) return { ok: false, reason: 'The feed redirected too many times.' };
+      let next;
+      try {
+        next = new URL(res.location, current).toString();
+      } catch {
+        return { ok: false, reason: 'The feed redirected to an invalid URL.' };
+      }
+      current = next;
+      continue;
+    }
+
+    if (res.status < 200 || res.status >= 300) {
+      return { ok: false, reason: `The feed answered with HTTP ${res.status}.` };
+    }
+
+    const parsed = await rssParser.parseString(res.body).catch(() => null);
+    if (!parsed) return { ok: false, reason: 'The feed could not be parsed.' };
+    return { ok: true, feed: parsed };
+  }
+
+  return { ok: false, reason: 'The feed redirected too many times.' };
+}
+
 /**
  * Validate a social-alert identifier BEFORE it is ever fetched.
  * @returns {Promise<{ ok: true, identifier: string } | { ok: false, reason: string }>}
@@ -183,7 +406,8 @@ export async function validateAlertIdentifier(platform, identifier) {
 
     const allowed = PLATFORM_HOSTS[key];
     if (allowed && !hostAllowed(host, allowed)) {
-      return { ok: false, reason: `A ${key} identifier must point at ${allowed[0]} (got "${host}").` };
+      const target = URL_PLATFORMS.has(key) ? 'a supported feed host' : allowed[0];
+      return { ok: false, reason: `A ${key} identifier must point at ${target} (got "${host}").` };
     }
 
     const publicCheck = await assertPublicHost(host);
@@ -202,7 +426,16 @@ export async function validateAlertIdentifier(platform, identifier) {
 
   // Not a URL.
   if (URL_PLATFORMS.has(key)) {
-    return { ok: false, reason: `A ${key} feed needs a full https:// URL.` };
+    // A plain feed host ("feeds.feedburner.com/show") is accepted when it is
+    // on the feed allow-list; it is normalised to https and validated exactly
+    // like a full feed URL.
+    const normalized = normalizeFeedHost(raw);
+    if (!normalized) {
+      return { ok: false, reason: `A ${key} feed needs a full https:// URL on a supported feed host.` };
+    }
+    const feedCheck = await validateFeedUrl(normalized, key);
+    if (!feedCheck.ok) return feedCheck;
+    return { ok: true, identifier: feedCheck.url };
   }
   if (!HANDLE_RE.test(raw) || raw.includes('..')) {
     return { ok: false, reason: 'That does not look like a valid account name or URL.' };
@@ -450,7 +683,14 @@ async function checkSingleAlert(client, guildId, alert, alertsKey, allAlerts) {
   const identifier = validation.identifier;
 
   if (alert.platform === 'rss' || alert.platform === 'podcast') {
-    const feed = await rssParser.parseURL(identifier).catch(() => null);
+    // The feed is fetched with manual, re-validated redirects and a pinned
+    // DNS resolution — see fetchFeed().
+    const result = await fetchFeed(identifier, alert.platform);
+    if (!result.ok) {
+      logger.debug(`[Social] Feed fetch failed for ${alert.identifier}: ${result.reason}`);
+      return;
+    }
+    const feed = result.feed;
     if (!feed?.items?.length) return;
 
     const latest = feed.items[0];

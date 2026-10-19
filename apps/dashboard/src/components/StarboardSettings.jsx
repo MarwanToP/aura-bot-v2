@@ -124,6 +124,7 @@ function Toggle({ enabled, onChange, title }) {
       type="button"
       onClick={() => onChange(!enabled)}
       title={title}
+      aria-label={title}
       aria-pressed={enabled}
       className={`toggle-track ${enabled ? "toggle-track-on" : ""}`}
     >
@@ -290,7 +291,9 @@ export default function StarboardSettings({ guildId }) {
 
           <div className="mt-5">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <span className="section-label">Star Threshold</span>
+              <label htmlFor="starboard-threshold" className="section-label">
+                Star Threshold
+              </label>
               <div className="flex items-center gap-2">
                 <button
                   type="button"
@@ -315,6 +318,7 @@ export default function StarboardSettings({ guildId }) {
               <div className="progress-fill" style={{ width: `${thresholdPct}%` }} />
             </div>
             <input
+              id="starboard-threshold"
               type="range"
               min={1}
               max={20}
@@ -328,9 +332,12 @@ export default function StarboardSettings({ guildId }) {
           </div>
 
           <div className="mt-4">
-            <span className="section-label mb-1.5 block">Channel</span>
+            <label htmlFor="starboard-channel" className="section-label mb-1.5 block">
+              Channel
+            </label>
             {live ? (
               <input
+                id="starboard-channel"
                 type="text"
                 value={channelId}
                 onChange={(e) => setChannelId(e.target.value)}
@@ -339,6 +346,7 @@ export default function StarboardSettings({ guildId }) {
               />
             ) : (
               <select
+                id="starboard-channel"
                 value="#starboard"
                 disabled
                 title="Live mode edits the starboard channel by ID"
@@ -351,8 +359,11 @@ export default function StarboardSettings({ guildId }) {
 
           {live && (
             <div className="mt-4">
-              <span className="section-label mb-1.5 block">Emoji</span>
+              <label htmlFor="starboard-emoji" className="section-label mb-1.5 block">
+                Emoji
+              </label>
               <input
+                id="starboard-emoji"
                 type="text"
                 value={emoji}
                 maxLength={50}

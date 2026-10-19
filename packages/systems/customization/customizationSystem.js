@@ -7,6 +7,43 @@ export const RESTRICTION_COMMAND_BLACKLIST = 'command-blacklist';
 export const RESTRICTION_DISABLED_CHANNEL = 'disabled-channel';
 
 /**
+ * The Redis key the restriction settings are cached under.
+ *
+ * The reader (isCommandRestricted) and every writer have to use the SAME
+ * key, so the key is built by this one function. The key is read/written
+ * through `client.redis`, which applies the "aura2:" prefix itself — the
+ * raw key name below is therefore exactly what the reader stores.
+ */
+export function buildRestrictionCacheKey(guildId) {
+  const safeGuildId = encodeURIComponent(String(guildId || '').trim());
+  return `settings:restrictions:${safeGuildId}`;
+}
+
+/**
+ * Drop the cached restriction settings of a guild.
+ *
+ * The reader caches the blacklist / disabled channels for 300 s, so a
+ * change only took effect after the TTL. Every writer of those settings
+ * has to call this — through the SAME `client.redis` the reader uses, so
+ * the prefixed key actually matches.
+ *
+ * @param {Client} client
+ * @param {string} guildId
+ * @returns {Promise<boolean>} true when the cache entry was removed
+ */
+export async function invalidateRestrictionCache(client, guildId) {
+  const key = buildRestrictionCacheKey(guildId);
+  try {
+    await client.redis?.del(key);
+    return true;
+  } catch (err) {
+    // A dead Redis must never break the settings update.
+    logger.warn('[Customization] Restriction cache invalidation failed:', err.message);
+    return false;
+  }
+}
+
+/**
  * Customization System — Handles per-guild Command and Channel Restrictions.
  */
 class CustomizationSystem {
@@ -17,6 +54,11 @@ class CustomizationSystem {
   buildRedisKey(prefix, guildId) {
     const safeGuildId = encodeURIComponent(String(guildId || '').trim());
     return `${prefix}:${safeGuildId}`;
+  }
+
+  /** The Redis key the restriction settings are cached under. */
+  buildRestrictionCacheKey(guildId) {
+    return buildRestrictionCacheKey(guildId);
   }
 
   /**
@@ -33,7 +75,7 @@ class CustomizationSystem {
    */
   async isCommandRestricted(client, guildId, channelId, commandName) {
     try {
-      const cacheKey = this.buildRedisKey('settings:restrictions', guildId);
+      const cacheKey = this.buildRestrictionCacheKey(guildId);
       let settings = await client.redis.getJSON(cacheKey);
 
       if (!settings) {

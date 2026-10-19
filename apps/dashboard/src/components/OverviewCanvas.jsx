@@ -396,7 +396,7 @@ function ActivityChart({ timeframe, setTimeframe }) {
         {/* Segmented control */}
         <div className="flex items-center gap-0.5 rounded-xl border border-white/[0.06] bg-white/[0.02] p-0.5">
           {["7D", "30D", "90D"].map((tf) => (
-            <button
+            <button type="button"
               key={tf}
               onClick={() => {
                 setTimeframe(tf);
@@ -719,9 +719,9 @@ function RecentEventsCard({ onNavigate }) {
           Recent Events
           <span className="h-1.5 w-1.5 animate-pulse-dot rounded-full bg-[#34D399]" />
         </h3>
-        <button
+        <button type="button"
           onClick={() => onNavigate && onNavigate("logs")}
-          className="inline-flex cursor-pointer items-center gap-0.5 text-[11px] font-semibold text-slate-500 transition-colors hover:text-[#7C5CFF]"
+          className="inline-flex min-h-[24px] cursor-pointer items-center gap-0.5 text-[11px] font-semibold text-slate-500 transition-colors hover:text-[#7C5CFF]"
         >
           View all <ChevronRight className="h-3 w-3" />
         </button>
@@ -767,9 +767,9 @@ function RailActivityCard({ onNavigate }) {
     <div className="panel panel-hover relative flex h-full flex-col p-4">
       <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
         <h3 className="card-title text-[13px]">Recent Activity</h3>
-        <button
+        <button type="button"
           onClick={() => onNavigate && onNavigate("logs")}
-          className="inline-flex cursor-pointer items-center gap-0.5 text-[10px] font-semibold text-slate-500 transition-colors hover:text-[#7C5CFF]"
+          className="inline-flex min-h-[24px] cursor-pointer items-center gap-0.5 text-[10px] font-semibold text-slate-500 transition-colors hover:text-[#7C5CFF]"
         >
           View all <ChevronRight className="h-3 w-3" />
         </button>
@@ -812,9 +812,9 @@ function TopCommandsCard({ onNavigate }) {
     <div className="panel panel-hover relative flex h-full flex-col p-5">
       <div className="mb-3 flex items-center justify-between gap-2">
         <h3 className="card-title">Top Commands</h3>
-        <button
+        <button type="button"
           onClick={() => onNavigate && onNavigate("commands")}
-          className="inline-flex cursor-pointer items-center gap-0.5 text-[11px] font-semibold text-slate-500 transition-colors hover:text-[#7C5CFF]"
+          className="inline-flex min-h-[24px] cursor-pointer items-center gap-0.5 text-[11px] font-semibold text-slate-500 transition-colors hover:text-[#7C5CFF]"
         >
           View all <ChevronRight className="h-3 w-3" />
         </button>
@@ -1090,7 +1090,7 @@ function QuickActionsCard({ onNavigate, onAction }) {
         {actions.map((a, i) => {
           const Icon = a.icon;
           return (
-            <motion.button
+            <motion.button type="button"
               key={a.key}
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
@@ -1137,7 +1137,7 @@ function PromoCard({ onNavigate }) {
         </div>
       </div>
 
-      <button
+      <button type="button"
         onClick={() => onNavigate && onNavigate("premium")}
         className="btn-glass relative mt-4 w-full rounded-xl"
         title="Open the premium plan settings"

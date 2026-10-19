@@ -208,6 +208,7 @@ function makeModel(name) {
     max: async () => 1,
     update: async () => [1],
     increment: async () => [1],
+    decrement: async () => [1],
     destroy: async () => 1,
     upsert: async () => [makeRow(), true],
     bulkCreate: async (rows) => rows.map((r) => makeRow(r)),
@@ -583,7 +584,7 @@ const client = {
   cooldowns: new Collection(),
   logger: silentLogger,
   // Mirror the real client.db (the Sequelize instance): models + aggregate helpers.
-  db: { models, fn, col, literal, Op },
+  db: { models, fn, col, literal, Op, transaction: async (cb) => cb({}) },
   redis: redisStub,
   i18n: i18nStub,
   ai: aiStub,

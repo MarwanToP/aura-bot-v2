@@ -175,38 +175,47 @@ export default function EmbedBuilder() {
             </div>
 
             <div className="space-y-4">
-              <label className="block min-w-0">
-                <span className="section-label mb-1.5 block">Author</span>
+              <div className="block min-w-0">
+                <label htmlFor="embed-author" className="section-label mb-1.5 block">
+                  Author
+                </label>
                 <input
+                  id="embed-author"
                   type="text"
                   value={embedAuthor}
                   onChange={(e) => setEmbedAuthor(e.target.value)}
                   placeholder="Author name — e.g. Aurora"
                   className="glass-input"
                 />
-              </label>
+              </div>
 
-              <label className="block min-w-0">
-                <span className="section-label mb-1.5 block">Title</span>
+              <div className="block min-w-0">
+                <label htmlFor="embed-title" className="section-label mb-1.5 block">
+                  Title
+                </label>
                 <input
+                  id="embed-title"
                   type="text"
                   value={embedTitle}
                   onChange={(e) => setEmbedTitle(e.target.value)}
                   placeholder="Embed title"
                   className="glass-input"
                 />
-              </label>
+              </div>
 
-              <label className="block min-w-0">
-                <span className="section-label mb-1.5 block">Description</span>
+              <div className="block min-w-0">
+                <label htmlFor="embed-description" className="section-label mb-1.5 block">
+                  Description
+                </label>
                 <textarea
+                  id="embed-description"
                   value={embedDesc}
                   onChange={(e) => setEmbedDesc(e.target.value)}
                   rows={4}
                   placeholder="Embed description (supports markdown)"
                   className="glass-textarea resize-none"
                 />
-              </label>
+              </div>
 
               <div className="flex w-fit items-center gap-1 rounded-2xl border border-white/[0.08] bg-white/[0.03] p-1">
                 <button
@@ -255,7 +264,7 @@ export default function EmbedBuilder() {
                   <button
                     type="button"
                     onClick={addField}
-                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-400 transition-colors hover:text-white cursor-pointer"
+                    className="inline-flex min-h-[24px] cursor-pointer items-center gap-1 px-1 text-[11px] font-semibold text-slate-400 transition-colors hover:text-white"
                   >
                     <Plus className="h-3 w-3" /> Add field
                   </button>
@@ -272,6 +281,7 @@ export default function EmbedBuilder() {
                           value={field.name}
                           onChange={(e) => updateField(idx, "name", e.target.value)}
                           placeholder="Field name"
+                          aria-label={`Field name ${idx + 1}`}
                           className="glass-input"
                         />
                         <input
@@ -279,6 +289,7 @@ export default function EmbedBuilder() {
                           value={field.value}
                           onChange={(e) => updateField(idx, "value", e.target.value)}
                           placeholder="Field value"
+                          aria-label={`Field value ${idx + 1}`}
                           className="glass-input text-slate-300"
                         />
                       </div>
@@ -315,16 +326,19 @@ export default function EmbedBuilder() {
                 </div>
               </div>
 
-              <label className="block min-w-0">
-                <span className="section-label mb-1.5 block">Footer</span>
+              <div className="block min-w-0">
+                <label htmlFor="embed-footer" className="section-label mb-1.5 block">
+                  Footer
+                </label>
                 <input
+                  id="embed-footer"
                   type="text"
                   value={embedFooter}
                   onChange={(e) => setEmbedFooter(e.target.value)}
                   placeholder="Footer text"
                   className="glass-input"
                 />
-              </label>
+              </div>
             </div>
           </section>
 
@@ -342,26 +356,32 @@ export default function EmbedBuilder() {
 
             <div className="space-y-4">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <label className="block min-w-0">
-                  <span className="section-label mb-1.5 block">Thumbnail URL</span>
+                <div className="block min-w-0">
+                  <label htmlFor="embed-thumbnail" className="section-label mb-1.5 block">
+                    Thumbnail URL
+                  </label>
                   <input
+                    id="embed-thumbnail"
                     type="text"
                     value={embedThumbnail}
                     onChange={(e) => setEmbedThumbnail(e.target.value)}
                     placeholder="Paste an image URL"
                     className="glass-input"
                   />
-                </label>
-                <label className="block min-w-0">
-                  <span className="section-label mb-1.5 block">Image URL</span>
+                </div>
+                <div className="block min-w-0">
+                  <label htmlFor="embed-image" className="section-label mb-1.5 block">
+                    Image URL
+                  </label>
                   <input
+                    id="embed-image"
                     type="text"
                     value={embedImage}
                     onChange={(e) => setEmbedImage(e.target.value)}
                     placeholder="Paste an image URL"
                     className="glass-input"
                   />
-                </label>
+                </div>
               </div>
 
               <div>
@@ -417,9 +437,12 @@ export default function EmbedBuilder() {
 
           {/* Target Channel */}
           <section className="glass-card rounded-[20px] p-5">
-            <span className="section-label mb-2 block">Target Channel</span>
+            <label htmlFor="embed-target-channel" className="section-label mb-2 block">
+              Target Channel
+            </label>
             <div className="flex items-center gap-3">
               <select
+                id="embed-target-channel"
                 value={targetChannel}
                 onChange={(e) => setTargetChannel(e.target.value)}
                 className="glass-select flex-1"

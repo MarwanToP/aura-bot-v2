@@ -105,12 +105,13 @@ function mapRewards(rows) {
 
 /* ────────────────────────────── shared atoms ────────────────────────────── */
 
-function Toggle({ enabled, onChange, title }) {
+function Toggle({ enabled, onChange, title, ariaLabel }) {
   return (
     <button
       type="button"
       onClick={() => onChange(!enabled)}
       title={title}
+      aria-label={ariaLabel ? (enabled ? `Disable ${ariaLabel}` : `Enable ${ariaLabel}`) : title}
       aria-pressed={enabled}
       className={`toggle-track ${enabled ? "toggle-track-on" : ""}`}
     >
@@ -378,6 +379,7 @@ export default function LevelingSettings({ guildId }) {
                 <Toggle
                   enabled={enabled}
                   onChange={setEnabled}
+                  ariaLabel="XP leveling"
                   title={guildId ? "Pauses or resumes XP gains — press Save to apply" : undefined}
                 />
               </div>
@@ -385,10 +387,13 @@ export default function LevelingSettings({ guildId }) {
 
             <div className="mt-5">
               <div className="flex items-center justify-between gap-3">
-                <span className="section-label">XP Multiplier</span>
+                <label htmlFor="leveling-xp-multiplier" className="section-label">
+                  XP Multiplier
+                </label>
                 <span className="chip chip-violet tabular-nums">{xpMultiplier.toFixed(1)}x</span>
               </div>
               <input
+                id="leveling-xp-multiplier"
                 type="range"
                 min={0.1}
                 max={10}

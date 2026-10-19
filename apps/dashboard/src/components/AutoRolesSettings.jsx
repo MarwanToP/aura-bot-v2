@@ -393,9 +393,10 @@ export default function AutoRolesSettings({ guildId }) {
                   </div>
                 </div>
 
-                <label className="mt-5 block">
+                <label htmlFor="auto-role-search" className="mt-5 block">
                   <span className="section-label mb-1.5 block">Search role</span>
                   <input
+                    id="auto-role-search"
                     type="text"
                     value={roleSearch}
                     onChange={(e) => setRoleSearch(e.target.value)}
@@ -460,12 +461,15 @@ export default function AutoRolesSettings({ guildId }) {
 
                 <div className="mt-5">
                   <div className="flex flex-wrap items-center justify-between gap-3">
-                    <span className="section-label">Assignment delay (seconds)</span>
+                    <label htmlFor="auto-role-delay" className="section-label">
+                      Assignment delay (seconds)
+                    </label>
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
                         onClick={() => setAutoRoleDelay(Math.max(0, activeDelay - stepSize))}
                         title="Shorten the delay"
+                        aria-label="Shorten the delay"
                         className="btn-icon h-7 w-7 rounded-[9px]"
                       >
                         <Minus className="h-3 w-3" />
@@ -475,6 +479,7 @@ export default function AutoRolesSettings({ guildId }) {
                         type="button"
                         onClick={() => setAutoRoleDelay(Math.min(maxDelay, activeDelay + stepSize))}
                         title="Lengthen the delay"
+                        aria-label="Lengthen the delay"
                         className="btn-icon h-7 w-7 rounded-[9px]"
                       >
                         <Plus className="h-3 w-3" />
@@ -485,6 +490,7 @@ export default function AutoRolesSettings({ guildId }) {
                     <div className="progress-fill" style={{ width: `${delayPct}%` }} />
                   </div>
                   <input
+                    id="auto-role-delay"
                     type="range"
                     min={0}
                     max={maxDelay}

@@ -263,6 +263,7 @@ export default function ModerationPanel({ guildId }) {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search by user, moderator, or reason..."
+              aria-label="Search moderation cases by user, moderator, or reason"
               className="glass-input py-2 pl-9 pr-3 text-xs"
             />
           </div>
