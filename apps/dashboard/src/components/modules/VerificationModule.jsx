@@ -39,28 +39,20 @@ const rise = {
 
 /* ────────────────────────────── shared styles ────────────────────────────── */
 
-const fieldCls =
-  "w-full bg-white/[0.03] border border-white/[0.08] rounded-lg px-3 py-2 text-xs text-white placeholder:text-slate-600 focus:outline-none transition-colors";
+const fieldCls = "glass-input text-xs";
 
-const selectCls = `${fieldCls} font-mono [&>option]:bg-[#12141B]`;
+const selectCls = "glass-select text-xs";
 
 function Toggle({ enabled, onChange }) {
   return (
     <button
       type="button"
       onClick={() => onChange(!enabled)}
-      className={`relative h-6 w-11 shrink-0 cursor-pointer rounded-full border transition-colors ${
-        enabled ? "border-[#7C5CFF]/50 bg-[#7C5CFF]/80" : "border-white/[0.08] bg-white/[0.05]"
-      }`}
       aria-pressed={enabled}
+      aria-label={enabled ? "Disable" : "Enable"}
+      className={`toggle-track ${enabled ? "toggle-track-on" : ""}`}
     >
-      <motion.span
-        layout
-        transition={{ type: "spring", stiffness: 500, damping: 32 }}
-        className={`absolute top-[3px] h-4 w-4 rounded-full bg-white shadow ${
-          enabled ? "left-[25px]" : "left-[3px]"
-        }`}
-      />
+      <span className="toggle-thumb" />
     </button>
   );
 }
@@ -200,7 +192,7 @@ export default function VerificationModule({ guildId = "default" }) {
       title: "Web Captcha",
       subtitle: "hCaptcha / OAuth Gateway",
       icon: Globe,
-      color: "#5B8CFF",
+      color: "#4C7DFF",
       description: "Directs members to a secure web portal for hCaptcha verification — maximum security against automated bot raids.",
     },
     {
@@ -208,7 +200,7 @@ export default function VerificationModule({ guildId = "default" }) {
       title: "Interactive Button",
       subtitle: "One-Click Grant",
       icon: MousePointer,
-      color: "#39D98A",
+      color: "#34D399",
       description: "Members click a single button inside Discord to acknowledge the rules and unlock access instantly.",
     },
     {
@@ -232,8 +224,8 @@ export default function VerificationModule({ guildId = "default" }) {
 
   if (loading) {
     return (
-      <div className="panel flex min-h-[400px] flex-col items-center justify-center p-8 text-white">
-        <RefreshCw className="mb-4 h-8 w-8 animate-spin text-[#7C5CFF]" />
+      <div className="glass-card flex min-h-[400px] flex-col items-center justify-center p-8 text-white">
+        <RefreshCw className="mb-4 h-8 w-8 animate-spin text-[#4C7DFF]" />
         <p className="text-sm font-medium text-slate-400">Loading Verification Gateway...</p>
       </div>
     );
@@ -244,11 +236,11 @@ export default function VerificationModule({ guildId = "default" }) {
       variants={stagger}
       initial="hidden"
       animate="show"
-      className="panel relative overflow-hidden p-6 text-white sm:p-8"
+      className="glass-card relative overflow-hidden p-6 text-white sm:p-8"
     >
       {/* Background ambient glows */}
       <div className="pointer-events-none absolute -top-24 -right-20 h-96 w-96 rounded-full bg-[#7C5CFF]/[0.07] blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-24 -left-20 h-96 w-96 rounded-full bg-[#39D98A]/[0.05] blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-24 -left-20 h-96 w-96 rounded-full bg-[#34D399]/[0.05] blur-3xl" />
 
       {/* Toast notification */}
       <AnimatePresence>
@@ -257,12 +249,12 @@ export default function VerificationModule({ guildId = "default" }) {
             initial={{ opacity: 0, y: 12, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 8, scale: 0.99 }}
-            className="panel fixed bottom-6 right-6 z-[90] flex items-center gap-2.5 px-4 py-3 text-xs font-semibold shadow-2xl shadow-black/60"
+            className="glass-dropdown pointer-events-none fixed bottom-6 right-6 z-[90] flex items-center gap-2.5 px-4 py-3 text-xs font-semibold text-white"
           >
             {toast.type === "success" ? (
-              <CheckCircle2 className="h-4 w-4 text-[#39D98A]" />
+              <CheckCircle2 className="h-4 w-4 text-[#34D399]" />
             ) : (
-              <AlertTriangle className="h-4 w-4 text-[#FF5C7A]" />
+              <AlertTriangle className="h-4 w-4 text-[#F87171]" />
             )}
             <span>{toast.message}</span>
           </motion.div>
@@ -274,24 +266,18 @@ export default function VerificationModule({ guildId = "default" }) {
         variants={rise}
         className="relative z-10 mb-6 flex flex-col justify-between gap-4 border-b border-white/[0.06] pb-6 sm:flex-row sm:items-center"
       >
-        <div className="flex items-center gap-3.5">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#39D98A]/25 bg-[#39D98A]/10 text-[#39D98A]">
+        <div className="flex min-w-0 items-center gap-3.5">
+          <span className="icon-tile icon-tile-green h-9 w-9 rounded-xl">
             <ShieldCheck className="h-4 w-4" />
           </span>
-          <div>
+          <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2.5">
-              <h1 className="text-lg font-extrabold tracking-wide text-white">Verification Gateway</h1>
-              <span
-                className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${
-                  settings.verificationEnabled
-                    ? "border-[#39D98A]/25 bg-[#39D98A]/10 text-[#39D98A]"
-                    : "border-white/[0.08] bg-white/[0.04] text-slate-500"
-                }`}
-              >
-                {settings.verificationEnabled ? "VERIFICATION ACTIVE" : "DISABLED"}
+              <h1 className="card-title">Verification Gateway</h1>
+              <span className={`chip ${settings.verificationEnabled ? "chip-green" : ""}`}>
+                {settings.verificationEnabled ? "Verification active" : "Disabled"}
               </span>
             </div>
-            <p className="mt-1 font-body text-xs text-slate-500">
+            <p className="card-sub mt-1">
               Human verification that keeps raid alts and malicious bots out of Crystal Realm.
             </p>
           </div>
@@ -300,7 +286,7 @@ export default function VerificationModule({ guildId = "default" }) {
         <div className="flex items-center gap-2 self-end sm:self-auto">
           <button
             onClick={fetchVerificationData}
-            className="flex items-center gap-2 rounded-lg border border-white/[0.08] px-3 py-2 text-xs text-slate-400 transition-colors hover:bg-white/[0.04] hover:text-white cursor-pointer"
+            className="btn-icon h-9 w-9 rounded-xl"
             title="Reload configuration"
           >
             <RefreshCw className="h-4 w-4" />
@@ -309,7 +295,7 @@ export default function VerificationModule({ guildId = "default" }) {
           <button
             onClick={handleSave}
             disabled={saving}
-            className="flex items-center gap-2 rounded-lg bg-[#7C5CFF] px-3.5 py-2 text-xs font-semibold text-white shadow-[0_0_18px_rgba(124,92,255,0.35)] transition-colors hover:bg-[#6a4cf0] disabled:opacity-50 cursor-pointer"
+            className="btn-primary"
           >
             {saving ? (
               <RefreshCw className="h-4 w-4 animate-spin" />
@@ -324,29 +310,34 @@ export default function VerificationModule({ guildId = "default" }) {
       {/* Main form grid */}
       <div className="relative z-10 grid grid-cols-1 gap-5 lg:grid-cols-2">
         {/* Section 1: master toggle & mode selector */}
-        <motion.section variants={rise} className="panel panel-hover space-y-5 p-5 lg:col-span-2">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2.5">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#7C5CFF]/25 bg-[#7C5CFF]/10 text-[#7C5CFF]">
+        <motion.section variants={rise} className="glass-card glass-card-hover space-y-5 p-5 lg:col-span-2">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-3">
+              <span className="icon-tile icon-tile-violet h-9 w-9 rounded-xl">
                 <Lock className="h-4 w-4" />
               </span>
-              <div>
-                <h2 className="text-sm font-extrabold text-white">Captcha Verification Master Switch</h2>
-                <p className="mt-1 text-xs text-slate-500">
+              <div className="min-w-0">
+                <h2 className="card-title">Captcha Verification Master Switch</h2>
+                <p className="card-sub mt-0.5">
                   Require new members to pass human verification before seeing channels
                 </p>
               </div>
             </div>
 
-            <Toggle
-              enabled={settings.verificationEnabled}
-              onChange={(v) => setSettings((prev) => ({ ...prev, verificationEnabled: v }))}
-            />
+            <div className="flex shrink-0 flex-col items-end gap-2">
+              <Toggle
+                enabled={settings.verificationEnabled}
+                onChange={(v) => setSettings((prev) => ({ ...prev, verificationEnabled: v }))}
+              />
+              <span className={`chip ${settings.verificationEnabled ? "chip-green" : ""}`}>
+                {settings.verificationEnabled ? "Enforced" : "Off"}
+              </span>
+            </div>
           </div>
 
           <div>
             <span className="section-label mb-3 flex items-center gap-2">
-              <Sliders className="h-3.5 w-3.5 text-[#7C5CFF]" />
+              <Sliders className="h-3.5 w-3.5 text-[#A9C2FF]" />
               Verification Challenge Mode
             </span>
 
@@ -363,8 +354,8 @@ export default function VerificationModule({ guildId = "default" }) {
                     }
                     className={`relative cursor-pointer rounded-xl border p-4 transition-colors ${
                       isSelected
-                        ? "border-[#7C5CFF]/40 bg-white/[0.05]"
-                        : "border-white/[0.06] bg-white/[0.02] hover:border-white/[0.12] hover:bg-white/[0.03]"
+                        ? "border-[#4C7DFF]/45 bg-[#4C7DFF]/[0.10] shadow-[0_12px_30px_rgba(76,125,255,0.18)]"
+                        : "border-white/[0.07] bg-white/[0.02] hover:border-white/[0.14] hover:bg-white/[0.04]"
                     }`}
                   >
                     <div className="mb-3 flex items-start justify-between">
@@ -377,7 +368,7 @@ export default function VerificationModule({ guildId = "default" }) {
                       <span
                         className={`flex h-4 w-4 items-center justify-center rounded-full border ${
                           isSelected
-                            ? "border-[#39D98A] bg-[#39D98A]/20 text-[#39D98A]"
+                            ? "border-[#34D399] bg-[#34D399]/20 text-[#34D399]"
                             : "border-white/[0.12] bg-white/[0.03]"
                         }`}
                       >
@@ -398,14 +389,14 @@ export default function VerificationModule({ guildId = "default" }) {
         </motion.section>
 
         {/* Section 2: alt-account detection threshold */}
-        <motion.section variants={rise} className="panel panel-hover space-y-5 p-5">
-          <div className="flex items-center gap-2.5">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#FFB547]/25 bg-[#FFB547]/10 text-[#FFB547]">
+        <motion.section variants={rise} className="glass-card glass-card-hover space-y-5 p-5">
+          <div className="flex items-center gap-3">
+            <span className="icon-tile icon-tile-amber h-9 w-9 rounded-xl">
               <Clock className="h-4 w-4" />
             </span>
-            <div>
-              <h2 className="text-sm font-extrabold text-white">Alt-Account Age Threshold</h2>
-              <p className="mt-1 text-xs text-slate-500">
+            <div className="min-w-0">
+              <h2 className="card-title">Alt-Account Age Threshold</h2>
+              <p className="card-sub mt-0.5">
                 Automatically flag or reject accounts created recently
               </p>
             </div>
@@ -415,7 +406,7 @@ export default function VerificationModule({ guildId = "default" }) {
             <div>
               <div className="mb-2 flex items-center justify-between gap-3">
                 <label className="text-xs font-semibold text-slate-300">Minimum Account Age Limit</label>
-                <span className="rounded-full border border-[#FFB547]/25 bg-[#FFB547]/10 px-2 py-0.5 font-mono text-[10px] font-bold text-[#FFB547]">
+                <span className="chip chip-amber font-mono">
                   {settings.altAgeLimit === 0 ? "Disabled (0 days)" : `${settings.altAgeLimit} Days Old`}
                 </span>
               </div>
@@ -433,7 +424,7 @@ export default function VerificationModule({ guildId = "default" }) {
                     altAgeLimit: parseInt(e.target.value, 10) || 0,
                   }))
                 }
-                className="h-2 w-full cursor-pointer rounded-lg accent-[#FFB547]"
+                className="h-2 w-full cursor-pointer rounded-lg accent-[#FBBF24]"
               />
             </div>
 

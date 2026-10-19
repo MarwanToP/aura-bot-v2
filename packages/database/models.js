@@ -234,7 +234,7 @@ const StaffApplication = sequelize.define('StaffApplication', {
   guildId:      { type: DataTypes.STRING, allowNull: false },
   formId:       { type: DataTypes.UUID, allowNull: true, references: { model: 'application_forms', key: 'id' }, onDelete: 'RESTRICT' },
   userId:       { type: DataTypes.STRING, allowNull: false },
-  answers:      { type: DataTypes.JSONB, defaultValue: {} },
+  answers:      { type: DataTypes.JSONB, allowNull: false, defaultValue: {} },
   status:       { type: DataTypes.STRING, defaultValue: 'pending' },
   moderatorId:  { type: DataTypes.STRING, allowNull: true },
   reviewedAt:   { type: DataTypes.DATE, allowNull: true },
@@ -622,11 +622,11 @@ const UserAchievement = sequelize.define('UserAchievement', {
 const Reminder = sequelize.define('Reminder', {
   id:        { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
   userId:    { type: DataTypes.STRING, allowNull: false },
-  guildId:   { type: DataTypes.STRING, allowNull: true },
+  guildId:   { type: DataTypes.STRING, allowNull: false },
   channelId: { type: DataTypes.STRING, allowNull: false },
   content:   { type: DataTypes.TEXT, allowNull: false },
   remindAt:  { type: DataTypes.DATE, allowNull: false },
-  sent:      { type: DataTypes.BOOLEAN, defaultValue: false },
+  sent:      { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
 }, {
   tableName: 'reminders', timestamps: true,
   indexes: [{ fields: ['sent', 'remindAt'] }],

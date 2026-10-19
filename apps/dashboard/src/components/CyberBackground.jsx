@@ -14,9 +14,10 @@ import React from "react";
  * Every layer is pointer-events-none and the root is fixed at z-0, so the
  * atmosphere can never intercept a click and always sits behind the UI.
  *
- * The softness comes from wide, multi-stop radial-gradients instead of
- * filter:blur() so the fixed layer stays cheap to composite. Motion is
- * limited to slow transform-only drifts and is disabled by the
+ * The aurora washes are built from wide, multi-stop radial-gradients (no
+ * filter:blur() on the big layers) so the fixed layer stays cheap to
+ * composite; only the small veils and the teal counter-glow are blurred.
+ * Motion is limited to slow transform-only drifts and is disabled by the
  * reduced-motion media query in globals.css.
  */
 export default function CyberBackground() {
