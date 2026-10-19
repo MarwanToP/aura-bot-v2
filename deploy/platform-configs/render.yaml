@@ -82,8 +82,6 @@ services:
         sync: false
       - key: DISCORD_TOKEN
         sync: false
-      - key: SESSION_SECRET
-        generateValue: true
       - key: JWT_SECRET
         generateValue: true
       - key: GEMINI_API_KEY
@@ -123,8 +121,6 @@ services:
         sync: false
       - key: DISCORD_CLIENT_SECRET
         sync: false
-      - key: SESSION_SECRET
-        generateValue: true
       - key: JWT_SECRET
         generateValue: true
       - key: GEMINI_API_KEY

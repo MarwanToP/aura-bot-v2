@@ -3,6 +3,9 @@ import { PermissionsBitField } from 'discord.js';
 // Verify user administrative / member permissions
 export function hasPermissions(member, requiredPermissions = []) {
   if (!requiredPermissions.length) return true;
+  // Member-dependent gate: without a member (e.g. DM context) it cannot be
+  // evaluated, so deny safely instead of throwing on `member.permissions`.
+  if (!member?.permissions) return false;
   if (member.permissions.has(PermissionsBitField.Flags.Administrator)) return true;
 
   return requiredPermissions.every((perm) => member.permissions.has(perm));

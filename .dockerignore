@@ -6,6 +6,15 @@ Dockerfile
 .git
 .gitignore
 .env
+.dev.vars
+.next
+.wrangler
+reports
+docs
+.agents
+.opencode
+.idea
+.github
 render.yaml
 railway.json
 docker-compose.yml

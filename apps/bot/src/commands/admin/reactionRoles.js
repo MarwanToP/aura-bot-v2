@@ -3,7 +3,7 @@
 //  Full management of the ReactionRole system.
 //  Registered via commandHandler's loadDir scan of admin/.
 // ================================================================
-import { SlashCommandBuilder, PermissionFlagsBits, ChannelType } from 'discord.js';
+import { SlashCommandBuilder, PermissionFlagsBits, ChannelType, MessageFlags } from 'discord.js';
 import { buildEmbed } from '../../../shared/utils/embedBuilder.js';
 import {
   addReactionRole,
@@ -121,7 +121,7 @@ export const reactionrole = {
   cooldown:  3000,
 
   async execute(client, interaction) {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     const sub = interaction.options.getSubcommand();
 
     // ─────────────────────────────────────────────────────────────

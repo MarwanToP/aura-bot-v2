@@ -9,6 +9,7 @@ import {
   ButtonBuilder,
   ButtonStyle,
   PermissionsBitField,
+  MessageFlags,
 } from 'discord.js';
 import { buildEmbed } from '../../../shared/utils/embedBuilder.js';
 
@@ -17,7 +18,6 @@ const AI_PERMISSION_STORE_PREFIX = 'ai:perm:proposal:';
 
 // ── /ask — Single AI question ──────────────────────────────
 export const ask = {
-  register: false,
   data: new SlashCommandBuilder()
     .setName('ask')
     .setDescription('Ask the AI assistant anything')
@@ -33,7 +33,7 @@ export const ask = {
 
   async execute(client, interaction) {
     const ephemeral = interaction.options.getBoolean('ephemeral') ?? false;
-    await interaction.deferReply({ ephemeral });
+    await interaction.deferReply({ flags: ephemeral ? MessageFlags.Ephemeral : undefined });
 
     if (!client.ai.isAvailable()) {
       return interaction.editReply({ embeds: [buildEmbed({ type: 'error', description: '❌ AI is not configured on this bot.' })] });
@@ -74,7 +74,6 @@ export const ask = {
 
 // ── /chat — Persistent AI conversation ─────────────────────
 export const chat = {
-  register: false,
   data: new SlashCommandBuilder()
     .setName('chat')
     .setDescription('Have a conversation with the AI (remembers context)')
@@ -223,7 +222,6 @@ export const imagine = {
 
 // ── /translate — AI Translation ─────────────────────────────
 export const translate = {
-  register: false,
   data: new SlashCommandBuilder()
     .setName('translate')
     .setDescription('Translate text between languages using AI')
@@ -281,7 +279,6 @@ export const translate = {
 
 // ── /summarize — AI Text Summarizer ─────────────────────────
 export const summarize = {
-  register: false,
   data: new SlashCommandBuilder()
     .setName('summarize')
     .setDescription('Summarize long text with AI')
@@ -339,7 +336,7 @@ export const aimod = {
   cooldown:        5000,
 
   async execute(client, interaction) {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     const message = interaction.options.getString('message');
     const depth   = interaction.options.getString('depth') || 'quick';
 
@@ -380,7 +377,6 @@ export const aimod = {
 
 // ── /ai-permissions — AI Role Audit ────────────────────────
 export const aiPermissions = {
-  register: false,
   data: new SlashCommandBuilder()
     .setName('ai-permissions')
     .setDescription('[Professional] AI role permission analysis & suggestion')
@@ -393,7 +389,7 @@ export const aiPermissions = {
   cooldown:        10000,
 
   async execute(client, interaction) {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     
     if (!client.ai.isAvailable()) {
       return interaction.editReply({ embeds: [buildEmbed({ type: 'error', description: '❌ AI is not configured.' })] });
@@ -471,45 +467,86 @@ export async function handleButton(client, interaction, actionRaw) {
   const [scope, action, proposalId] = (actionRaw || '').split(':');
   if (scope !== 'perm' || !action || !proposalId) return;
 
-  const proposalKey = `${AI_PERMISSION_STORE_PREFIX}${proposalId}`;
-  const proposal = await client.redis.getJSON(proposalKey);
+  try {
+    // Ack the click before the Redis lookup and role work below — those can blow
+    // Discord's 3s interaction deadline. deferUpdate keeps the proposal message
+    // editable (editReply) and leaves it untouched on the ephemeral paths.
+    await interaction.deferUpdate();
 
-  if (!proposal) {
-    return interaction.reply({
-      embeds: [buildEmbed({ type: 'warning', description: '⚠️ This AI permission proposal has expired. Run `/ai-permissions` again.' })],
-      ephemeral: true,
-    }).catch(() => {});
-  }
+    const proposalKey = `${AI_PERMISSION_STORE_PREFIX}${proposalId}`;
+    const proposal = await client.redis.getJSON(proposalKey);
 
-  if (proposal.requesterId !== interaction.user.id) {
-    return interaction.reply({
-      embeds: [buildEmbed({ type: 'error', description: '❌ Only the staff member who generated this proposal can apply it.' })],
-      ephemeral: true,
-    }).catch(() => {});
-  }
+    if (!proposal) {
+      return interaction.followUp({
+        embeds: [buildEmbed({ type: 'warning', description: '⚠️ This AI permission proposal has expired. Run `/ai-permissions` again.' })],
+        flags: MessageFlags.Ephemeral,
+      }).catch(() => {});
+    }
 
-  if (!interaction.guildId || interaction.guildId !== proposal.guildId) {
-    return interaction.reply({
-      embeds: [buildEmbed({ type: 'error', description: '❌ This proposal is bound to a different server.' })],
-      ephemeral: true,
-    }).catch(() => {});
-  }
+    if (proposal.requesterId !== interaction.user.id) {
+      return interaction.followUp({
+        embeds: [buildEmbed({ type: 'error', description: '❌ Only the staff member who generated this proposal can apply it.' })],
+        flags: MessageFlags.Ephemeral,
+      }).catch(() => {});
+    }
 
-  if (action === 'cancel') {
-    await client.redis.del(proposalKey);
-    return interaction.update({
-      embeds: [buildEmbed({ type: 'info', title: 'AI Permission Proposal Closed', description: 'This recommendation has been dismissed.' })],
-      components: [],
-    }).catch(() => {});
-  }
+    if (!interaction.guildId || interaction.guildId !== proposal.guildId) {
+      return interaction.followUp({
+        embeds: [buildEmbed({ type: 'error', description: '❌ This proposal is bound to a different server.' })],
+        flags: MessageFlags.Ephemeral,
+      }).catch(() => {});
+    }
 
-  if (action === 'diff') {
+    if (action === 'cancel') {
+      await client.redis.del(proposalKey);
+      return interaction.editReply({
+        embeds: [buildEmbed({ type: 'info', title: 'AI Permission Proposal Closed', description: 'This recommendation has been dismissed.' })],
+        components: [],
+      }).catch(() => {});
+    }
+
+    if (action === 'diff') {
+      const role = await interaction.guild.roles.fetch(proposal.roleId).catch(() => null);
+      if (!role) {
+        await client.redis.del(proposalKey);
+        return interaction.followUp({
+          embeds: [buildEmbed({ type: 'error', description: '❌ Target role no longer exists.' })],
+          flags: MessageFlags.Ephemeral,
+        }).catch(() => {});
+      }
+
+      const suggestions = normalizePermissionSuggestions(proposal.suggestions || []);
+      const toAdd = suggestions.filter((perm) => !role.permissions.has(PermissionFlagsBits[perm]));
+      const alreadyIncluded = suggestions.filter((perm) => role.permissions.has(PermissionFlagsBits[perm]));
+
+      return interaction.followUp({
+        embeds: [buildEmbed({
+          type: 'info',
+          title: `📋 Permission Diff — ${role.name}`,
+          fields: [
+            { name: '➕ To Add', value: toAdd.length ? toAdd.map((p) => `\`${p}\``).join(', ') : 'No new permissions.', inline: false },
+            { name: '✅ Already Present', value: alreadyIncluded.length ? alreadyIncluded.map((p) => `\`${p}\``).join(', ') : 'None.', inline: false },
+          ],
+        })],
+        flags: MessageFlags.Ephemeral,
+      }).catch(() => {});
+    }
+
+    if (action !== 'apply') return;
+
+    if (!interaction.member.permissions.has(PermissionFlagsBits.ManageRoles)) {
+      return interaction.followUp({
+        embeds: [buildEmbed({ type: 'error', description: '❌ You need `Manage Roles` permission to apply this proposal.' })],
+        flags: MessageFlags.Ephemeral,
+      }).catch(() => {});
+    }
+
     const role = await interaction.guild.roles.fetch(proposal.roleId).catch(() => null);
     if (!role) {
       await client.redis.del(proposalKey);
-      return interaction.reply({
+      return interaction.followUp({
         embeds: [buildEmbed({ type: 'error', description: '❌ Target role no longer exists.' })],
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       }).catch(() => {});
     }
 
@@ -517,74 +554,41 @@ export async function handleButton(client, interaction, actionRaw) {
     const toAdd = suggestions.filter((perm) => !role.permissions.has(PermissionFlagsBits[perm]));
     const alreadyIncluded = suggestions.filter((perm) => role.permissions.has(PermissionFlagsBits[perm]));
 
-    return interaction.reply({
-      embeds: [buildEmbed({
-        type: 'info',
-        title: `📋 Permission Diff — ${role.name}`,
-        fields: [
-          { name: '➕ To Add', value: toAdd.length ? toAdd.map((p) => `\`${p}\``).join(', ') : 'No new permissions.', inline: false },
-          { name: '✅ Already Present', value: alreadyIncluded.length ? alreadyIncluded.map((p) => `\`${p}\``).join(', ') : 'None.', inline: false },
-        ],
-      })],
-      ephemeral: true,
-    }).catch(() => {});
-  }
+    if (!role.editable) {
+      return interaction.followUp({
+        embeds: [buildEmbed({ type: 'error', description: '❌ I cannot edit this role (check role hierarchy and bot permissions).' })],
+        flags: MessageFlags.Ephemeral,
+      }).catch(() => {});
+    }
 
-  if (action !== 'apply') return;
+    const updatedPermissions = new PermissionsBitField(role.permissions.bitfield);
+    for (const permissionName of toAdd) {
+      updatedPermissions.add(PermissionFlagsBits[permissionName]);
+    }
 
-  if (!interaction.member.permissions.has(PermissionFlagsBits.ManageRoles)) {
-    return interaction.reply({
-      embeds: [buildEmbed({ type: 'error', description: '❌ You need `Manage Roles` permission to apply this proposal.' })],
-      ephemeral: true,
-    }).catch(() => {});
-  }
+    await role.setPermissions(
+      updatedPermissions,
+      `AI permissions applied by ${interaction.user.tag} (${interaction.user.id})`,
+    );
 
-  await interaction.deferUpdate();
-
-  const role = await interaction.guild.roles.fetch(proposal.roleId).catch(() => null);
-  if (!role) {
     await client.redis.del(proposalKey);
-    return interaction.followUp({
-      embeds: [buildEmbed({ type: 'error', description: '❌ Target role no longer exists.' })],
-      ephemeral: true,
+    return interaction.editReply({
+      embeds: [buildEmbed({
+        type: 'success',
+        title: `✅ AI Permissions Applied — ${role.name}`,
+        fields: [
+          { name: '➕ Added', value: toAdd.length ? toAdd.map((p) => `\`${p}\``).join(', ') : 'Nothing new was required.', inline: false },
+          { name: 'ℹ️ Already Present', value: alreadyIncluded.length ? alreadyIncluded.map((p) => `\`${p}\``).join(', ') : 'None.', inline: false },
+        ],
+        footer: `Applied by ${interaction.user.tag}`,
+        timestamp: true,
+      })],
+      components: [],
     }).catch(() => {});
+  } catch (err) {
+    client.logger?.error?.('[AI] Permission button handler failed:', err);
+    throw err; // let the interaction router emit its ephemeral fallback, as before
   }
-
-  const suggestions = normalizePermissionSuggestions(proposal.suggestions || []);
-  const toAdd = suggestions.filter((perm) => !role.permissions.has(PermissionFlagsBits[perm]));
-  const alreadyIncluded = suggestions.filter((perm) => role.permissions.has(PermissionFlagsBits[perm]));
-
-  if (!role.editable) {
-    return interaction.followUp({
-      embeds: [buildEmbed({ type: 'error', description: '❌ I cannot edit this role (check role hierarchy and bot permissions).' })],
-      ephemeral: true,
-    }).catch(() => {});
-  }
-
-  const updatedPermissions = new PermissionsBitField(role.permissions.bitfield);
-  for (const permissionName of toAdd) {
-    updatedPermissions.add(PermissionFlagsBits[permissionName]);
-  }
-
-  await role.setPermissions(
-    updatedPermissions,
-    `AI permissions applied by ${interaction.user.tag} (${interaction.user.id})`,
-  );
-
-  await client.redis.del(proposalKey);
-  return interaction.editReply({
-    embeds: [buildEmbed({
-      type: 'success',
-      title: `✅ AI Permissions Applied — ${role.name}`,
-      fields: [
-        { name: '➕ Added', value: toAdd.length ? toAdd.map((p) => `\`${p}\``).join(', ') : 'Nothing new was required.', inline: false },
-        { name: 'ℹ️ Already Present', value: alreadyIncluded.length ? alreadyIncluded.map((p) => `\`${p}\``).join(', ') : 'None.', inline: false },
-      ],
-      footer: `Applied by ${interaction.user.tag}`,
-      timestamp: true,
-    })],
-    components: [],
-  }).catch(() => {});
 }
 
 // ── Utility ──────────────────────────────────────────────────

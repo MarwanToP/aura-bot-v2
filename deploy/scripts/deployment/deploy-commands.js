@@ -127,8 +127,8 @@ async function deploy() {
     throw new Error('Guild deploy requested but no guild ID was provided. Pass --guild <ID> or set DISCORD_GUILD_ID.');
   }
 
-  await loadCommands(join(__dirname, '../../../bot/cogs'), true);
-  await loadCommands(join(__dirname, '../../shared/systems'), false);
+  await loadCommands(join(__dirname, '../../../apps/bot/src/commands'), true);
+  await loadCommands(join(__dirname, '../../../packages/systems'), false);
   const dedup = [...commands.values()];
 
   console.log(`\n📋 Command Audit | files=${audit.filesScanned} modules=${audit.modulesLoaded} validExports=${audit.validExports} invalidExports=${audit.invalidExports} duplicateAliasesSkipped=${audit.duplicateAliasesSkipped} duplicatesSkipped=${audit.duplicatesSkipped} duplicatesOverwritten=${audit.duplicatesOverwritten} importFailures=${audit.importFailures}`);

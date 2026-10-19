@@ -7,7 +7,7 @@
 #    DISCORD_TOKEN, DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET,
 #    DATABASE_URL, REDIS_URL, GEMINI_API_KEY, CLOUDFLARE_API_TOKEN,
 #    CLOUDFLARE_ACCOUNT_ID, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID,
-#    SESSION_SECRET, JWT_SECRET
+#    JWT_SECRET
 #
 #  Public URL after deploy: https://<service-name>-<account>.koyeb.app
 #  Update DASHBOARD_URL / DISCORD_CALLBACK_URL after first deploy.
@@ -103,7 +103,5 @@ env:
     value: '?{aura.TELEGRAM_BOT_TOKEN}'
   - key: TELEGRAM_CHAT_ID
     value: '?{aura.TELEGRAM_CHAT_ID}'
-  - key: SESSION_SECRET
-    value: '?{aura.SESSION_SECRET}'
   - key: JWT_SECRET
     value: '?{aura.JWT_SECRET}'

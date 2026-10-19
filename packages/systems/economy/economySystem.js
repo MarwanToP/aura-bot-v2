@@ -13,7 +13,7 @@ import { existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { buildEmbed, buildProfileEmbed, buildProfileButtons } from '../../utils/embedBuilder.js';
-import config         from '../../config/config.js';
+import config from '../../config/index.js';
 import logger         from '../../utils/logger.js';
 import { generateAuraCard } from '../../utils/cardGenerator.js';
 

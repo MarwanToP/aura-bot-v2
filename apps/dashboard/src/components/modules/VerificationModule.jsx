@@ -4,7 +4,6 @@ import React, { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ShieldCheck,
-  Shield,
   Check,
   Save,
   RefreshCw,
@@ -18,14 +17,65 @@ import {
   Calculator,
   AlertTriangle,
   Clock,
-  Sparkles,
   CheckCircle2,
   ExternalLink,
   Eye,
   X,
-  HelpCircle,
-  Key,
 } from "lucide-react";
+
+/* ────────────────────────────── motion helpers ────────────────────────────── */
+
+const EASE = [0.22, 1, 0.36, 1];
+
+const stagger = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.055, delayChildren: 0.03 } },
+};
+
+const rise = {
+  hidden: { opacity: 0, y: 12 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: EASE } },
+};
+
+/* ────────────────────────────── shared styles ────────────────────────────── */
+
+const fieldCls =
+  "w-full bg-white/[0.03] border border-white/[0.08] rounded-lg px-3 py-2 text-xs text-white placeholder:text-slate-600 focus:outline-none transition-colors";
+
+const selectCls = `${fieldCls} font-mono [&>option]:bg-[#12141B]`;
+
+function Toggle({ enabled, onChange }) {
+  return (
+    <button
+      type="button"
+      onClick={() => onChange(!enabled)}
+      className={`relative h-6 w-11 shrink-0 cursor-pointer rounded-full border transition-colors ${
+        enabled ? "border-[#7C5CFF]/50 bg-[#7C5CFF]/80" : "border-white/[0.08] bg-white/[0.05]"
+      }`}
+      aria-pressed={enabled}
+    >
+      <motion.span
+        layout
+        transition={{ type: "spring", stiffness: 500, damping: 32 }}
+        className={`absolute top-[3px] h-4 w-4 rounded-full bg-white shadow ${
+          enabled ? "left-[25px]" : "left-[3px]"
+        }`}
+      />
+    </button>
+  );
+}
+
+/* single source of truth for turning an API payload into form state */
+function mapVerification(data) {
+  return {
+    verificationEnabled: Boolean(data?.verificationEnabled),
+    verificationRoleId: data?.verificationRoleId || "",
+    unverifiedRoleId: data?.unverifiedRoleId || "",
+    verificationChannelId: data?.verificationChannelId || "",
+    verificationMode: data?.verificationMode || "web",
+    altAgeLimit: Number.isInteger(data?.altAgeLimit) ? data.altAgeLimit : 7,
+  };
+}
 
 export default function VerificationModule({ guildId = "default" }) {
   const [loading, setLoading] = useState(true);
@@ -52,7 +102,7 @@ export default function VerificationModule({ guildId = "default" }) {
 
   const showToast = (message, type = "success") => {
     setToast({ message, type });
-    setTimeout(() => setToast(null), 4000);
+    setTimeout(() => setToast(null), 3200);
   };
 
   const fetchVerificationData = useCallback(async () => {
@@ -66,14 +116,7 @@ export default function VerificationModule({ guildId = "default" }) {
 
       if (resConfig.ok) {
         const data = await resConfig.json();
-        setSettings({
-          verificationEnabled: Boolean(data.verificationEnabled),
-          verificationRoleId: data.verificationRoleId || "",
-          unverifiedRoleId: data.unverifiedRoleId || "",
-          verificationChannelId: data.verificationChannelId || "",
-          verificationMode: data.verificationMode || "web",
-          altAgeLimit: Number.isInteger(data.altAgeLimit) ? data.altAgeLimit : 7,
-        });
+        setSettings(mapVerification(data));
       }
 
       if (resRoles.ok) {
@@ -88,7 +131,7 @@ export default function VerificationModule({ guildId = "default" }) {
     } catch (err) {
       console.error("[VerificationModule] Error loading configuration:", err);
       showToast("Failed to load verification configuration", "error");
-    } fontally: {
+    } finally {
       setLoading(false);
     }
   }, [guildId]);
@@ -107,16 +150,17 @@ export default function VerificationModule({ guildId = "default" }) {
       });
 
       if (res.ok) {
-        const result = await res.json();
-        if (result.settings) {
-          setSettings({
-            verificationEnabled: Boolean(result.settings.verificationEnabled),
-            verificationRoleId: result.settings.verificationRoleId || "",
-            unverifiedRoleId: result.settings.unverifiedRoleId || "",
-            verificationChannelId: result.settings.verificationChannelId || "",
-            verificationMode: result.settings.verificationMode || "web",
-            altAgeLimit: Number.isInteger(result.settings.altAgeLimit) ? result.settings.altAgeLimit : 7,
-          });
+        /* The save endpoint deliberately does not echo the request body, so never read state
+           back off the response. Re-read the real config from GET .../verification instead. */
+        try {
+          const resConfig = await fetch(`/api/guilds/${guildId}/verification`);
+          if (resConfig.ok) {
+            const data = await resConfig.json();
+            setSettings(mapVerification(data));
+          }
+        } catch (err) {
+          /* Follow-up read failed — keep the locally edited state rather than blanking the form. */
+          console.warn("[VerificationModule] Saved, but could not re-read configuration:", err);
         }
         showToast("Verification Gateway settings saved successfully!", "success");
       } else {
@@ -156,30 +200,24 @@ export default function VerificationModule({ guildId = "default" }) {
       title: "Web Captcha",
       subtitle: "hCaptcha / OAuth Gateway",
       icon: Globe,
-      color: "from-cyan-500 to-blue-600",
-      accent: "text-cyan-400",
-      border: "border-cyan-500/30",
-      description: "Directs members to a secure web portal for hCaptcha verification. Maximum security against automated bot raids.",
+      color: "#5B8CFF",
+      description: "Directs members to a secure web portal for hCaptcha verification — maximum security against automated bot raids.",
     },
     {
       id: "button",
       title: "Interactive Button",
       subtitle: "One-Click Grant",
       icon: MousePointer,
-      color: "from-emerald-500 to-teal-600",
-      accent: "text-emerald-400",
-      border: "border-emerald-500/30",
-      description: "Members click a single button inside Discord to instantly acknowledge rules and unlock access.",
+      color: "#39D98A",
+      description: "Members click a single button inside Discord to acknowledge the rules and unlock access instantly.",
     },
     {
       id: "math",
       title: "Math Challenge",
       subtitle: "Dynamic Equation Prompt",
       icon: Calculator,
-      color: "from-purple-500 to-indigo-600",
-      accent: "text-purple-400",
-      border: "border-purple-500/30",
-      description: "Members must solve an ephemeral math equation within 60 seconds inside the Discord channel.",
+      color: "#7C5CFF",
+      description: "Members solve an ephemeral math equation within 60 seconds inside the verification channel.",
     },
   ];
 
@@ -194,137 +232,125 @@ export default function VerificationModule({ guildId = "default" }) {
 
   if (loading) {
     return (
-      <div className="min-h-[400px] flex flex-col items-center justify-center bg-[#09090b] text-white p-8 rounded-2xl border border-white/10">
-        <RefreshCw className="w-8 h-8 text-[#5865F2] animate-spin mb-4" />
-        <p className="text-sm font-medium text-zinc-400">Loading Verification Gateway Module...</p>
+      <div className="panel flex min-h-[400px] flex-col items-center justify-center p-8 text-white">
+        <RefreshCw className="mb-4 h-8 w-8 animate-spin text-[#7C5CFF]" />
+        <p className="text-sm font-medium text-slate-400">Loading Verification Gateway...</p>
       </div>
     );
   }
 
   return (
-    <div className="bg-[#09090b] text-white p-6 sm:p-8 rounded-2xl border border-white/10 shadow-2xl relative overflow-hidden">
-      {/* Background Ambient Glows */}
-      <div className="absolute top-0 right-0 w-96 h-96 bg-[#5865F2]/10 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20" />
-      <div className="absolute bottom-0 left-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none -ml-20 -mb-20" />
+    <motion.div
+      variants={stagger}
+      initial="hidden"
+      animate="show"
+      className="panel relative overflow-hidden p-6 text-white sm:p-8"
+    >
+      {/* Background ambient glows */}
+      <div className="pointer-events-none absolute -top-24 -right-20 h-96 w-96 rounded-full bg-[#7C5CFF]/[0.07] blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-24 -left-20 h-96 w-96 rounded-full bg-[#39D98A]/[0.05] blur-3xl" />
 
-      {/* Toast Notification */}
+      {/* Toast notification */}
       <AnimatePresence>
         {toast && (
           <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className={`fixed top-6 right-6 z-50 px-4 py-3 rounded-xl border shadow-xl flex items-center gap-3 backdrop-blur-md text-sm font-medium ${
-              toast.type === "success"
-                ? "bg-emerald-950/80 border-emerald-500/30 text-emerald-300"
-                : "bg-rose-950/80 border-rose-500/30 text-rose-300"
-            }`}
+            initial={{ opacity: 0, y: 12, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 8, scale: 0.99 }}
+            className="panel fixed bottom-6 right-6 z-[90] flex items-center gap-2.5 px-4 py-3 text-xs font-semibold shadow-2xl shadow-black/60"
           >
             {toast.type === "success" ? (
-              <Check className="w-4 h-4 text-emerald-400" />
+              <CheckCircle2 className="h-4 w-4 text-[#39D98A]" />
             ) : (
-              <AlertTriangle className="w-4 h-4 text-rose-400" />
+              <AlertTriangle className="h-4 w-4 text-[#FF5C7A]" />
             )}
-            {toast.message}
+            <span>{toast.message}</span>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Module Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 pb-6 border-b border-white/10 relative z-10">
-        <div className="flex items-center gap-4">
-          <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 shadow-inner">
-            <ShieldCheck className="w-6 h-6" />
-          </div>
+      {/* Module header */}
+      <motion.div
+        variants={rise}
+        className="relative z-10 mb-6 flex flex-col justify-between gap-4 border-b border-white/[0.06] pb-6 sm:flex-row sm:items-center"
+      >
+        <div className="flex items-center gap-3.5">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#39D98A]/25 bg-[#39D98A]/10 text-[#39D98A]">
+            <ShieldCheck className="h-4 w-4" />
+          </span>
           <div>
-            <div className="flex items-center gap-3">
-              <h1 className="text-xl font-bold tracking-wide text-white">Verification Gateway</h1>
+            <div className="flex flex-wrap items-center gap-2.5">
+              <h1 className="text-lg font-extrabold tracking-wide text-white">Verification Gateway</h1>
               <span
-                className={`text-[10px] font-mono uppercase px-2.5 py-0.5 rounded-full border ${
+                className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${
                   settings.verificationEnabled
-                    ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
-                    : "bg-zinc-800/80 border-zinc-700 text-zinc-400"
+                    ? "border-[#39D98A]/25 bg-[#39D98A]/10 text-[#39D98A]"
+                    : "border-white/[0.08] bg-white/[0.04] text-slate-500"
                 }`}
               >
                 {settings.verificationEnabled ? "VERIFICATION ACTIVE" : "DISABLED"}
               </span>
             </div>
-            <p className="text-xs text-zinc-400 mt-1">
-              Synthesize Security Bot & Wick gateway features to protect your server from raid alts and malicious bots.
+            <p className="mt-1 font-body text-xs text-slate-500">
+              Human verification that keeps raid alts and malicious bots out of Crystal Realm.
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-3 self-end sm:self-auto">
+        <div className="flex items-center gap-2 self-end sm:self-auto">
           <button
             onClick={fetchVerificationData}
-            className="p-2.5 rounded-xl border border-white/10 bg-white/[0.03] hover:bg-white/[0.08] text-zinc-300 transition-all flex items-center gap-2 text-xs font-medium cursor-pointer"
+            className="flex items-center gap-2 rounded-lg border border-white/[0.08] px-3 py-2 text-xs text-slate-400 transition-colors hover:bg-white/[0.04] hover:text-white cursor-pointer"
             title="Reload configuration"
           >
-            <RefreshCw className="w-4 h-4" />
+            <RefreshCw className="h-4 w-4" />
           </button>
 
           <button
             onClick={handleSave}
             disabled={saving}
-            className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition-all shadow-lg shadow-emerald-600/25 flex items-center gap-2 disabled:opacity-50 cursor-pointer"
+            className="flex items-center gap-2 rounded-lg bg-[#7C5CFF] px-3.5 py-2 text-xs font-semibold text-white shadow-[0_0_18px_rgba(124,92,255,0.35)] transition-colors hover:bg-[#6a4cf0] disabled:opacity-50 cursor-pointer"
           >
             {saving ? (
-              <RefreshCw className="w-4 h-4 animate-spin" />
+              <RefreshCw className="h-4 w-4 animate-spin" />
             ) : (
-              <Save className="w-4 h-4" />
+              <Save className="h-4 w-4" />
             )}
             {saving ? "Saving..." : "Save Changes"}
           </button>
         </div>
-      </div>
+      </motion.div>
 
-      {/* Main Form Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 relative z-10">
-        
-        {/* Section 1: Master Toggle & Mode Selector */}
-        <div className="lg:col-span-2 bg-white/[0.03] backdrop-blur-md border border-white/10 rounded-2xl p-6 shadow-xl space-y-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Lock className="w-5 h-5 text-emerald-400" />
+      {/* Main form grid */}
+      <div className="relative z-10 grid grid-cols-1 gap-5 lg:grid-cols-2">
+        {/* Section 1: master toggle & mode selector */}
+        <motion.section variants={rise} className="panel panel-hover space-y-5 p-5 lg:col-span-2">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#7C5CFF]/25 bg-[#7C5CFF]/10 text-[#7C5CFF]">
+                <Lock className="h-4 w-4" />
+              </span>
               <div>
-                <h2 className="text-sm font-bold text-white">Captcha Verification Master Switch</h2>
-                <p className="text-xs text-zinc-400">
+                <h2 className="text-sm font-extrabold text-white">Captcha Verification Master Switch</h2>
+                <p className="mt-1 text-xs text-slate-500">
                   Require new members to pass human verification before seeing channels
                 </p>
               </div>
             </div>
 
-            {/* Snappy Toggle */}
-            <button
-              onClick={() =>
-                setSettings((prev) => ({
-                  ...prev,
-                  verificationEnabled: !prev.verificationEnabled,
-                }))
-              }
-              className={`w-12 h-6 rounded-full p-1 transition-colors duration-300 flex items-center cursor-pointer ${
-                settings.verificationEnabled ? "bg-emerald-500" : "bg-zinc-800"
-              }`}
-            >
-              <motion.div
-                layout
-                transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                className={`w-4 h-4 rounded-full bg-white shadow-md ${
-                  settings.verificationEnabled ? "translate-x-6" : "translate-x-0"
-                }`}
-              />
-            </button>
+            <Toggle
+              enabled={settings.verificationEnabled}
+              onChange={(v) => setSettings((prev) => ({ ...prev, verificationEnabled: v }))}
+            />
           </div>
 
-          {/* Mode Selector Cards */}
           <div>
-            <label className="block text-xs font-semibold text-zinc-300 mb-3 flex items-center gap-2">
-              <Sliders className="w-4 h-4 text-cyan-400" />
+            <span className="section-label mb-3 flex items-center gap-2">
+              <Sliders className="h-3.5 w-3.5 text-[#7C5CFF]" />
               Verification Challenge Mode
-            </label>
+            </span>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-3">
               {verificationModes.map((mode) => {
                 const Icon = mode.icon;
                 const isSelected = settings.verificationMode === mode.id;
@@ -335,44 +361,51 @@ export default function VerificationModule({ guildId = "default" }) {
                     onClick={() =>
                       setSettings((prev) => ({ ...prev, verificationMode: mode.id }))
                     }
-                    className={`relative rounded-xl border p-4 cursor-pointer transition-all duration-200 ${
+                    className={`relative cursor-pointer rounded-xl border p-4 transition-colors ${
                       isSelected
-                        ? `bg-white/[0.07] ${mode.border} shadow-lg shadow-cyan-500/5`
-                        : "bg-black/30 border-white/5 hover:border-white/20 hover:bg-white/[0.02]"
+                        ? "border-[#7C5CFF]/40 bg-white/[0.05]"
+                        : "border-white/[0.06] bg-white/[0.02] hover:border-white/[0.12] hover:bg-white/[0.03]"
                     }`}
                   >
-                    <div className="flex items-start justify-between mb-3">
-                      <div className={`p-2.5 rounded-lg bg-gradient-to-br ${mode.color} text-white shadow-md`}>
-                        <Icon className="w-4 h-4" />
-                      </div>
-                      <div
-                        className={`w-4 h-4 rounded-full border flex items-center justify-center ${
+                    <div className="mb-3 flex items-start justify-between">
+                      <span
+                        className="flex h-8 w-8 items-center justify-center rounded-lg"
+                        style={{ backgroundColor: `${mode.color}1A`, color: mode.color }}
+                      >
+                        <Icon className="h-4 w-4" />
+                      </span>
+                      <span
+                        className={`flex h-4 w-4 items-center justify-center rounded-full border ${
                           isSelected
-                            ? "border-emerald-400 bg-emerald-500/20 text-emerald-400"
-                            : "border-zinc-700 bg-black/40"
+                            ? "border-[#39D98A] bg-[#39D98A]/20 text-[#39D98A]"
+                            : "border-white/[0.12] bg-white/[0.03]"
                         }`}
                       >
-                        {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
-                      </div>
+                        {isSelected && <Check className="h-3 w-3 stroke-[3]" />}
+                      </span>
                     </div>
 
-                    <h3 className="text-xs font-bold text-white mb-0.5">{mode.title}</h3>
-                    <p className={`text-[10px] font-mono mb-2 ${mode.accent}`}>{mode.subtitle}</p>
-                    <p className="text-[11px] text-zinc-400 leading-relaxed">{mode.description}</p>
+                    <h3 className="mb-0.5 text-xs font-bold text-white">{mode.title}</h3>
+                    <p className="mb-2 font-mono text-[10px] font-bold" style={{ color: mode.color }}>
+                      {mode.subtitle}
+                    </p>
+                    <p className="text-[11px] leading-relaxed text-slate-400">{mode.description}</p>
                   </div>
                 );
               })}
             </div>
           </div>
-        </div>
+        </motion.section>
 
-        {/* Section 2: Alt-Account Detection Threshold */}
-        <div className="bg-white/[0.03] backdrop-blur-md border border-white/10 rounded-2xl p-6 shadow-xl space-y-6">
-          <div className="flex items-center gap-3">
-            <Clock className="w-5 h-5 text-amber-400" />
+        {/* Section 2: alt-account detection threshold */}
+        <motion.section variants={rise} className="panel panel-hover space-y-5 p-5">
+          <div className="flex items-center gap-2.5">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#FFB547]/25 bg-[#FFB547]/10 text-[#FFB547]">
+              <Clock className="h-4 w-4" />
+            </span>
             <div>
-              <h2 className="text-sm font-bold text-white">Alt-Account Age Threshold</h2>
-              <p className="text-xs text-zinc-400">
+              <h2 className="text-sm font-extrabold text-white">Alt-Account Age Threshold</h2>
+              <p className="mt-1 text-xs text-slate-500">
                 Automatically flag or reject accounts created recently
               </p>
             </div>
@@ -380,14 +413,14 @@ export default function VerificationModule({ guildId = "default" }) {
 
           <div className="space-y-4">
             <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-xs font-semibold text-zinc-300">Minimum Account Age Limit</label>
-                <span className="text-xs font-mono px-2.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 text-amber-400">
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <label className="text-xs font-semibold text-slate-300">Minimum Account Age Limit</label>
+                <span className="rounded-full border border-[#FFB547]/25 bg-[#FFB547]/10 px-2 py-0.5 font-mono text-[10px] font-bold text-[#FFB547]">
                   {settings.altAgeLimit === 0 ? "Disabled (0 days)" : `${settings.altAgeLimit} Days Old`}
                 </span>
               </div>
 
-              {/* Slider Control */}
+              {/* Slider control */}
               <input
                 type="range"
                 min="0"
@@ -400,12 +433,12 @@ export default function VerificationModule({ guildId = "default" }) {
                     altAgeLimit: parseInt(e.target.value, 10) || 0,
                   }))
                 }
-                className="w-full accent-amber-500 bg-zinc-800 rounded-lg h-2 cursor-pointer"
+                className="h-2 w-full cursor-pointer rounded-lg accent-[#FFB547]"
               />
             </div>
 
-            {/* Quick Presets */}
-            <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+            {/* Quick presets */}
+            <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
               {altAgePresets.map((preset) => {
                 const isActive = settings.altAgeLimit === preset.days;
                 return (
@@ -415,45 +448,51 @@ export default function VerificationModule({ guildId = "default" }) {
                     onClick={() =>
                       setSettings((prev) => ({ ...prev, altAgeLimit: preset.days }))
                     }
-                    className={`px-2 py-2 rounded-xl text-center border transition-all cursor-pointer ${
+                    className={`cursor-pointer rounded-xl border px-2 py-2 text-center transition-colors ${
                       isActive
-                        ? "bg-amber-500/20 border-amber-500/40 text-amber-300 shadow-md"
-                        : "bg-black/30 border-white/5 text-zinc-400 hover:border-white/20 hover:text-white"
+                        ? "border-[#FFB547]/40 bg-[#FFB547]/10 text-[#FFB547]"
+                        : "border-white/[0.06] bg-white/[0.02] text-slate-500 hover:border-white/[0.12] hover:text-slate-300"
                     }`}
                   >
-                    <div className="text-xs font-bold font-mono">{preset.days}d</div>
-                    <div className="text-[9px] uppercase tracking-wider text-zinc-400 mt-0.5">{preset.badge}</div>
+                    <div className="font-mono text-xs font-bold">{preset.days}d</div>
+                    <div className="mt-0.5 text-[9px] uppercase tracking-wider opacity-80">
+                      {preset.badge}
+                    </div>
                   </button>
                 );
               })}
             </div>
 
-            <div className="p-3.5 rounded-xl bg-amber-950/20 border border-amber-500/20 flex items-start gap-3 text-xs text-amber-200/80">
-              <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+            <div className="flex items-start gap-3 rounded-xl border border-[#FFB547]/20 bg-[#FFB547]/[0.06] p-3.5 text-xs leading-relaxed text-[#FFB547]/90">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-[#FFB547]" />
               <span>
-                Accounts created less than <strong className="text-amber-300 font-mono">{settings.altAgeLimit} days</strong> ago will be required to pass extra verification step or will be blocked automatically.
+                Accounts created less than{" "}
+                <strong className="font-mono text-[#FFB547]">{settings.altAgeLimit} days</strong> ago
+                will be required to pass an extra verification step or will be blocked automatically.
               </span>
             </div>
           </div>
-        </div>
+        </motion.section>
 
-        {/* Section 3: Roles & Channel Selectors */}
-        <div className="bg-white/[0.03] backdrop-blur-md border border-white/10 rounded-2xl p-6 shadow-xl space-y-5">
-          <div className="flex items-center gap-3">
-            <UserCheck className="w-5 h-5 text-indigo-400" />
+        {/* Section 3: roles & channel selectors */}
+        <motion.section variants={rise} className="panel panel-hover space-y-5 p-5">
+          <div className="flex items-center gap-2.5">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#5B8CFF]/25 bg-[#5B8CFF]/10 text-[#5B8CFF]">
+              <UserCheck className="h-4 w-4" />
+            </span>
             <div>
-              <h2 className="text-sm font-bold text-white">Roles & Channel Gateway Assignment</h2>
-              <p className="text-xs text-zinc-400">
-                Configure roles awarded/removed and gateway channel
+              <h2 className="text-sm font-extrabold text-white">Roles & Channel Gateway Assignment</h2>
+              <p className="mt-1 text-xs text-slate-500">
+                Configure roles awarded or removed and the gateway channel
               </p>
             </div>
           </div>
 
           <div className="space-y-4">
-            {/* Verified Role Selector */}
+            {/* Verified role selector */}
             <div>
-              <label className="block text-xs font-semibold text-zinc-300 mb-1.5 flex items-center gap-2">
-                <UserCheck className="w-4 h-4 text-emerald-400" />
+              <label className="mb-1.5 flex items-center gap-2 text-xs font-semibold text-slate-300">
+                <UserCheck className="h-3.5 w-3.5 text-[#39D98A]" />
                 Verified Role (Granted upon completion)
               </label>
 
@@ -463,7 +502,7 @@ export default function VerificationModule({ guildId = "default" }) {
                   onChange={(e) =>
                     setSettings((prev) => ({ ...prev, verificationRoleId: e.target.value }))
                   }
-                  className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-emerald-500 transition-all font-mono"
+                  className={`${selectCls} focus:border-[#39D98A]/50`}
                 >
                   <option value="">Select Verified Role...</option>
                   {roles.map((role) => (
@@ -475,20 +514,20 @@ export default function VerificationModule({ guildId = "default" }) {
               ) : (
                 <input
                   type="text"
-                  placeholder="Role ID e.g. 111111111111111111"
+                  placeholder="Role ID e.g. 1128439813574934590"
                   value={settings.verificationRoleId}
                   onChange={(e) =>
                     setSettings((prev) => ({ ...prev, verificationRoleId: e.target.value }))
                   }
-                  className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-emerald-500 font-mono transition-all"
+                  className={`${fieldCls} font-mono focus:border-[#39D98A]/50`}
                 />
               )}
             </div>
 
-            {/* Unverified Role Selector */}
+            {/* Unverified role selector */}
             <div>
-              <label className="block text-xs font-semibold text-zinc-300 mb-1.5 flex items-center gap-2">
-                <UserX className="w-4 h-4 text-rose-400" />
+              <label className="mb-1.5 flex items-center gap-2 text-xs font-semibold text-slate-300">
+                <UserX className="h-3.5 w-3.5 text-[#FF5C7A]" />
                 Unverified Role (Assigned upon joining)
               </label>
 
@@ -498,7 +537,7 @@ export default function VerificationModule({ guildId = "default" }) {
                   onChange={(e) =>
                     setSettings((prev) => ({ ...prev, unverifiedRoleId: e.target.value }))
                   }
-                  className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-rose-500 transition-all font-mono"
+                  className={`${selectCls} focus:border-[#FF5C7A]/50`}
                 >
                   <option value="">Select Unverified Role (Optional)...</option>
                   {roles.map((role) => (
@@ -510,20 +549,20 @@ export default function VerificationModule({ guildId = "default" }) {
               ) : (
                 <input
                   type="text"
-                  placeholder="Role ID e.g. 222222222222222222"
+                  placeholder="Role ID e.g. 1128439813574934591"
                   value={settings.unverifiedRoleId}
                   onChange={(e) =>
                     setSettings((prev) => ({ ...prev, unverifiedRoleId: e.target.value }))
                   }
-                  className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-rose-500 font-mono transition-all"
+                  className={`${fieldCls} font-mono focus:border-[#FF5C7A]/50`}
                 />
               )}
             </div>
 
-            {/* Gateway Channel Selector */}
+            {/* Gateway channel selector */}
             <div>
-              <label className="block text-xs font-semibold text-zinc-300 mb-1.5 flex items-center gap-2">
-                <Hash className="w-4 h-4 text-cyan-400" />
+              <label className="mb-1.5 flex items-center gap-2 text-xs font-semibold text-slate-300">
+                <Hash className="h-3.5 w-3.5 text-[#5B8CFF]" />
                 Verification Gateway Channel
               </label>
 
@@ -533,7 +572,7 @@ export default function VerificationModule({ guildId = "default" }) {
                   onChange={(e) =>
                     setSettings((prev) => ({ ...prev, verificationChannelId: e.target.value }))
                   }
-                  className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-cyan-500 transition-all font-mono"
+                  className={`${selectCls} focus:border-[#5B8CFF]/50`}
                 >
                   <option value="">Select Gateway Channel...</option>
                   {channels.map((chan) => (
@@ -545,90 +584,94 @@ export default function VerificationModule({ guildId = "default" }) {
               ) : (
                 <input
                   type="text"
-                  placeholder="Channel ID e.g. 100000000000000001"
+                  placeholder="Channel ID e.g. 1128439813574934600"
                   value={settings.verificationChannelId}
                   onChange={(e) =>
                     setSettings((prev) => ({ ...prev, verificationChannelId: e.target.value }))
                   }
-                  className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-cyan-500 font-mono transition-all"
+                  className={`${fieldCls} font-mono focus:border-[#5B8CFF]/50`}
                 />
               )}
             </div>
           </div>
-        </div>
+        </motion.section>
 
-        {/* Section 4: Interactive Verification Button / Panel Preview Card */}
-        <div className="lg:col-span-2 bg-white/[0.03] backdrop-blur-md border border-white/10 rounded-2xl p-6 shadow-xl space-y-5">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Eye className="w-5 h-5 text-emerald-400" />
+        {/* Section 4: interactive verification panel live preview */}
+        <motion.section variants={rise} className="panel panel-hover space-y-5 p-5 lg:col-span-2">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#7C5CFF]/25 bg-[#7C5CFF]/10 text-[#7C5CFF]">
+                <Eye className="h-4 w-4" />
+              </span>
               <div>
-                <h2 className="text-sm font-bold text-white">Interactive Verification Panel Live Preview</h2>
-                <p className="text-xs text-zinc-400">
+                <h2 className="text-sm font-extrabold text-white">
+                  Interactive Verification Panel Live Preview
+                </h2>
+                <p className="mt-1 text-xs text-slate-500">
                   Live preview card of the verification message posted in your Discord channel
                 </p>
               </div>
             </div>
 
-            <span className="text-[10px] font-mono uppercase px-2.5 py-1 rounded bg-[#5865F2]/20 border border-[#5865F2]/30 text-[#5865F2]">
+            <span className="rounded-full border border-[#7C5CFF]/25 bg-[#7C5CFF]/10 px-2 py-0.5 text-[10px] font-bold text-[#7C5CFF]">
               DISCORD EMBED PREVIEW
             </span>
           </div>
 
-          {/* Discord Message Preview Frame */}
-          <div className="bg-[#313338] rounded-xl p-4 sm:p-5 border border-black/40 shadow-2xl text-left font-sans">
+          {/* Discord message preview frame */}
+          <div className="rounded-xl border border-black/40 bg-[#313338] p-4 text-left font-sans shadow-2xl sm:p-5">
             <div className="flex items-start gap-3">
-              {/* Bot Avatar */}
-              <div className="w-10 h-10 rounded-full bg-[#5865F2] flex items-center justify-center shrink-0 shadow-md">
-                <ShieldCheck className="w-6 h-6 text-white" />
+              {/* Bot avatar */}
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#7C5CFF] shadow-md">
+                <ShieldCheck className="h-6 w-6 text-white" />
               </div>
 
-              <div className="flex-1 min-w-0">
-                {/* Bot Header */}
-                <div className="flex items-center gap-2 mb-1">
+              <div className="min-w-0 flex-1">
+                {/* Bot header */}
+                <div className="mb-1 flex items-center gap-2">
                   <span className="text-sm font-semibold text-white">Aura Security Gate</span>
-                  <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-[#5865F2] text-white uppercase tracking-wider">
+                  <span className="rounded bg-[#7C5CFF] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white">
                     BOT
                   </span>
                   <span className="text-xs text-zinc-400">Today at 12:00 PM</span>
                 </div>
 
-                {/* Discord Embed Box */}
-                <div className="mt-2 rounded-lg bg-[#2b2d31] border-l-4 border-l-emerald-500 p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                {/* Discord embed box */}
+                <div className="mt-2 space-y-3 rounded-lg border-l-4 border-l-[#39D98A] bg-[#2b2d31] p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <h3 className="flex items-center gap-2 text-sm font-bold text-white">
                       🛡️ Server Security Verification
                     </h3>
-                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                    <span className="rounded-full border border-[#39D98A]/25 bg-[#39D98A]/10 px-2 py-0.5 font-mono text-[10px] font-bold text-[#39D98A]">
                       {settings.verificationMode.toUpperCase()} GATEWAY
                     </span>
                   </div>
 
-                  <p className="text-xs text-zinc-300 leading-relaxed">
-                    Welcome to the server! To prevent raid bots and automated spam, please verify your account.
+                  <p className="text-xs leading-relaxed text-zinc-300">
+                    Welcome to Crystal Realm! To prevent raid bots and automated spam, please verify your account.
                     {settings.altAgeLimit > 0 && (
-                      <span className="block mt-1 text-[11px] text-amber-300/90">
+                      <span className="mt-1 block text-[11px] text-[#FFB547]/90">
                         ⚡ Note: Accounts younger than {settings.altAgeLimit} days require identity verification.
                       </span>
                     )}
                   </p>
 
-                  <div className="pt-2 border-t border-white/5 flex items-center justify-between text-[11px] text-zinc-400">
+                  <div className="flex items-center justify-between gap-3 border-t border-white/5 pt-2 text-[11px] text-zinc-400">
                     <span>Aura Security Gateway • Verification Gate</span>
-                    <span className="flex items-center gap-1 text-emerald-400">
-                      <CheckCircle2 className="w-3 h-3" /> System Operational
+                    <span className="flex items-center gap-1 text-[#39D98A]">
+                      <CheckCircle2 className="h-3 w-3" /> System Operational
                     </span>
                   </div>
                 </div>
 
-                {/* Interactive Action Button Row */}
-                <div className="mt-3 flex items-center gap-3">
+                {/* Interactive action button row */}
+                <div className="mt-3 flex flex-wrap items-center gap-3">
                   {settings.verificationMode === "web" && (
                     <button
                       onClick={openTestModal}
-                      className="px-4 py-2 rounded-md bg-[#5865F2] hover:bg-[#4752C4] text-white text-xs font-medium transition-all flex items-center gap-2 cursor-pointer shadow-md"
+                      className="flex cursor-pointer items-center gap-2 rounded-md bg-[#7C5CFF] px-4 py-2 text-xs font-medium text-white shadow-md transition-all hover:opacity-90"
                     >
-                      <ExternalLink className="w-3.5 h-3.5" />
+                      <ExternalLink className="h-3.5 w-3.5" />
                       Verify via Web Portal
                     </button>
                   )}
@@ -636,9 +679,9 @@ export default function VerificationModule({ guildId = "default" }) {
                   {settings.verificationMode === "button" && (
                     <button
                       onClick={openTestModal}
-                      className="px-4 py-2 rounded-md bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium transition-all flex items-center gap-2 cursor-pointer shadow-md"
+                      className="flex cursor-pointer items-center gap-2 rounded-md bg-[#39D98A] px-4 py-2 text-xs font-bold text-[#0B0D12] shadow-md transition-all hover:opacity-90"
                     >
-                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <CheckCircle2 className="h-3.5 w-3.5" />
                       Click to Verify
                     </button>
                   )}
@@ -646,68 +689,69 @@ export default function VerificationModule({ guildId = "default" }) {
                   {settings.verificationMode === "math" && (
                     <button
                       onClick={openTestModal}
-                      className="px-4 py-2 rounded-md bg-purple-600 hover:bg-purple-500 text-white text-xs font-medium transition-all flex items-center gap-2 cursor-pointer shadow-md"
+                      className="flex cursor-pointer items-center gap-2 rounded-md bg-[#7C5CFF] px-4 py-2 text-xs font-medium text-white shadow-md transition-all hover:opacity-90"
                     >
-                      <Calculator className="w-3.5 h-3.5" />
+                      <Calculator className="h-3.5 w-3.5" />
                       Solve Math Challenge
                     </button>
                   )}
 
-                  <span className="text-[11px] text-zinc-400 italic">
+                  <span className="text-[11px] italic text-zinc-400">
                     (Click button to test interactive user flow)
                   </span>
                 </div>
               </div>
             </div>
           </div>
-        </div>
-
+        </motion.section>
       </div>
 
-      {/* Interactive Verification Test Simulation Modal */}
+      {/* Interactive verification test simulation modal */}
       <AnimatePresence>
         {testModalOpen && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
           >
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-[#111214] border border-white/10 rounded-2xl p-6 max-w-md w-full shadow-2xl relative"
+              className="panel relative w-full max-w-md p-6 shadow-2xl"
             >
               <button
                 onClick={() => setTestModalOpen(false)}
-                className="absolute top-4 right-4 text-zinc-400 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors"
+                className="absolute right-4 top-4 rounded-lg p-1 text-slate-400 transition-colors hover:bg-white/10 hover:text-white"
               >
-                <X className="w-5 h-5" />
+                <X className="h-5 w-5" />
               </button>
 
-              <div className="flex items-center gap-3 mb-4">
-                <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
-                  <ShieldCheck className="w-5 h-5" />
-                </div>
+              <div className="mb-4 flex items-center gap-3">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#39D98A]/25 bg-[#39D98A]/10 text-[#39D98A]">
+                  <ShieldCheck className="h-4 w-4" />
+                </span>
                 <div>
                   <h3 className="text-base font-bold text-white">
                     {settings.verificationMode === "web" && "Web Captcha Gateway Simulation"}
                     {settings.verificationMode === "button" && "One-Click Verification Test"}
                     {settings.verificationMode === "math" && "Math Challenge Verification"}
                   </h3>
-                  <p className="text-xs text-zinc-400">Interactive preview simulation</p>
+                  <p className="text-xs text-slate-500">Interactive preview simulation</p>
                 </div>
               </div>
 
               {settings.verificationMode === "web" && (
                 <div className="space-y-4 py-2">
-                  <div className="p-4 rounded-xl bg-cyan-950/30 border border-cyan-500/20 text-xs text-cyan-200 leading-relaxed">
-                    🌐 <strong>Web Captcha Flow:</strong> Users click the link to be securely redirected to an OAuth + hCaptcha page. Upon passing hCaptcha, the bot assigns the Verified Role automatically.
+                  <div className="rounded-xl border border-[#5B8CFF]/20 bg-[#5B8CFF]/[0.06] p-4 text-xs leading-relaxed text-slate-300">
+                    🌐 <strong className="text-[#5B8CFF]">Web Captcha Flow:</strong> Users click the
+                    link to be securely redirected to an OAuth + hCaptcha page. Upon passing
+                    hCaptcha, the bot assigns the Verified Role automatically.
                   </div>
                   <button
                     onClick={() => setTestResult("success")}
-                    className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition-all shadow-md cursor-pointer"
+                    className="w-full cursor-pointer rounded-lg bg-[#7C5CFF] py-2.5 text-xs font-semibold text-white shadow-[0_0_18px_rgba(124,92,255,0.35)] transition-colors hover:bg-[#6a4cf0]"
                   >
                     Simulate hCaptcha Solved Pass ✅
                   </button>
@@ -716,12 +760,17 @@ export default function VerificationModule({ guildId = "default" }) {
 
               {settings.verificationMode === "button" && (
                 <div className="space-y-4 py-2">
-                  <div className="p-4 rounded-xl bg-emerald-950/30 border border-emerald-500/20 text-xs text-emerald-200 leading-relaxed">
-                    ✅ <strong>One-Click Flow:</strong> User clicks button, bot immediately grants role <code className="text-emerald-300 font-mono">@{roles.find(r => r.id === settings.verificationRoleId)?.name || "Verified"}</code>.
+                  <div className="rounded-xl border border-[#39D98A]/20 bg-[#39D98A]/[0.06] p-4 text-xs leading-relaxed text-slate-300">
+                    ✅ <strong className="text-[#39D98A]">One-Click Flow:</strong> User clicks the
+                    button, the bot immediately grants role{" "}
+                    <code className="font-mono text-[#39D98A]">
+                      @{roles.find((r) => r.id === settings.verificationRoleId)?.name || "Verified"}
+                    </code>
+                    .
                   </div>
                   <button
                     onClick={() => setTestResult("success")}
-                    className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition-all shadow-md cursor-pointer"
+                    className="w-full cursor-pointer rounded-lg bg-[#7C5CFF] py-2.5 text-xs font-semibold text-white shadow-[0_0_18px_rgba(124,92,255,0.35)] transition-colors hover:bg-[#6a4cf0]"
                   >
                     Simulate Button Verification ✅
                   </button>
@@ -730,42 +779,42 @@ export default function VerificationModule({ guildId = "default" }) {
 
               {settings.verificationMode === "math" && (
                 <form onSubmit={handleTestSubmit} className="space-y-4 py-2">
-                  <div className="p-4 rounded-xl bg-purple-950/30 border border-purple-500/20 text-center space-y-2">
-                    <p className="text-xs text-purple-300 font-medium">Solve the equation to verify:</p>
-                    <div className="text-2xl font-bold font-mono text-white tracking-widest bg-black/40 py-2 rounded-lg border border-purple-500/30">
+                  <div className="space-y-2 rounded-xl border border-[#7C5CFF]/20 bg-[#7C5CFF]/[0.06] p-4 text-center">
+                    <p className="text-xs font-medium text-slate-300">Solve the equation to verify:</p>
+                    <div className="rounded-lg border border-[#7C5CFF]/25 bg-white/[0.03] py-2 font-mono text-2xl font-bold tracking-widest text-white">
                       {testMath.a} + {testMath.b} = ?
                     </div>
                   </div>
 
                   <input
                     type="number"
-                    placeholder="Enter answer (e.g. 12)"
+                    placeholder="Enter the sum..."
                     value={testInput}
                     onChange={(e) => setTestInput(e.target.value)}
-                    className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-purple-500 font-mono text-center"
+                    className={`${fieldCls} text-center font-mono focus:border-[#7C5CFF]/50`}
                     autoFocus
                   />
 
                   <button
                     type="submit"
-                    className="w-full py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-semibold text-xs transition-all shadow-md cursor-pointer"
+                    className="w-full cursor-pointer rounded-lg bg-[#7C5CFF] py-2.5 text-xs font-semibold text-white shadow-[0_0_18px_rgba(124,92,255,0.35)] transition-colors hover:bg-[#6a4cf0]"
                   >
                     Submit Answer
                   </button>
                 </form>
               )}
 
-              {/* Simulation Result Feedback */}
+              {/* Simulation result feedback */}
               {testResult === "success" && (
-                <div className="mt-4 p-3 rounded-xl bg-emerald-950/60 border border-emerald-500/40 text-emerald-300 text-xs flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                  <span>Success! Verified role assigned to member successfully.</span>
+                <div className="mt-4 flex items-center gap-2 rounded-xl border border-[#39D98A]/30 bg-[#39D98A]/[0.08] p-3 text-xs text-[#39D98A]">
+                  <CheckCircle2 className="h-4 w-4 shrink-0 text-[#39D98A]" />
+                  <span>Verified! The member is unlocked and the verified role was assigned.</span>
                 </div>
               )}
 
               {testResult === "error" && (
-                <div className="mt-4 p-3 rounded-xl bg-rose-950/60 border border-rose-500/40 text-rose-300 text-xs flex items-center gap-2">
-                  <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
+                <div className="mt-4 flex items-center gap-2 rounded-xl border border-[#FF5C7A]/30 bg-[#FF5C7A]/[0.08] p-3 text-xs text-[#FF5C7A]">
+                  <AlertTriangle className="h-4 w-4 shrink-0 text-[#FF5C7A]" />
                   <span>Incorrect answer! Please try again.</span>
                 </div>
               )}
@@ -773,6 +822,6 @@ export default function VerificationModule({ guildId = "default" }) {
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+    </motion.div>
   );
 }

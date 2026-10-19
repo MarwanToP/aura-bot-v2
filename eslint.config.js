@@ -1,0 +1,60 @@
+import js from '@eslint/js';
+
+export default [
+  {
+    ignores: [
+      '**/node_modules/**',
+      '**/.next/**',
+      '**/dist/**',
+      '**/build/**',
+      '**/.wrangler/**',
+      '**/reports/**',
+      '**/logs/**',
+    ],
+  },
+  js.configs.recommended,
+  {
+    files: ['**/*.js', '**/*.jsx', '**/*.mjs'],
+    languageOptions: {
+      ecmaVersion: 'latest',
+      sourceType: 'module',
+      parserOptions: {
+        ecmaFeatures: {
+          jsx: true,
+        },
+      },
+      globals: {
+        console: 'readonly',
+        process: 'readonly',
+        Buffer: 'readonly',
+        setTimeout: 'readonly',
+        clearTimeout: 'readonly',
+        setInterval: 'readonly',
+        clearInterval: 'readonly',
+        setImmediate: 'readonly',
+        clearImmediate: 'readonly',
+        fetch: 'readonly',
+        AbortSignal: 'readonly',
+        AbortController: 'readonly',
+        URL: 'readonly',
+        URLSearchParams: 'readonly',
+        requestAnimationFrame: 'readonly',
+        cancelAnimationFrame: 'readonly',
+        window: 'readonly',
+        document: 'readonly',
+        navigator: 'readonly',
+        localStorage: 'readonly',
+        sessionStorage: 'readonly',
+        alert: 'readonly',
+        WebSocket: 'readonly',
+        performance: 'readonly',
+        module: 'readonly',
+      },
+    },
+    rules: {
+      'no-unused-vars': 'off',
+      'no-undef': 'warn',
+      'no-empty': 'off',
+    },
+  },
+];

@@ -1,10 +1,15 @@
 // ================================================================
 //  AURA BOT v2.0 — Server Backup & Restore System (Wicks/Fizbo Inspired)
+//  DISABLED: hidden from slash-command registration until a real
+//  snapshot system (persisted create/restore) ships. The execute logic
+//  below is still fake (random IDs, no persistence) — do not re-enable
+//  it as-is.
 // ================================================================
 import { SlashCommandBuilder, PermissionFlagsBits } from 'discord.js';
 import { buildEmbed } from '../../../shared/utils/embedBuilder.js';
 
 export const backupCommand = {
+  register: false,
   data: new SlashCommandBuilder()
     .setName('backup')
     .setDescription('Create and restore server backups and snapshots')

@@ -1,62 +1,536 @@
 "use client";
 
-import React from "react";
-import { Mail, Trophy, UserCheck, ShieldAlert, Award } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { motion } from "framer-motion";
+import { Mail, UserCheck, ShieldAlert, Award, LogOut, Users } from "lucide-react";
 
-export default function InviteSettings() {
-  const milestones = [
-    { invites: 5, role: "@Regular Member", color: "text-blue-400" },
-    { invites: 15, role: "@VIP Supporter", color: "text-purple-400" },
-    { invites: 30, role: "@Invite Master", color: "text-amber-400" },
-  ];
+/* ────────────────────────────── motion helpers ────────────────────────────── */
+
+const EASE = [0.22, 1, 0.36, 1];
+
+const stagger = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.055, delayChildren: 0.03 } },
+};
+
+const rise = {
+  hidden: { opacity: 0, y: 12 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: EASE } },
+};
+
+/* Count-up hook (respects reduced motion) */
+function useCountUp(target, { duration = 1100 } = {}) {
+  const [val, setVal] = useState(0);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const reduce =
+      window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduce) {
+      setVal(target);
+      return;
+    }
+    let raf;
+    const t0 = performance.now();
+    const tick = (t) => {
+      const p = Math.min(1, (t - t0) / duration);
+      const eased = 1 - Math.pow(1 - p, 3);
+      setVal(target * eased);
+      if (p < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [target, duration]);
+
+  return val;
+}
+
+/* ────────────────────────────── static data ────────────────────────────── */
+
+const STATS = [
+  {
+    label: "Total Server Invites",
+    value: 18204,
+    note: "+342 this week",
+    color: "#5B8CFF",
+    icon: Mail,
+  },
+  {
+    label: "Real Joins",
+    value: 15842,
+    note: "87% of tracked joins",
+    color: "#39D98A",
+    icon: UserCheck,
+  },
+  {
+    label: "Fake / Left Invites",
+    value: 2362,
+    note: "flagged or left within 24h",
+    color: "#FF5C7A",
+    icon: ShieldAlert,
+  },
+];
+
+const MILESTONES = [
+  { invites: 5, role: "@Regular Member", color: "#5B8CFF", granted: "2,140" },
+  { invites: 15, role: "@VIP Supporter", color: "#7C5CFF", granted: "486" },
+  { invites: 30, role: "@Invite Master", color: "#FFB547", granted: "92" },
+];
+
+/* ────────────────────────────── api mapping ────────────────────────────── */
+
+/* "…1a2b3c" — muted fallback when the member name could not be resolved */
+const shortUserId = (id) => {
+  const s = String(id ?? "");
+  if (!s) return "unknown";
+  return s.length > 6 ? `…${s.slice(-6)}` : s;
+};
+
+/* only ever render <img> for Discord CDN avatar URLs — never arbitrary strings */
+const isTrustedAvatar = (url) =>
+  typeof url === "string" && url.startsWith("https://cdn.discordapp.com/");
+
+function hashHue(str) {
+  let h = 0;
+  for (let i = 0; i < str.length; i += 1) h = (h * 31 + str.charCodeAt(i)) % 360;
+  return h;
+}
+
+function mapInviteRow(row) {
+  const userId = String(row?.userId ?? "");
+  const name = typeof row?.name === "string" && row.name.trim() ? row.name.trim() : null;
+  return {
+    userId,
+    name,
+    avatarUrl: isTrustedAvatar(row?.avatarUrl) ? row.avatarUrl : null,
+    invites: Number(row?.invites) || 0,
+    fake: Number(row?.fake) || 0,
+    left: Number(row?.left) || 0,
+    valid: Number(row?.valid) || 0,
+  };
+}
+
+/* inviteConfig.rankRewards is a bot-owned JSONB blob — read every key spelling it has
+   used rather than assuming one shape. */
+const toInt = (v) => {
+  const n = Number(v);
+  return Number.isFinite(n) ? Math.round(n) : 0;
+};
+
+function roleDotColor(color) {
+  if (typeof color === "string" && /^#[0-9a-f]{6}$/i.test(color)) return color;
+  const n = Number(color);
+  if (Number.isFinite(n) && n > 0) return `#${(n & 0xffffff).toString(16).padStart(6, "0")}`;
+  return "#64748B";
+}
+
+function mapMilestoneRewards(raw) {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((entry) => {
+      if (!entry || typeof entry !== "object") return null;
+      const invites = toInt(
+        entry.invites ?? entry.rank ?? entry.threshold ?? entry.required ?? entry.amount
+      );
+      const roleName =
+        typeof entry.roleName === "string" && entry.roleName.trim()
+          ? entry.roleName.trim()
+          : typeof entry.role === "string" && entry.role.trim() && !/^\d+$/.test(entry.role.trim())
+            ? entry.role.trim()
+            : null;
+      const roleId =
+        entry.roleId != null
+          ? String(entry.roleId)
+          : typeof entry.role === "string" && /^\d{5,}$/.test(entry.role.trim())
+            ? entry.role.trim()
+            : null;
+      if (!invites && !roleId && !roleName) return null;
+      return { invites, roleId, roleName, color: roleDotColor(entry.color) };
+    })
+    .filter(Boolean);
+}
+
+/* real-mode totals are client-side sums across the returned leaderboard rows
+   (the route caps them at 25 inviters) — the notes say so, so they are never read as
+   a server-wide total. */
+const REAL_STATS = [
+  {
+    key: "invites",
+    label: "Tracked invites",
+    note: (n) => `sum across the top ${n} inviter${n === 1 ? "" : "s"} — not a server-wide total`,
+    color: "#5B8CFF",
+    icon: Mail,
+  },
+  { key: "fake", label: "Fake", note: (n) => `flagged or counted as fake · top ${n}`, color: "#FF5C7A", icon: ShieldAlert },
+  { key: "left", label: "Left", note: (n) => `joined, then left the server · top ${n}`, color: "#FFB547", icon: LogOut },
+  { key: "valid", label: "Valid", note: (n) => `invites − fake − left · top ${n}`, color: "#39D98A", icon: UserCheck },
+];
+
+/* ────────────────────────────── pieces ────────────────────────────── */
+
+function StatCard({ s, index }) {
+  const count = useCountUp(s.value, { duration: 900 + index * 120 });
+  const Icon = s.icon;
 
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-extrabold text-white flex items-center gap-2.5">
-            <Mail className="w-5 h-5 text-purple-400" />
-            Invite Tracker & Milestone Rewards (invite-tracker.com)
-          </h2>
-          <p className="text-xs text-zinc-400 mt-1">
-            Track real vs fake invites, prevent self-invite cheating, and award automatic milestone roles.
-          </p>
+    <motion.div variants={rise} className="panel panel-hover p-5">
+      <div className="flex items-center justify-between gap-2">
+        <span className="section-label">{s.label}</span>
+        <span
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg"
+          style={{ backgroundColor: `${s.color}1A`, color: s.color }}
+        >
+          <Icon className="h-3.5 w-3.5" />
+        </span>
+      </div>
+      <div className="mt-2 text-2xl font-extrabold text-white tabular-nums">
+        {Math.round(count).toLocaleString("en-US")}
+      </div>
+      <div className="mt-1 text-[11px] font-medium text-slate-500">{s.note}</div>
+    </motion.div>
+  );
+}
+
+function CountChip({ value, label, color }) {
+  const n = Number(value) || 0;
+  return (
+    <span
+      className="shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold tabular-nums"
+      style={{ borderColor: `${color}40`, color, background: `${color}12` }}
+    >
+      {n.toLocaleString("en-US")} {label}
+    </span>
+  );
+}
+
+function InviteRow({ row, rank }) {
+  const [broken, setBroken] = useState(false);
+  const display = row.name || shortUserId(row.userId);
+  const initials =
+    (row.name || row.userId || "?").replace(/[^a-z0-9]/gi, "").slice(0, 2).toUpperCase() || "?";
+  const hue = hashHue(row.userId || display);
+
+  return (
+    <div className="flex flex-wrap items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3.5 py-3 transition-colors hover:bg-white/[0.04]">
+      <span className="w-5 shrink-0 text-center text-[10px] font-bold tabular-nums text-slate-600">
+        {rank}
+      </span>
+
+      {row.avatarUrl && !broken ? (
+        <img
+          src={row.avatarUrl}
+          alt=""
+          referrerPolicy="no-referrer"
+          loading="lazy"
+          onError={() => setBroken(true)}
+          className="h-8 w-8 shrink-0 rounded-full border border-white/[0.06] object-cover"
+        />
+      ) : (
+        <span
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white"
+          style={{
+            background: `linear-gradient(135deg, hsl(${hue} 70% 55%), hsl(${(hue + 40) % 360} 70% 45%))`,
+          }}
+        >
+          {initials}
+        </span>
+      )}
+
+      <div className="min-w-0 flex-1">
+        <div
+          className={`truncate text-xs font-bold ${
+            row.name ? "text-white" : "font-mono text-slate-500"
+          }`}
+        >
+          {display}
         </div>
       </div>
 
-      {/* Stats Summary */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-        <div className="dark-panel p-5">
-          <div className="text-[11px] text-zinc-400 font-mono font-bold uppercase">Total Server Invites</div>
-          <div className="text-2xl font-black text-white mt-1">4,892</div>
-        </div>
-        <div className="dark-panel p-5">
-          <div className="text-[11px] text-zinc-400 font-mono font-bold uppercase">Real Joins</div>
-          <div className="text-2xl font-black text-emerald-400 mt-1">4,120</div>
-        </div>
-        <div className="dark-panel p-5">
-          <div className="text-[11px] text-zinc-400 font-mono font-bold uppercase">Fake / Left Invites</div>
-          <div className="text-2xl font-black text-rose-400 mt-1">772</div>
-        </div>
-      </div>
-
-      {/* Milestone Roles List */}
-      <div className="dark-panel p-6 space-y-4">
-        <h3 className="text-sm font-extrabold text-white flex items-center gap-2">
-          <Award className="w-4 h-4 text-purple-400" />
-          Invite Milestone Role Rewards
-        </h3>
-
-        <div className="space-y-3">
-          {milestones.map((m) => (
-            <div key={m.invites} className="flex items-center justify-between p-3.5 rounded-xl bg-[#0b0d14] border border-[#1e2333]">
-              <span className="text-xs font-bold text-white">{m.invites} Invites Required</span>
-              <span className={`text-xs font-mono font-bold ${m.color}`}>{m.role}</span>
-            </div>
-          ))}
-        </div>
+      <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
+        <CountChip value={row.invites} label="invites" color="#5B8CFF" />
+        <CountChip value={row.valid} label="valid" color="#39D98A" />
+        {row.fake > 0 && <CountChip value={row.fake} label="fake" color="#FF5C7A" />}
+        {row.left > 0 && <CountChip value={row.left} label="left" color="#FFB547" />}
       </div>
     </div>
+  );
+}
+
+/* ══════════════════════════════════ main ══════════════════════════════ */
+
+export default function InviteSettings({ guildId }) {
+  /* null = demo/fallback mode (guest, in flight, or fetch failure) */
+  const [leaderboard, setLeaderboard] = useState(null);
+  /* undefined = still loading, null = load failed, [] = server has none configured */
+  const [milestones, setMilestones] = useState(undefined);
+  const [roleMap, setRoleMap] = useState({});
+
+  useEffect(() => {
+    if (!guildId) {
+      setLeaderboard(null);
+      return undefined;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/guilds/${guildId}/invites/leaderboard`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (cancelled) return;
+        setLeaderboard(
+          (Array.isArray(data?.leaderboard) ? data.leaderboard : []).map(mapInviteRow)
+        );
+      } catch (err) {
+        if (cancelled) return;
+        console.warn(
+          "[InviteSettings] Failed to load invite leaderboard — showing demo data:",
+          err
+        );
+        setLeaderboard(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [guildId]);
+
+  /* milestone roles — persisted in inviteConfig.rankRewards (GET /invites) */
+  useEffect(() => {
+    if (!guildId) {
+      setMilestones(null);
+      setRoleMap({});
+      return undefined;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/guilds/${guildId}/invites`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        const rows = mapMilestoneRewards(data?.config?.rankRewards);
+        if (cancelled) return;
+        setMilestones(rows);
+
+        /* Display-only: resolve reward roleIds to names/colors via GET /roles (5-min cached server-side). */
+        if (rows.some((m) => m.roleId)) {
+          try {
+            const rres = await fetch(`/api/guilds/${guildId}/roles`);
+            if (!rres.ok) throw new Error(`HTTP ${rres.status}`);
+            const rdata = await rres.json();
+            if (cancelled) return;
+            const map = {};
+            (Array.isArray(rdata?.roles) ? rdata.roles : []).forEach((role) => {
+              if (role?.id != null) map[String(role.id)] = role;
+            });
+            setRoleMap(map);
+          } catch {
+            /* silent — milestones fall back to muted short role ids */
+          }
+        } else {
+          setRoleMap({});
+        }
+      } catch (err) {
+        if (cancelled) return;
+        console.warn("[InviteSettings] Failed to load invite milestones — showing demo data:", err);
+        setMilestones(null);
+        setRoleMap({});
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [guildId]);
+
+  const isReal = leaderboard !== null;
+
+  const sums = isReal
+    ? leaderboard.reduce(
+        (acc, r) => ({
+          invites: acc.invites + r.invites,
+          fake: acc.fake + r.fake,
+          left: acc.left + r.left,
+          valid: acc.valid + r.valid,
+        }),
+        { invites: 0, fake: 0, left: 0, valid: 0 }
+      )
+    : null;
+
+  const stats = isReal
+    ? REAL_STATS.map((s) => ({
+        label: s.label,
+        note: leaderboard.length > 0 ? s.note(leaderboard.length) : "no inviters tracked yet",
+        color: s.color,
+        icon: s.icon,
+        value: sums[s.key],
+      }))
+    : STATS;
+
+  return (
+    <motion.div variants={stagger} initial="hidden" animate="show" className="space-y-5 text-white">
+      {/* Header */}
+      <motion.div variants={rise} className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h2 className="flex items-center gap-2.5 text-lg font-extrabold">
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#7C5CFF]/25 bg-[#7C5CFF]/10 text-[#7C5CFF]">
+              <Mail className="h-4 w-4" />
+            </span>
+            Invite Tracker &amp; Milestone Rewards
+          </h2>
+          <p className="mt-1.5 font-body text-xs text-slate-500">
+            Track real vs fake invites, prevent self-invite cheating, and award automatic
+            milestone roles.
+          </p>
+        </div>
+      </motion.div>
+
+      {/* Stats summary */}
+      <motion.div
+        variants={stagger}
+        className={
+          isReal
+            ? "grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4"
+            : "grid grid-cols-1 gap-4 sm:grid-cols-3"
+        }
+      >
+        {stats.map((s, i) => (
+          <StatCard key={s.label} s={s} index={i} />
+        ))}
+      </motion.div>
+
+      {/* Milestone roles */}
+      <motion.div variants={rise} className="panel p-5">
+        <div className="flex items-center gap-3">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#7C5CFF]/25 bg-[#7C5CFF]/10 text-[#7C5CFF]">
+            <Award className="h-4 w-4" />
+          </span>
+          <div className="min-w-0">
+            <h3 className="text-sm font-extrabold text-white">Invite Milestone Role Rewards</h3>
+            <p className="mt-1 text-xs text-slate-500">
+              Granted the moment a member hits the threshold
+            </p>
+          </div>
+        </div>
+
+        {milestones && milestones.length > 0 ? (
+          <div className="mt-4 space-y-2">
+            {milestones.map((m, i) => {
+              const info = m.roleId ? roleMap[m.roleId] : null;
+              const resolvedName =
+                info && typeof info.name === "string" && info.name ? info.name : null;
+              const label = m.roleName || resolvedName;
+              const color = info ? roleDotColor(info.color) : m.color;
+              return (
+                <div
+                  key={m.roleId || `${m.invites}-${i}`}
+                  className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3.5 py-3 transition-colors hover:bg-white/[0.04]"
+                >
+                  <div className="min-w-0">
+                    <div className="text-xs font-bold text-white">
+                      {m.invites
+                        ? `${m.invites} Invite${m.invites === 1 ? "" : "s"} Required`
+                        : "Invite milestone"}
+                    </div>
+                    <div className="mt-0.5 text-[10px] text-slate-600">
+                      Granted automatically when a member reaches the threshold
+                    </div>
+                  </div>
+                  <span
+                    className="shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold"
+                    style={{
+                      borderColor: `${color}40`,
+                      color,
+                      background: `${color}12`,
+                    }}
+                  >
+                    {label ? `@${label.replace(/^@/, "")}` : shortUserId(m.roleId)}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        ) : !isReal ? (
+          <div className="mt-4 space-y-2">
+            {MILESTONES.map((m) => (
+              <div
+                key={m.invites}
+                className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3.5 py-3 transition-colors hover:bg-white/[0.04]"
+              >
+                <div className="min-w-0">
+                  <div className="text-xs font-bold text-white">{m.invites} Invites Required</div>
+                  <div className="mt-0.5 text-[10px] text-slate-600">
+                    Granted to {m.granted} members
+                  </div>
+                </div>
+                <span
+                  className="shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold"
+                  style={{
+                    borderColor: `${m.color}40`,
+                    color: m.color,
+                    background: `${m.color}12`,
+                  }}
+                >
+                  {m.role}
+                </span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="mt-4 flex items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3.5 py-3">
+            <Award className="h-4 w-4 shrink-0 text-slate-700" />
+            <div className="min-w-0">
+              <div className="text-xs font-bold text-slate-400">
+                {milestones === undefined
+                  ? "Loading milestone roles…"
+                  : milestones === null
+                    ? "Couldn't load milestone roles right now"
+                    : "No milestone roles configured yet"}
+              </div>
+              <div className="mt-0.5 text-[10px] text-slate-600">
+                {milestones === undefined
+                  ? "Reading this server's invite configuration."
+                  : milestones === null
+                    ? "Reopen this page to retry — nothing here can be edited from the dashboard."
+                    : "This server has no invite milestones saved — configure them from the bot."}
+              </div>
+            </div>
+          </div>
+        )}
+      </motion.div>
+
+      {/* Invite leaderboard — real mode only (no demo rows exist for this section) */}
+      {isReal && (
+        <motion.div variants={rise} className="panel p-5">
+          <div className="flex items-center gap-3">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#7C5CFF]/25 bg-[#7C5CFF]/10 text-[#7C5CFF]">
+              <Users className="h-4 w-4" />
+            </span>
+            <div className="min-w-0">
+              <h3 className="text-sm font-extrabold text-white">Top inviters</h3>
+              <p className="mt-1 text-xs text-slate-500">
+                Ranked by tracked invites — top {leaderboard.length}
+              </p>
+            </div>
+          </div>
+
+          {leaderboard.length === 0 ? (
+            <div className="mt-4 flex items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3.5 py-3">
+              <Users className="h-4 w-4 shrink-0 text-slate-700" />
+              <div className="min-w-0">
+                <div className="text-xs font-bold text-slate-400">No tracked invites yet</div>
+                <div className="mt-0.5 text-[10px] text-slate-600">
+                  Invites will appear here once members start inviting.
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="mt-4 space-y-2">
+              {leaderboard.map((row, i) => (
+                <InviteRow key={row.userId || i} row={row} rank={i + 1} />
+              ))}
+            </div>
+          )}
+        </motion.div>
+      )}
+    </motion.div>
   );
 }

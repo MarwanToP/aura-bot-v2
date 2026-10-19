@@ -30,4 +30,4 @@ EXPOSE 7860 3000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
   CMD sh -c 'if [ "${MODE:-}" = "BOT" ] && [ -z "${PORT:-}" ]; then exit 0; fi; wget -qO- "http://localhost:${PORT:-7860}/api/health" >/dev/null || exit 1'
 
-CMD ["node", "main.js"]
+CMD ["npm", "start"]

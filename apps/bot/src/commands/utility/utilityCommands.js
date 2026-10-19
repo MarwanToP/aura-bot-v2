@@ -2,7 +2,7 @@
 //  Commands: /settings /ticket /rank /leaderboard /help /lockdown
 //            /invites /search
 // ================================================================
-import { SlashCommandBuilder, PermissionFlagsBits, ChannelType } from 'discord.js';
+import { SlashCommandBuilder, PermissionFlagsBits, ChannelType, MessageFlags } from 'discord.js';
 import { buildEmbed }  from '../../../shared/utils/embedBuilder.js';
 import { levelFromXp, getLeaderboard, getUserRank, generateRankCard, applyXpDecay } from '../../../shared/systems/leveling/levelingSystem.js';
 import { activateLockdown, liftLockdown, isInLockdown } from '../../../shared/systems/antinuke/antiRaid.js';
@@ -82,7 +82,7 @@ export const settings = {
     ),
   userPermissions: [PermissionFlagsBits.ManageGuild], guildOnly: true, cooldown: 3000,
   async execute(client, interaction) {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     const sub  = interaction.options.getSubcommand();
     const lang = await client.i18n.resolveLanguage(client, interaction.user.id, interaction.guildId);
     const { GuildSettings } = client.db.models;
@@ -200,6 +200,7 @@ export const leaderboard = {
 
 // ─── /help ────────────────────────────────────────────────────
 export const help = {
+  register: false,
   data: new SlashCommandBuilder()
     .setName('help')
     .setDescription('View all commands & feature categories')
@@ -283,7 +284,7 @@ export const help = {
             footer: 'Aura Bot v2.0 • Use /help to see all categories',
             timestamp: true,
           })],
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       }
     }
@@ -307,14 +308,13 @@ export const help = {
         footer: `Aura v${config.version} • Operating across ${guildCount} server(s)`,
         timestamp: true,
       })],
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
   },
 };
 
 // ─── /search ──────────────────────────────────────────────────
 export const search = {
-  register: false,
   data: new SlashCommandBuilder()
     .setName('search')
     .setDescription('Search anything with AI summary')
@@ -342,12 +342,14 @@ export const search = {
 
 // ─── /ping ────────────────────────────────────────────────────
 export const ping = {
+  register: false,
   data: new SlashCommandBuilder()
     .setName('ping')
     .setDescription('Check bot latency and uptime'),
   cooldown: 5000,
   async execute(client, interaction) {
-    const sent = await interaction.deferReply({ fetchReply: true });
+    const response = await interaction.deferReply({ withResponse: true });
+    const sent = response?.resource?.message;
     const delay = sent?.createdTimestamp ? (sent.createdTimestamp - interaction.createdTimestamp) : 0;
     
     return interaction.editReply({ 

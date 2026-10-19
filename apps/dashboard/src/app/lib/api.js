@@ -2,21 +2,6 @@
 
 import { useState, useEffect } from "react";
 
-export async function fetchStats() {
-  try {
-    const res = await fetch("/api/stats");
-    if (!res.ok) throw new Error("API stats failed");
-    return await res.json();
-  } catch (err) {
-    return {
-      guildCount: 1420,
-      userCount: 849200,
-      uptime: 99.98,
-      ping: 14,
-    };
-  }
-}
-
 export async function fetchGuildModules(guildId = "default") {
   try {
     const res = await fetch(`/api/guilds/${guildId}/modules`);
@@ -41,8 +26,12 @@ export async function updateGuildModules(guildId = "default", modules) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(modules),
     });
+    if (!res.ok) {
+      const body = await res.json().catch(() => null);
+      return { success: false, error: body?.error || "Failed to save module settings" };
+    }
     return await res.json();
   } catch (err) {
-    return { success: true, modules };
+    return { success: false, error: "Network error" };
   }
 }

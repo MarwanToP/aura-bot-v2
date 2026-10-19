@@ -2,7 +2,7 @@
 //  AURA BOT v2.0 — Suggestions System
 //  Users submit, vote, admins approve/reject
 // ================================================================
-import { SlashCommandBuilder, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
+import { SlashCommandBuilder, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } from 'discord.js';
 import { buildEmbed } from '../../../shared/utils/embedBuilder.js';
 import { Op } from 'sequelize';
 
@@ -83,11 +83,11 @@ export const suggest = {
     if (group === 'admin' && !interaction.member.permissions.has(PermissionFlagsBits.ManageGuild)) {
       return interaction.reply({
         embeds: [buildEmbed({ type: 'error', description: '❌ You need `Manage Server` permission for this.' })],
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
-    await interaction.deferReply({ ephemeral: group === 'admin' }).catch(() => {});
+    await interaction.deferReply({ flags: group === 'admin' ? MessageFlags.Ephemeral : undefined }).catch(() => {});
 
     try {
       const { GuildSettings, Suggestion } = client.db.models;
@@ -123,8 +123,8 @@ export const suggest = {
           timestamp: true,
         });
         const components = [new ActionRowBuilder().addComponents(
-          new ButtonBuilder().setCustomId(`suggest_upvote:${row.id}`).setLabel('Upvote').setStyle(ButtonStyle.Success).setEmoji('👍'),
-          new ButtonBuilder().setCustomId(`suggest_downvote:${row.id}`).setLabel('Downvote').setStyle(ButtonStyle.Danger).setEmoji('👎'),
+          new ButtonBuilder().setCustomId(`suggest:upvote:${row.id}`).setLabel('Upvote').setStyle(ButtonStyle.Success).setEmoji('👍'),
+          new ButtonBuilder().setCustomId(`suggest:downvote:${row.id}`).setLabel('Downvote').setStyle(ButtonStyle.Danger).setEmoji('👎'),
         )];
 
         const msg = await channel.send({ embeds: [embed], components });
@@ -241,3 +241,80 @@ export const suggest = {
 };
 
 export default suggest;
+
+/**
+ * Handle upvote/downvote clicks on suggestion messages.
+ * Registered via the component router (events/interactionCreate `getHandler` map).
+ */
+export async function handleButton(client, interaction, data) {
+  const parts = String(data || '').split(':');
+  const action = parts[0];
+  const id = parseInt(parts[1], 10);
+  if (!['upvote', 'downvote'].includes(action) || !Number.isInteger(id)) return;
+
+  await interaction.deferUpdate().catch(() => {});
+
+  const { Suggestion, GuildSettings } = client.db?.models || {};
+  const row = await Suggestion?.findOne?.({ where: { id } }).catch(() => null);
+  if (!row) return;
+
+  const uid = interaction.user.id;
+  const redis = client.redis;
+  let duplicate = false;
+  try {
+    if (redis?.status === 'ready') {
+      const res = await redis.set(`suggest:vote:${action}:${id}:${uid}`, '1', 'NX', 'EX', 604800);
+      // ioredis returns null when NX is not set; treat anything unexpected as allowed
+      if (res === null) duplicate = true;
+    }
+  } catch {}
+
+  if (duplicate) {
+    await interaction.followUp({ content: '❌ You already voted on this suggestion.', flags: MessageFlags.Ephemeral }).catch(() => {});
+    return;
+  }
+
+  const field = action === 'upvote' ? 'upvotes' : 'downvotes';
+  try {
+    await row.update({ [field]: (row[field] ?? 0) + 1 });
+  } catch {}
+
+  // Refresh button labels with the new counts (best-effort; counts already persisted).
+  const refreshed = await Suggestion?.findOne?.({ where: { id } }).catch(() => null) || row;
+  const up = refreshed?.upvotes ?? row.upvotes;
+  const down = refreshed?.downvotes ?? row.downvotes;
+
+  const components = [new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId(`suggest:upvote:${id}`).setLabel(`👍 ${up}`).setStyle(ButtonStyle.Success),
+    new ButtonBuilder().setCustomId(`suggest:downvote:${id}`).setLabel(`👎 ${down}`).setStyle(ButtonStyle.Danger),
+  )];
+
+  await interaction.update({ components }).catch(() => {});
+
+  // Best-effort: edit original suggestion message to display the new counts where a channel is stored.
+  try {
+    const settings = await GuildSettings?.findOne?.({ where: { guildId: row.guildId } }).catch(() => null);
+    const channel = settings?.suggestionsChannelId
+      ? interaction.guild?.channels?.cache?.get(settings.suggestionsChannelId)
+      : null;
+    const msg = channel?.isTextBased?.() && row.messageId ? await channel.messages.fetch(row.messageId).catch(() => null) : null;
+    if (msg) {
+      const updatedEmbed = buildEmbed({
+        type: 'primary',
+        title: '💡 Suggestion',
+        description: row.content,
+        color: 0xFFBB33,
+        fields: [
+          { name: '👤 Author', value: `<@${row.userId}>`, inline: true },
+          { name: '🆔 ID', value: `\`#${row.id}\``, inline: true },
+          { name: '📊 Status', value: STATUS_LABEL[row.status] || row.status, inline: true },
+          { name: '👍 Upvotes', value: `${up}`, inline: true },
+          { name: '👎 Downvotes', value: `${down}`, inline: true },
+        ],
+        footer: 'Thanks for voting!',
+        timestamp: true,
+      });
+      await msg.edit({ embeds: [updatedEmbed], components }).catch(() => {});
+    }
+  } catch {}
+}

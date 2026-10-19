@@ -77,3 +77,69 @@ model StaffMember {
   @@unique([guildId, userId])
   @@map("staff_members")
 }
+
+model Ticket {
+  id              String    @id @default(uuid())
+  ticketId        String
+  guildId         String
+  userId          String
+  channelId       String
+  category        String    @default("General")
+  subject         String?
+  priority        String    @default("Medium")
+  status          String    @default("open")
+  tier            Int       @default(1)
+  claimedBy       String?
+  satisfaction    Int?
+  closedBy        String?
+  closedAt        DateTime?
+  firstResponseAt DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([guildId, userId])
+  @@map("tickets")
+}
+
+model TicketPanel {
+  id          String   @id @default(uuid())
+  panelId     String
+  guildId     String
+  channelId   String
+  messageId   String?
+  title       String   @default("🎫 Aura Support Portal")
+  description String   @default("Access our specialized support departments below.")
+  categories  Json     @default("[]")
+  createdAt   DateTime @default(now())
+
+  @@map("ticket_panels")
+}
+
+model VerificationSetting {
+  guildId               String   @id
+  verificationEnabled   Boolean  @default(false)
+  verificationRoleId    String?
+  verificationChannelId String?
+  verificationMessageId String?
+  unverifiedRoleId      String?
+  verificationMode      String   @default("button")
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@map("verification_settings")
+}
+
+model ReactionRole {
+  id        String   @id @default(uuid())
+  guildId   String
+  channelId String
+  messageId String
+  emoji     String
+  roleId    String
+  type      String   @default("toggle")
+  createdAt DateTime @default(now())
+
+  @@index([guildId, messageId])
+  @@map("reaction_roles")
+}
+

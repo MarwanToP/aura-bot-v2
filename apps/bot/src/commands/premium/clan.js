@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
+import { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } from 'discord.js';
 import { buildEmbed } from '../../../shared/utils/embedBuilder.js';
 
 export const clan = {
@@ -29,7 +29,8 @@ export const clan = {
         new ButtonBuilder().setCustomId('clan_kick').setLabel('Kick Member').setStyle(ButtonStyle.Danger).setEmoji('👢'),
         new ButtonBuilder().setCustomId('clan_upgrades').setLabel('Purchases/Upgrades').setStyle(ButtonStyle.Success).setEmoji('💰')
       );
-      const msg = await interaction.reply({ embeds: [embed], components: [row], fetchReply: true });
+      const response = await interaction.reply({ embeds: [embed], components: [row], withResponse: true });
+      const msg = response?.resource?.message;
       const collector = msg.createMessageComponentCollector({
         filter: i => i.user.id === interaction.user.id,
         time: 120000,
@@ -52,7 +53,7 @@ export const clan = {
             title: '🛡️ Clan Dashboard',
             description: `**${actionLabel}** workflow is not available yet in this build.`,
           })],
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       });
 

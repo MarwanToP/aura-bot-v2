@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <defs>
+    <linearGradient id="auraGlyphGrad" x1="50%" y1="0%" x2="50%" y2="100%">
+      <stop offset="0%" stop-color="#9B82FF"/>
+      <stop offset="45%" stop-color="#7C5CFF"/>
+      <stop offset="100%" stop-color="#5B8CFF"/>
+    </linearGradient>
+    <linearGradient id="auraStarGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="50%" stop-color="#C4B5FD"/>
+      <stop offset="100%" stop-color="#93C5FD"/>
+    </linearGradient>
+  </defs>
+  <rect x="4" y="4" width="192" height="192" rx="48" fill="#0E111A" stroke="#7C5CFF" stroke-opacity="0.35" stroke-width="4"/>
+  <path
+    d="M 100 30 L 160 162 L 141 149 L 124 161 L 108 124 L 92 124 L 76 161 L 59 149 L 40 162 Z"
+    fill="url(#auraGlyphGrad)"
+  />
+  <path
+    d="M 100 84 Q 100 104 113 104 Q 100 104 100 124 Q 100 104 87 104 Q 100 104 100 84 Z"
+    fill="url(#auraStarGrad)"
+  />
+</svg>

@@ -1,173 +1,288 @@
 "use client";
+
 import React, { useState } from "react";
-import { motion } from "framer-motion";
-import { UserPlus, Clock, Shield, Save, RotateCcw } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { UserPlus, Clock, Shield, Save, Sparkles, CheckCircle2 } from "lucide-react";
+
+/* ────────────────────────────── motion helpers ────────────────────────────── */
+
+const EASE = [0.22, 1, 0.36, 1];
+
+const stagger = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.055, delayChildren: 0.03 } },
+};
+
+const rise = {
+  hidden: { opacity: 0, y: 12 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: EASE } },
+};
+
+/* ────────────────────────────── shared styles ────────────────────────────── */
+
+const inputCls =
+  "w-full bg-white/[0.03] border border-white/[0.08] rounded-lg px-3 py-2 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-[#7C5CFF]/50 transition-colors";
+
+const btnPrimary =
+  "inline-flex items-center gap-2 bg-[#7C5CFF] hover:bg-[#6a4cf0] text-white text-xs font-semibold rounded-lg px-3.5 py-2 transition-colors shadow-[0_0_18px_rgba(124,92,255,0.35)] cursor-pointer";
+
+/* ────────────────────────────── data ────────────────────────────── */
 
 const SAMPLE_ROLES = [
-  { id: '111111111111111111', name: 'Verified Member', color: '#10B981' },
-  { id: '222222222222222222', name: 'Unverified Guest', color: '#6B7280' },
-  { id: '333333333333333333', name: 'Server VIP', color: '#F59E0B' },
-  { id: '444444444444444444', name: 'Moderator', color: '#3B82F6' },
+  { id: "1128439813574934590", name: "Verified", color: "#39D98A" },
+  { id: "1128439813574934591", name: "Unverified", color: "#8B92A5" },
+  { id: "1128439813574934592", name: "Server VIP", color: "#FFB547" },
+  { id: "1128439813574934593", name: "Moderator", color: "#5B8CFF" },
 ];
 
-export default function AutoRolesSettings() {
-  const [autoRoleId, setAutoRoleId] = useState('111111111111111111');
-  const [autoRoleDelay, setAutoRoleDelay] = useState(0);
-  const [roleSearch, setRoleSearch] = useState('');
+/* ══════════════════════════════════ main ══════════════════════════════ */
 
-  const filteredRoles = SAMPLE_ROLES.filter(r =>
+export default function AutoRolesSettings() {
+  const [autoRoleId, setAutoRoleId] = useState(SAMPLE_ROLES[0].id);
+  const [autoRoleDelay, setAutoRoleDelay] = useState(0);
+  const [roleSearch, setRoleSearch] = useState("");
+  const [toast, setToast] = useState(null);
+
+  const showToast = (msg) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 3200);
+  };
+
+  const filteredRoles = SAMPLE_ROLES.filter((r) =>
     r.name.toLowerCase().includes(roleSearch.toLowerCase())
   );
-  const selectedRole = SAMPLE_ROLES.find(r => r.id === autoRoleId);
+  const selectedRole = SAMPLE_ROLES.find((r) => r.id === autoRoleId);
 
   return (
-    <div className="space-y-8">
-      <div className="flex items-center justify-between">
+    <motion.div variants={stagger} initial="hidden" animate="show" className="space-y-5 text-white">
+      {/* Toast */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            initial={{ opacity: 0, y: 12, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 8, scale: 0.99 }}
+            className="fixed bottom-6 right-6 z-[90] panel px-4 py-3 flex items-center gap-2.5 text-xs font-semibold shadow-2xl shadow-black/60"
+          >
+            <CheckCircle2 className="w-4 h-4 text-[#39D98A]" />
+            <span>{toast}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Header */}
+      <motion.div variants={rise} className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-extrabold text-white flex items-center gap-2.5">
-            <UserPlus className="w-5 h-5 text-purple-400" />
-            Auto Roles (MEE6 / ProBot Style)
+          <h2 className="flex items-center gap-2.5 text-lg font-extrabold">
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#7C5CFF]/25 bg-[#7C5CFF]/10 text-[#7C5CFF]">
+              <UserPlus className="h-4 w-4" />
+            </span>
+            Auto Roles
           </h2>
-          <p className="text-xs text-zinc-400 mt-1">
-            Automatically assign a role to every new member when they join your server.
+          <p className="mt-1.5 font-body text-xs text-slate-500">
+            Automatically assign a role to every new member when they join Crystal Realm.
           </p>
         </div>
         <motion.button
-          whileHover={{ scale: 1.03 }}
-          whileTap={{ scale: 0.97 }}
-          className="px-5 py-2 rounded-xl gradient-active-btn text-white text-xs font-bold flex items-center gap-2"
+          type="button"
+          whileTap={{ scale: 0.98 }}
+          onClick={() => showToast("Auto role settings saved")}
+          className={btnPrimary}
         >
-          <Save className="w-4 h-4" />
+          <Save className="h-3.5 w-3.5" />
           Save
         </motion.button>
-      </div>
+      </motion.div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Left: Config */}
-        <div className="space-y-6">
-          <div className="dark-panel p-5 space-y-4">
-            <h3 className="text-sm font-extrabold text-white flex items-center gap-2">
-              <Shield className="w-4 h-4 text-purple-400" />
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+        {/* Left: config */}
+        <div className="space-y-5">
+          <motion.section variants={rise} className="panel panel-hover p-5">
+            <h3 className="flex items-center gap-2 text-sm font-extrabold text-white">
+              <Shield className="h-4 w-4 text-[#7C5CFF]" />
               Role Assignment
             </h3>
 
-            <div>
-              <label className="text-[11px] font-mono text-zinc-400 font-bold uppercase">Search Role</label>
-              <input type="text" value={roleSearch} onChange={(e) => setRoleSearch(e.target.value)}
+            <label className="mt-4 block">
+              <span className="section-label mb-1.5 block">Search role</span>
+              <input
+                type="text"
+                value={roleSearch}
+                onChange={(e) => setRoleSearch(e.target.value)}
                 placeholder="Type to filter roles..."
-                className="w-full bg-[#0b0d14] border border-[#1e2333] rounded-xl px-4 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-purple-500 mt-1"
+                className={inputCls}
               />
-            </div>
+            </label>
 
-            <div>
-              <label className="text-[11px] font-mono text-zinc-400 font-bold uppercase">Select Auto Role</label>
-              <div className="space-y-1 mt-1 max-h-48 overflow-y-auto">
+            <div className="mt-4">
+              <span className="section-label mb-1.5 block">Select auto role</span>
+              <div className="custom-scrollbar mt-1 max-h-48 space-y-1 overflow-y-auto pr-1">
+                {filteredRoles.length === 0 && (
+                  <p className="px-1 py-3 text-[11px] text-slate-600">
+                    No roles match “{roleSearch}”.
+                  </p>
+                )}
                 {filteredRoles.map((role) => (
-                  <button key={role.id} onClick={() => setAutoRoleId(role.id)}
-                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all ${autoRoleId === role.id ? 'bg-purple-600/20 border border-purple-500/40 text-white' : 'bg-[#0b0d14] border border-[#1e2333] text-zinc-400 hover:text-zinc-200'}`}
+                  <button
+                    key={role.id}
+                    type="button"
+                    onClick={() => setAutoRoleId(role.id)}
+                    className={`flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-xs font-bold transition-colors cursor-pointer ${
+                      autoRoleId === role.id
+                        ? "border-[#7C5CFF]/40 bg-[#7C5CFF]/10 text-white"
+                        : "border-white/[0.06] bg-white/[0.02] text-slate-400 hover:text-slate-200"
+                    }`}
                   >
-                    <div className="w-3.5 h-3.5 rounded-full border-2 border-current shrink-0" style={{ color: role.color, backgroundColor: role.color + '33' }}></div>
-                    <span>{role.name}</span>
+                    <span
+                      className="h-3.5 w-3.5 shrink-0 rounded-full border-2"
+                      style={{ borderColor: role.color, backgroundColor: `${role.color}33` }}
+                    />
+                    <span className="truncate">{role.name}</span>
                     {autoRoleId === role.id && (
-                      <span className="ml-auto text-[10px] text-purple-400 font-mono">SELECTED</span>
+                      <span className="ml-auto shrink-0 rounded-full border border-[#7C5CFF]/25 bg-[#7C5CFF]/10 px-2 py-0.5 text-[10px] font-bold text-[#7C5CFF]">
+                        SELECTED
+                      </span>
                     )}
                   </button>
                 ))}
               </div>
             </div>
 
-            <div>
-              <label className="text-[11px] font-mono text-zinc-400 font-bold uppercase">Assignment Delay (seconds)</label>
-              <div className="flex items-center gap-3 mt-1">
-                <input type="range" min={0} max={300} value={autoRoleDelay} onChange={(e) => setAutoRoleDelay(Number(e.target.value))} className="flex-1 accent-purple-500" />
-                <span className="text-xs font-mono text-white font-bold w-12 text-right">{autoRoleDelay}s</span>
+            <div className="mt-4">
+              <span className="section-label mb-1.5 block">Assignment delay (seconds)</span>
+              <div className="mt-1 flex items-center gap-3">
+                <input
+                  type="range"
+                  min={0}
+                  max={300}
+                  value={autoRoleDelay}
+                  onChange={(e) => setAutoRoleDelay(Number(e.target.value))}
+                  className="flex-1 cursor-pointer accent-[#7C5CFF]"
+                />
+                <span className="w-12 text-right font-mono text-xs font-bold text-white">
+                  {autoRoleDelay}s
+                </span>
               </div>
-              <p className="text-[10px] text-zinc-500 mt-1">Delay before the role is automatically assigned. Set to 0 for instant assignment.</p>
+              <p className="mt-1.5 text-[10px] text-slate-600">
+                Delay before the role is assigned. Set to 0 for instant assignment.
+              </p>
             </div>
-          </div>
+          </motion.section>
 
-          <div className="dark-panel p-5 space-y-3">
-            <h3 className="text-sm font-extrabold text-white flex items-center gap-2">
-              <Clock className="w-4 h-4 text-purple-400" />
+          <motion.section variants={rise} className="panel panel-hover p-5">
+            <h3 className="flex items-center gap-2 text-sm font-extrabold text-white">
+              <Clock className="h-4 w-4 text-[#7C5CFF]" />
               What happens when a member joins?
             </h3>
-            <div className="bg-[#0b0d14] rounded-xl p-4 border border-[#1e2333] space-y-2">
+
+            <div className="mt-4 space-y-2 rounded-xl border border-white/[0.05] bg-white/[0.02] p-4">
               <div className="flex items-start gap-3">
-                <div className="w-6 h-6 rounded-full bg-purple-600/20 border border-purple-500/30 flex items-center justify-center text-[10px] font-bold text-purple-400 shrink-0 mt-0.5">1</div>
+                <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-[#7C5CFF]/25 bg-[#7C5CFF]/10 text-[10px] font-bold text-[#7C5CFF]">
+                  1
+                </span>
                 <div>
-                  <p className="text-xs font-bold text-white">Member joins the server</p>
-                  <p className="text-[10px] text-zinc-500">Discord gateway triggers the guildMemberAdd event</p>
+                  <p className="text-xs font-bold text-white">A new member joins Crystal Realm</p>
+                  <p className="text-[10px] text-slate-500">Aura receives the guildMemberAdd event</p>
                 </div>
               </div>
-              <div className="border-l-2 border-[#1e2333] ml-3 h-4"></div>
+              <div className="ml-3 h-4 border-l border-white/[0.08]" />
               <div className="flex items-start gap-3">
-                <div className="w-6 h-6 rounded-full bg-purple-600/20 border border-purple-500/30 flex items-center justify-center text-[10px] font-bold text-purple-400 shrink-0 mt-0.5">2</div>
+                <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-[#7C5CFF]/25 bg-[#7C5CFF]/10 text-[10px] font-bold text-[#7C5CFF]">
+                  2
+                </span>
                 <div>
                   <p className="text-xs font-bold text-white">Wait {autoRoleDelay} seconds</p>
-                  <p className="text-[10px] text-zinc-500">Configurable delay to allow other automations to run first</p>
+                  <p className="text-[10px] text-slate-500">
+                    Configurable delay so other automations can run first
+                  </p>
                 </div>
               </div>
-              <div className="border-l-2 border-[#1e2333] ml-3 h-4"></div>
+              <div className="ml-3 h-4 border-l border-white/[0.08]" />
               <div className="flex items-start gap-3">
-                <div className="w-6 h-6 rounded-full bg-purple-600/20 border border-purple-500/30 flex items-center justify-center text-[10px] font-bold text-purple-400 shrink-0 mt-0.5">3</div>
+                <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-[#7C5CFF]/25 bg-[#7C5CFF]/10 text-[10px] font-bold text-[#7C5CFF]">
+                  3
+                </span>
                 <div>
                   <p className="text-xs font-bold text-white">
-                    Role <span style={{ color: selectedRole?.color }}>{selectedRole?.name || 'Not selected'}</span> assigned
+                    Role{" "}
+                    <span style={{ color: selectedRole?.color }}>
+                      {selectedRole?.name || "Not selected"}
+                    </span>{" "}
+                    assigned
                   </p>
-                  <p className="text-[10px] text-zinc-500">Auto role is applied to the new member</p>
+                  <p className="text-[10px] text-slate-500">
+                    Applied automatically — no staff action needed
+                  </p>
                 </div>
               </div>
             </div>
-          </div>
+          </motion.section>
         </div>
 
-        {/* Right: Info Panel */}
-        <div className="space-y-6">
-          <div className="dark-panel p-5 space-y-4">
+        {/* Right: info */}
+        <div className="space-y-5">
+          <motion.section variants={rise} className="panel panel-hover p-5">
             <h3 className="text-sm font-extrabold text-white">Current Configuration</h3>
-            <div className="bg-[#0b0d14] rounded-xl p-4 border border-[#1e2333] space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-zinc-400">Auto Role</span>
+
+            <div className="mt-4 space-y-3 rounded-xl border border-white/[0.05] bg-white/[0.02] p-4">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-xs text-slate-400">Auto role</span>
                 {selectedRole ? (
-                  <span className="text-xs font-bold flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: selectedRole.color }}></span>
+                  <span className="flex items-center gap-2 text-xs font-bold text-white">
+                    <span
+                      className="h-2.5 w-2.5 rounded-full"
+                      style={{ backgroundColor: selectedRole.color }}
+                    />
                     {selectedRole.name}
                   </span>
                 ) : (
-                  <span className="text-xs text-amber-400 font-mono">Not configured</span>
+                  <span className="font-mono text-xs text-[#FFB547]">Not configured</span>
                 )}
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-zinc-400">Delay</span>
-                <span className="text-xs font-bold text-white">{autoRoleDelay}s</span>
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-xs text-slate-400">Delay</span>
+                <span className="font-mono text-xs font-bold text-white">{autoRoleDelay}s</span>
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-zinc-400">Status</span>
-                <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full ${autoRoleId ? 'bg-emerald-500/20 text-emerald-300' : 'bg-amber-500/20 text-amber-300'}`}>
-                  {autoRoleId ? 'ACTIVE' : 'INACTIVE'}
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-xs text-slate-400">Assigned this week</span>
+                <span className="text-xs font-bold text-white">342 members</span>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-xs text-slate-400">Status</span>
+                <span
+                  className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${
+                    autoRoleId
+                      ? "border-[#39D98A]/25 bg-[#39D98A]/10 text-[#39D98A]"
+                      : "border-[#FFB547]/25 bg-[#FFB547]/10 text-[#FFB547]"
+                  }`}
+                >
+                  {autoRoleId ? "ACTIVE" : "INACTIVE"}
                 </span>
               </div>
             </div>
-          </div>
+          </motion.section>
 
-          <div className="dark-panel p-5">
-            <h3 className="text-sm font-extrabold text-white mb-3">Pro Tips</h3>
-            <ul className="space-y-2">
+          <motion.section variants={rise} className="panel panel-hover p-5">
+            <h3 className="flex items-center gap-2 text-sm font-extrabold text-white">
+              <Sparkles className="h-4 w-4 text-[#7C5CFF]" />
+              Pro Tips
+            </h3>
+            <ul className="mt-3 space-y-2">
               {[
-                'Make sure the bot role is ABOVE the auto role in your server role hierarchy.',
-                'Use a delay of 5-10 seconds if you have verification gates that need to complete first.',
-                'Auto roles work well combined with reaction roles for self-assignable additional roles.',
-                'You can set multiple auto roles by stacking automations in the Modules Hub.',
+                "Keep the Aura role above the auto role in the server hierarchy, or Discord will reject the assignment.",
+                "Use a 5–10 second delay if a verification gate needs to complete first.",
+                "Pair auto roles with reaction roles so members can self-assign extra roles.",
+                "Stack multiple auto-role automations in the Modules Hub to cover event and partner communities.",
               ].map((tip, i) => (
-                <li key={i} className="flex items-start gap-2 text-xs text-zinc-400">
-                  <span className="text-purple-400 mt-0.5">•</span>
+                <li key={i} className="flex items-start gap-2 text-xs text-slate-400">
+                  <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-[#7C5CFF]/60" />
                   {tip}
                 </li>
               ))}
             </ul>
-          </div>
+          </motion.section>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }

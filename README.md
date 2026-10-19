@@ -58,7 +58,6 @@ DISCORD_CLIENT_ID=your_client_id
 DISCORD_CLIENT_SECRET=your_client_secret
 DATABASE_URL=postgresql://user:password@localhost:5432/auradb
 REDIS_URL=redis://localhost:6379
-SESSION_SECRET=your_super_secret_session_key
 JWT_SECRET=your_super_secret_jwt_key
 ```
 

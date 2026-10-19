@@ -14,7 +14,7 @@ const env = {
   DASHBOARD_DB_ALTER: 'false',
 };
 
-const child = spawn(process.execPath, ['dashboard/server.js'], {
+const child = spawn(process.execPath, ['apps/dashboard/src/server.js'], {
   env,
   stdio: ['ignore', 'pipe', 'pipe'],
 });

@@ -1,8 +1,13 @@
 // ================================================================
 //  AURA BOT v2.0 — Security Shield (Wicks / SecurityBot / Vetox Style)
 // ================================================================
-import { SlashCommandBuilder, PermissionFlagsBits } from 'discord.js';
+import { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } from 'discord.js';
 import { buildEmbed } from '../../../shared/utils/embedBuilder.js';
+import { activateLockdown, liftLockdown, isInLockdown } from '../../../shared/systems/antinuke/antiRaid.js';
+import config from '../../../../../packages/config/index.js';
+
+const onOff = (v) => (v ? '🟢 ENABLED' : '🔴 DISABLED');
+const windowLabel = (ms) => `${Math.round(ms / 60000)}m`;
 
 export const securityCommand = {
   data: new SlashCommandBuilder()
@@ -26,81 +31,149 @@ export const securityCommand = {
       .setDescription('Add trusted user or role to Anti-Nuke whitelist')
       .addUserOption(o => o.setName('user').setDescription('Target user').setRequired(false))
       .addRoleOption(o => o.setName('role').setDescription('Target role').setRequired(false))
-    )
-    .addSubcommand(s => s
-      .setName('backup')
-      .setDescription('Create or restore a full server configuration snapshot')
-      .addStringOption(o => o.setName('action').setDescription('Backup action').setRequired(true).addChoices(
-        { name: 'Create Snapshot', value: 'create' },
-        { name: 'List Snapshots', value: 'list' }
-      ))
     ),
+  // NOTE: `/security backup` removed (hidden) until a real snapshot system ships.
 
   guildOnly: true,
   cooldown: 5000,
 
   async execute(client, interaction) {
-    await interaction.deferReply({ ephemeral: true }).catch(() => {});
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral }).catch(() => {});
     const sub = interaction.options.getSubcommand();
 
-    if (sub === 'status') {
-      return interaction.editReply({
-        embeds: [buildEmbed({
-          type: 'info',
-          title: '🛡️ Server Security Shield Status',
-          description: `• **Anti-Nuke Protection:** 🟢 ACTIVE (Limit: 3 deletions/10s)\n• **Anti-Raid Filter:** 🟢 ACTIVE (Limit: 10 joins/10s)\n• **Anti-Bot Join:** 🟢 ACTIVE\n• **Captcha Verification:** 🟢 ACTIVE\n• **Whitelisted Users:** 2 Admins`,
-        })],
-      });
-    }
+    try {
+      if (sub === 'status') {
+        const { GuildSettings } = client.db.models;
+        const settings = await GuildSettings.findOne({ where: { guildId: interaction.guildId } }).catch(() => null);
+        const wl = settings?.antiNukeConfig || {};
+        const wlUsers = Array.isArray(wl.whitelistUsers) ? wl.whitelistUsers.length : 0;
+        const wlRoles = Array.isArray(wl.whitelistRoles) ? wl.whitelistRoles.length : 0;
 
-    if (sub === 'lockdown') {
-      const action = interaction.options.getString('action');
-      const isLocking = action === 'on';
+        let lockedDown = null;
+        try { lockedDown = await isInLockdown(client, interaction.guildId); } catch { lockedDown = null; }
+        const lockdownText = lockedDown === null ? '❔ Unknown' : (lockedDown ? '🔴 ACTIVE' : '🟢 Inactive');
 
-      return interaction.editReply({
-        embeds: [buildEmbed({
-          type: isLocking ? 'danger' : 'success',
-          title: isLocking ? '🚨 EMERGENCY SERVER LOCKDOWN ENABLED' : '🔓 Server Lockdown Lifted',
-          description: isLocking
-            ? 'All public text channels have been locked. Message send permissions revoked for @everyone.'
-            : 'Public channel permissions restored to normal state.',
-        })],
-      });
-    }
+        const t = config.antiNuke;
+        const verificationText = settings?.verificationEnabled
+          ? (settings.verificationRoleId
+            ? `🟢 ENABLED (role: <@&${settings.verificationRoleId}>)`
+            : '🟢 ENABLED (⚠️ no verification role configured)')
+          : '🔴 DISABLED';
+        const whitelistText = (wlUsers === 0 && wlRoles === 0)
+          ? 'Not configured'
+          : `**${wlUsers}** user(s) • **${wlRoles}** role(s)`;
 
-    if (sub === 'whitelist') {
-      const targetUser = interaction.options.getUser('user');
-      const targetRole = interaction.options.getRole('role');
-      const targetName = targetUser ? targetUser.username : (targetRole ? targetRole.name : 'Unknown');
-
-      return interaction.editReply({
-        embeds: [buildEmbed({
-          type: 'success',
-          title: '🛡️ Whitelist Updated',
-          description: `Added **${targetName}** to Security Shield trusted whitelist.`,
-        })],
-      });
-    }
-
-    if (sub === 'backup') {
-      const act = interaction.options.getString('action');
-      if (act === 'create') {
-        const snapshotId = Math.floor(1000 + Math.random() * 9000);
         return interaction.editReply({
           embeds: [buildEmbed({
-            type: 'success',
-            title: '💾 Server Snapshot Created',
-            description: `Snapshot **#${snapshotId}** saved.\n• 24 Channels\n• 16 Roles\n• 5 Categories\nUse \`/security backup list\` to inspect saved snapshots.`,
+            type: 'info',
+            title: '🛡️ Server Security Shield Status',
+            description: [
+              `• **Anti-Nuke Protection:** ${onOff(settings?.antiNukeEnabled)} (ban ${t.banThreshold.count}/${windowLabel(t.banThreshold.window)}, kick ${t.kickThreshold.count}/${windowLabel(t.kickThreshold.window)}, channel-delete ${t.channelDeleteThreshold.count}/${windowLabel(t.channelDeleteThreshold.window)}, role-delete ${t.roleDeleteThreshold.count}/${windowLabel(t.roleDeleteThreshold.window)}, webhook ${t.webhookCreateThreshold.count}/${windowLabel(t.webhookCreateThreshold.window)})`,
+              `• **Anti-Raid Filter:** ${onOff(settings?.antiRaidEnabled)} (${t.joinRaidThreshold.count} joins/${Math.round(t.joinRaidThreshold.window / 1000)}s)`,
+              `• **Verification:** ${verificationText}`,
+              `• **Whitelist:** ${whitelistText}`,
+              `• **Lockdown:** ${lockdownText}`,
+            ].join('\n'),
           })],
         });
       }
+
+      if (sub === 'lockdown') {
+        const action = interaction.options.getString('action');
+
+        if (action === 'on') {
+          if (await isInLockdown(client, interaction.guildId)) {
+            return interaction.editReply({
+              embeds: [buildEmbed({
+                type: 'info',
+                title: '🔒 Lockdown Already Active',
+                description: 'The server is already in lockdown. Use `/security lockdown action:off` to lift it.',
+              })],
+            });
+          }
+
+          await activateLockdown(client, interaction.guild, `Manual by ${interaction.user.tag}`);
+          return interaction.editReply({
+            embeds: [buildEmbed({
+              type: 'error',
+              title: '🚨 EMERGENCY SERVER LOCKDOWN ENABLED',
+              description: 'All public text channels have been locked. Message send permissions revoked for @everyone.\nUse `/security lockdown action:off` to lift the lockdown.',
+            })],
+          });
+        }
+
+        if (!(await isInLockdown(client, interaction.guildId))) {
+          return interaction.editReply({
+            embeds: [buildEmbed({
+              type: 'info',
+              title: '🔓 No Active Lockdown',
+              description: 'The server is not currently in lockdown — nothing to lift.',
+            })],
+          });
+        }
+
+        await liftLockdown(client, interaction.guild, interaction.user);
+        return interaction.editReply({
+          embeds: [buildEmbed({
+            type: 'success',
+            title: '🔓 Server Lockdown Lifted',
+            description: 'Public channel permissions restored to normal state.',
+          })],
+        });
+      }
+
+      if (sub === 'whitelist') {
+        const targetUser = interaction.options.getUser('user');
+        const targetRole = interaction.options.getRole('role');
+        if (!targetUser && !targetRole) {
+          return interaction.editReply({
+            embeds: [buildEmbed({
+              type: 'warning',
+              title: '🛡️ Whitelist Not Updated',
+              description: 'Provide at least one target: `user` or `role`.',
+            })],
+          });
+        }
+
+        const { GuildSettings } = client.db.models;
+        const [settings] = await GuildSettings.findOrCreate({ where: { guildId: interaction.guildId }, defaults: {} });
+        const wl = settings.antiNukeConfig || {};
+        const users = Array.isArray(wl.whitelistUsers) ? [...wl.whitelistUsers] : [];
+        const roles = Array.isArray(wl.whitelistRoles) ? [...wl.whitelistRoles] : [];
+
+        const targetId = targetUser?.id ?? targetRole.id;
+        const targetName = targetUser ? targetUser.username : targetRole.name;
+        const bucket = targetUser ? users : roles;
+
+        if (bucket.includes(targetId)) {
+          return interaction.editReply({
+            embeds: [buildEmbed({
+              type: 'info',
+              title: '🛡️ Already Whitelisted',
+              description: `**${targetName}** is already on the Anti-Nuke whitelist.`,
+            })],
+          });
+        }
+
+        bucket.push(targetId);
+        await settings.update({ antiNukeConfig: { ...wl, whitelistUsers: users, whitelistRoles: roles } });
+
+        return interaction.editReply({
+          embeds: [buildEmbed({
+            type: 'success',
+            title: '🛡️ Whitelist Updated',
+            description: `Added **${targetName}** to the Anti-Nuke trusted whitelist.\n• Whitelisted users: **${users.length}**\n• Whitelisted roles: **${roles.length}**`,
+          })],
+        });
+      }
+    } catch {
       return interaction.editReply({
         embeds: [buildEmbed({
-          type: 'info',
-          title: '📦 Saved Server Snapshots',
-          description: '1. **#1042** (Created: July 25, 2026)\n2. **#0984** (Created: July 18, 2026)',
+          type: 'error',
+          title: '🛡️ Security Shield Error',
+          description: 'Something went wrong while processing that action. Please try again.',
         })],
-      });
+      }).catch(() => {});
     }
   },
 };

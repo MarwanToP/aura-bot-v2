@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, PermissionFlagsBits } from 'discord.js';
+import { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } from 'discord.js';
 import { buildEmbed } from '../../../shared/utils/embedBuilder.js';
 
 export const deliver = {
@@ -15,7 +15,7 @@ export const deliver = {
     const target = interaction.options.getUser('user');
     const item = interaction.options.getString('item');
 
-    await interaction.deferReply({ ephemeral: true }).catch(() => {});
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral }).catch(() => {});
 
     // Attempt DM delivery
     try {

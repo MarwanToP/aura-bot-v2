@@ -3,9 +3,9 @@
 //  Fills gaps in the ModerationCase enum: 'unban' | 'note'
 //  Pattern matches existing modCommands.js exactly.
 // ================================================================
-import { SlashCommandBuilder, PermissionFlagsBits } from 'discord.js';
-import { buildEmbed, buildModEmbed } from '../../../shared/utils/embedBuilder.js';
-import { createCase, sendModLog } from '../../../shared/utils/moderation.js';
+import { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } from 'discord.js';
+import { buildEmbed, buildModEmbed } from '../../../../../packages/utils/embedBuilder.js';
+import { createCase, sendModLog } from '../../../../../packages/utils/moderation.js';
 
 // ─── /unban ──────────────────────────────────────────────────────
 export const unban = {
@@ -29,7 +29,7 @@ export const unban = {
   cooldown:  3000,
 
   async execute(client, interaction) {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     const lang     = await client.i18n.resolveLanguage(client, interaction.user.id, interaction.guildId);
     const userId   = interaction.options.getString('user_id').trim();
     const reason   = interaction.options.getString('reason') || 'No reason provided';
@@ -103,7 +103,7 @@ export const note = {
   cooldown:  2000,
 
   async execute(client, interaction) {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     const target  = interaction.options.getUser('user');
     const content = interaction.options.getString('content');
 
@@ -163,7 +163,7 @@ export const caseCmd = {
   cooldown:  2000,
 
   async execute(client, interaction) {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     const sub  = interaction.options.getSubcommand();
     const id   = interaction.options.getInteger('id');
     const { ModerationCase } = client.db.models;
@@ -188,7 +188,7 @@ export const caseCmd = {
       return interaction.editReply({
         embeds: [buildEmbed({
           type:   'primary',
-          title:  `${typeEmojis[modCase.type] || '📋'} Case #${id} — ${modCase.type.toUpperCase()}`,
+          title:  `${typeEmojis[modCase.type] || '📋'} Case #${id} — ${(modCase.type || 'UNKNOWN').toUpperCase()}`,
           fields: [
             { name: '👤 User',       value: `<@${modCase.userId}>`,      inline: true },
             { name: '🔨 Moderator',  value: `<@${modCase.moderatorId}>`, inline: true },

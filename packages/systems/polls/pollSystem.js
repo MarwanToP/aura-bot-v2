@@ -3,7 +3,7 @@
 // ================================================================
 
 import {
-  SlashCommandBuilder, PermissionFlagsBits,
+  SlashCommandBuilder, PermissionFlagsBits, MessageFlags,
   ActionRowBuilder, ButtonBuilder, ButtonStyle,
 } from 'discord.js';
 import { buildEmbed } from '../../utils/embedBuilder.js';
@@ -171,78 +171,103 @@ export const poll = {
 
 // ─── Button Handler ────────────────────────────────────────────
 export async function handleButton(client, interaction, args) {
-  const [action, ...rest] = args.split(':');
+  const logError = client?.logger?.error
+    ? (...logArgs) => client.logger.error(...logArgs)
+    : console.error.bind(console);
 
-  if (action === 'vote') {
-    const optionIndex = parseInt(rest[0]);
-    const msgId       = interaction.message.id;
-    const pollData    = await client.redis.getJSON(`poll:${msgId}`);
+  try {
+    const [action, ...rest] = args.split(':');
 
-    if (!pollData) {
-      return interaction.reply({ embeds: [buildEmbed({ type: 'error', description: '❌ Poll expired.' })], ephemeral: true });
-    }
+    if (action === 'vote') {
+      // Ack the click before any Redis round-trip — store reads/writes below can
+      // exceed Discord's 3s interaction deadline. deferUpdate keeps the poll
+      // message editable so the updated counts can be applied via editReply.
+      await interaction.deferUpdate();
 
-    if (pollData.endsAt && new Date(pollData.endsAt) < new Date()) {
-      return interaction.reply({ embeds: [buildEmbed({ type: 'error', description: '❌ Poll has ended.' })], ephemeral: true });
-    }
+      const optionIndex = parseInt(rest[0]);
+      const msgId       = interaction.message.id;
+      const pollData    = await client.redis.getJSON(`poll:${msgId}`);
 
-    const userId   = interaction.user.id;
-    const previous = pollData.votes[userId];
-
-    // Stake-Weighted Voting Multiplier calculation based on user roles
-    let voteWeight = 1.0;
-    if (interaction.member?.roles?.cache) {
-      if (interaction.member.roles.cache.some(r => r.name.toLowerCase().includes('vip') || r.name.toLowerCase().includes('booster'))) {
-        voteWeight = 1.5;
-      } else if (interaction.member.roles.cache.some(r => r.name.toLowerCase().includes('veteran') || r.name.toLowerCase().includes('admin'))) {
-        voteWeight = 2.0;
+      if (!pollData) {
+        return interaction.followUp({ embeds: [buildEmbed({ type: 'error', description: '❌ Poll expired.' })], flags: MessageFlags.Ephemeral });
       }
+
+      if (pollData.endsAt && new Date(pollData.endsAt) < new Date()) {
+        return interaction.followUp({ embeds: [buildEmbed({ type: 'error', description: '❌ Poll has ended.' })], flags: MessageFlags.Ephemeral });
+      }
+
+      const userId   = interaction.user.id;
+      const previous = pollData.votes[userId];
+
+      // Stake-Weighted Voting Multiplier calculation based on user roles
+      let voteWeight = 1.0;
+      if (interaction.member?.roles?.cache) {
+        if (interaction.member.roles.cache.some(r => r.name.toLowerCase().includes('vip') || r.name.toLowerCase().includes('booster'))) {
+          voteWeight = 1.5;
+        } else if (interaction.member.roles.cache.some(r => r.name.toLowerCase().includes('veteran') || r.name.toLowerCase().includes('admin'))) {
+          voteWeight = 2.0;
+        }
+      }
+
+      if (!pollData.weightedCounts) {
+        pollData.weightedCounts = new Array(pollData.options.length).fill(0);
+      }
+
+      // Remove previous vote
+      if (previous !== undefined) {
+        const prevWeight = pollData.weights?.[userId] || 1.0;
+        pollData.counts[previous] = Math.max(0, (pollData.counts[previous] || 0) - 1);
+        pollData.weightedCounts[previous] = Math.max(0, (pollData.weightedCounts[previous] || 0) - prevWeight);
+      }
+
+      // Add new vote with weight tracking
+      if (!pollData.weights) pollData.weights = {};
+      pollData.weights[userId] = voteWeight;
+      pollData.votes[userId]       = optionIndex;
+      pollData.counts[optionIndex] = (pollData.counts[optionIndex] || 0) + 1;
+      pollData.weightedCounts[optionIndex] = (pollData.weightedCounts[optionIndex] || 0) + voteWeight;
+
+      await client.redis.setJSON(`poll:${msgId}`, pollData, 86400 * 7);
+
+      // Update embed
+      const totalVotes = pollData.counts.reduce((a, b) => a + b, 0);
+      const optionLines = pollData.options.map((opt, i) => {
+        const count = pollData.counts[i] || 0;
+        const wCount = pollData.weightedCounts[i] || count;
+        const pct   = totalVotes > 0 ? Math.round((count / totalVotes) * 100) : 0;
+        return `${POLL_EMOJIS[i]} **${opt}** — ${count} votes (${pct}%) • Weighted: ${wCount.toFixed(1)} pts`;
+      });
+
+      const updatedEmbed = buildEmbed({
+        type:        'info',
+        title:       `📊 ${pollData.question}`,
+        description: optionLines.join('\n'),
+        footer:      `${pollData.anonymous ? '🔒 Anonymous • ' : ''}${totalVotes} total votes`,
+        timestamp:   true,
+      });
+
+
+      await interaction.editReply({ embeds: [updatedEmbed] });
+
+      await interaction.followUp({
+        embeds: [buildEmbed({ type: 'success', description: `✅ Voted for **${pollData.options[optionIndex]}**!${previous !== undefined ? ' (Changed from previous vote)' : ''}` })],
+        flags: MessageFlags.Ephemeral,
+      });
     }
+  } catch (err) {
+    logError('[Polls] Button handler failed:', err);
 
-    if (!pollData.weightedCounts) {
-      pollData.weightedCounts = new Array(pollData.options.length).fill(0);
+    // Best-effort: the interaction is usually deferred by this point, so follow up
+    // (or reply if we failed before the ack) and never let the catch throw.
+    const payload = {
+      embeds: [buildEmbed({ type: 'error', description: '❌ Something went wrong while handling your vote.' })],
+      flags: MessageFlags.Ephemeral,
+    };
+    if (interaction.deferred || interaction.replied) {
+      interaction.followUp(payload).catch(() => {});
+    } else {
+      interaction.reply(payload).catch(() => {});
     }
-
-    // Remove previous vote
-    if (previous !== undefined) {
-      const prevWeight = pollData.weights?.[userId] || 1.0;
-      pollData.counts[previous] = Math.max(0, (pollData.counts[previous] || 0) - 1);
-      pollData.weightedCounts[previous] = Math.max(0, (pollData.weightedCounts[previous] || 0) - prevWeight);
-    }
-
-    // Add new vote with weight tracking
-    if (!pollData.weights) pollData.weights = {};
-    pollData.weights[userId] = voteWeight;
-    pollData.votes[userId]       = optionIndex;
-    pollData.counts[optionIndex] = (pollData.counts[optionIndex] || 0) + 1;
-    pollData.weightedCounts[optionIndex] = (pollData.weightedCounts[optionIndex] || 0) + voteWeight;
-
-    await client.redis.setJSON(`poll:${msgId}`, pollData, 86400 * 7);
-
-    // Update embed
-    const totalVotes = pollData.counts.reduce((a, b) => a + b, 0);
-    const optionLines = pollData.options.map((opt, i) => {
-      const count = pollData.counts[i] || 0;
-      const wCount = pollData.weightedCounts[i] || count;
-      const pct   = totalVotes > 0 ? Math.round((count / totalVotes) * 100) : 0;
-      return `${POLL_EMOJIS[i]} **${opt}** — ${count} votes (${pct}%) • Weighted: ${wCount.toFixed(1)} pts`;
-    });
-
-    const updatedEmbed = buildEmbed({
-      type:        'info',
-      title:       `📊 ${pollData.question}`,
-      description: optionLines.join('\n'),
-      footer:      `${pollData.anonymous ? '🔒 Anonymous • ' : ''}${totalVotes} total votes`,
-      timestamp:   true,
-    });
-
-
-    await interaction.update({ embeds: [updatedEmbed] });
-
-    await interaction.followUp({
-      embeds: [buildEmbed({ type: 'success', description: `✅ Voted for **${pollData.options[optionIndex]}**!${previous !== undefined ? ' (Changed from previous vote)' : ''}` })],
-      ephemeral: true,
-    });
   }
 }
 

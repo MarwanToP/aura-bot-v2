@@ -3,7 +3,7 @@
 // ================================================================
 import { AuditLogEvent } from 'discord.js';
 import { buildEmbed }    from '../../utils/embedBuilder.js';
-import config            from '../../config/config.js';
+import config            from '../../config/index.js';
 import logger            from '../../utils/logger.js';
 export { calculateMessageHeat, quarantineUser } from './heatEngine.js';
 
@@ -14,6 +14,11 @@ export async function handleAntiNuke(client, guildId, executorId, actionType, de
     if (!settings?.antiNukeEnabled) return;
 
     if (config.owners.includes(executorId)) return;
+
+    // Anti-Nuke whitelist (managed via /security whitelist)
+    const wl = settings?.antiNukeConfig || {};
+    if (Array.isArray(wl.whitelistUsers) && wl.whitelistUsers.includes(executorId)) return;
+
     const guild = await client.guilds.fetch(guildId).catch(() => null);
     if (!guild || guild.ownerId === executorId) return;
 
@@ -33,6 +38,9 @@ export async function handleAntiNuke(client, guildId, executorId, actionType, de
 
     const member = await guild.members.fetch(executorId).catch(() => null);
     if (!member) return;
+
+    // Trusted roles bypass punishment
+    if (Array.isArray(wl.whitelistRoles) && wl.whitelistRoles.some((roleId) => member.roles.cache.has(roleId))) return;
 
     const punishment = await punish(guild, member);
     logger.warn(`[AntiNuke] ${guild.name}: ${member.user.tag} → ${actionType} (${count}x) → ${punishment}`);

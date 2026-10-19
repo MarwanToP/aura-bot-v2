@@ -2,7 +2,7 @@
 //  AURA BOT v2.0 — Auto-Responder Slash Command
 //  CRUD for the existing AutoResponder model + Redis cache invalidation
 // ================================================================
-import { SlashCommandBuilder, PermissionFlagsBits } from 'discord.js';
+import { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } from 'discord.js';
 import safeRegex from 'safe-regex';
 import { buildEmbed } from '../../../shared/utils/embedBuilder.js';
 import { Op } from 'sequelize';
@@ -57,7 +57,7 @@ export const autoresponder = {
   cooldown: 3000,
 
   async execute(client, interaction) {
-    await interaction.deferReply({ ephemeral: true }).catch(() => {});
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral }).catch(() => {});
 
     try {
       const { AutoResponder } = client.db.models;

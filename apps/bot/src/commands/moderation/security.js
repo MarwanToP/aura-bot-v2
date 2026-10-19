@@ -1,4 +1,13 @@
-import { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits, ChannelType } from 'discord.js';
+// ================================================================
+//  AURA BOT v2.0 — Emergency Lockdown (/lockdown)
+//  Manual entry point for the SHARED anti-raid lockdown state
+//  (same redis key + channel/invite pass as /security lockdown and
+//  the automatic raid detector), so manual and automatic lockdowns
+//  can no longer stomp each other's channel state.
+// ================================================================
+import { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } from 'discord.js';
+import { buildEmbed } from '../../../shared/utils/embedBuilder.js';
+import { activateLockdown, liftLockdown, isInLockdown } from '../../../shared/systems/antinuke/antiRaid.js';
 
 export default {
   data: new SlashCommandBuilder()
@@ -15,40 +24,62 @@ export default {
         )
     ),
 
+  guildOnly: true,
+  cooldown: 5000,
+
   async execute(client, interaction) {
-    const interactionObj = interaction || client;
-    const action = interactionObj.options.getString('action');
-    const { guild } = interactionObj;
+    try {
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral }).catch(() => {});
 
-    await interactionObj.deferReply();
+      const isLocking = interaction.options.getString('action') === 'lock';
 
-    const isLocking = action === 'lock';
-    let count = 0;
+      if (isLocking) {
+        if (await isInLockdown(client, interaction.guildId)) {
+          return interaction.editReply({
+            embeds: [buildEmbed({
+              type: 'info',
+              title: '🔒 Lockdown Already Active',
+              description: 'This server is already under lockdown — manual and automatic raid lockdowns share the same state.\nUse `/lockdown` with the unlock action to lift it.',
+            })],
+          });
+        }
 
-    const channels = guild.channels.cache.filter(c => c.type === ChannelType.GuildText);
-
-    for (const [_, channel] of channels) {
-      try {
-        await channel.permissionOverwrites.edit(guild.roles.everyone, {
-          SendMessages: isLocking ? false : null
+        await activateLockdown(client, interaction.guild, `Manual by ${interaction.user.tag}`);
+        return interaction.editReply({
+          embeds: [buildEmbed({
+            type: 'error',
+            title: '🚨 EMERGENCY SERVER LOCKDOWN ENABLED',
+            description: 'All text channels have been locked, invites revoked and `@everyone` message permissions revoked.\nUse `/lockdown` with the unlock action to lift the lockdown.',
+          })],
         });
-        count++;
-      } catch (e) {
-        // Skip uneditable channels
       }
+
+      if (!(await isInLockdown(client, interaction.guildId))) {
+        return interaction.editReply({
+          embeds: [buildEmbed({
+            type: 'info',
+            title: '🔓 No Active Lockdown',
+            description: 'The server is not currently in lockdown — nothing to lift.',
+          })],
+        });
+      }
+
+      await liftLockdown(client, interaction.guild, interaction.user);
+      return interaction.editReply({
+        embeds: [buildEmbed({
+          type: 'success',
+          title: '🔓 Server Lockdown Lifted',
+          description: 'Channel permissions have been restored to their normal state and the shared lockdown flag cleared.',
+        })],
+      });
+    } catch {
+      return interaction.editReply({
+        embeds: [buildEmbed({
+          type: 'error',
+          title: '🚨 Lockdown Error',
+          description: 'Something went wrong while processing that lockdown action. Please try again.',
+        })],
+      }).catch(() => {});
     }
-
-    const embed = new EmbedBuilder()
-      .setColor(isLocking ? 0xef5252 : 0x32c86d)
-      .setTitle(isLocking ? '🚨 Server Lockdown Enabled' : '🔓 Server Lockdown Disabled')
-      .setDescription(
-        isLocking
-          ? `**${count}** text channels have been locked! Members cannot send messages until lockdown is lifted.`
-          : `**${count}** text channels have been restored to normal permissions.`
-      )
-      .setFooter({ text: 'Security Shield • Aura Bot v2.0', iconURL: guild.iconURL() })
-      .setTimestamp();
-
-    return interactionObj.editReply({ embeds: [embed] });
-  }
+  },
 };

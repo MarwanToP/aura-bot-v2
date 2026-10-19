@@ -2,7 +2,8 @@
 //  Commands: /timedmsg /tempchannel /automation
 // ================================================================
 import {
-  SlashCommandBuilder, PermissionFlagsBits, ChannelType
+  SlashCommandBuilder, PermissionFlagsBits, ChannelType,
+  MessageFlags,
 } from 'discord.js';
 import { buildEmbed } from '../../../shared/utils/embedBuilder.js';
 import config         from '../../../shared/config/config.js';
@@ -17,8 +18,8 @@ export const timedmsg = {
       .setName('add')
       .setDescription('Add a timed message')
       .addChannelOption(o => o.setName('channel').setDescription('Target channel').setRequired(true))
-      .addStringOption(o => o.setName('content').setDescription('Message content').setRequired(true))
-      .addIntegerOption(o => o.setName('interval').setDescription('Interval in seconds (min 300 = 5min)').setRequired(true).setMinValue(300))
+      .addStringOption(o => o.setName('content').setDescription('Message content').setRequired(true).setMaxLength(2000))
+      .addIntegerOption(o => o.setName('interval').setDescription('Interval in seconds (min 300 = 5min)').setRequired(true).setMinValue(300).setMaxValue(604800))
     )
     .addSubcommand(s => s.setName('list').setDescription('List timed messages'))
     .addSubcommand(s => s
@@ -32,7 +33,7 @@ export const timedmsg = {
   cooldown:        3000,
 
   async execute(client, interaction) {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     const sub = interaction.options.getSubcommand();
     const { TimedMessage } = client.db.models;
     const isPremium = await checkPremium(client, interaction.guildId);
@@ -74,7 +75,7 @@ export const tempchannel = {
     .addSubcommand(s => s
       .setName('create')
       .setDescription('Create a temp channel')
-      .addStringOption(o => o.setName('name').setDescription('Channel name').setRequired(true))
+      .addStringOption(o => o.setName('name').setDescription('Channel name').setRequired(true).setMaxLength(100))
       .addStringOption(o => o
         .setName('type')
         .setDescription('Channel type')
@@ -89,7 +90,7 @@ export const tempchannel = {
   cooldown:        10000,
 
   async execute(client, interaction) {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     const isPremium = await checkPremium(client, interaction.guildId);
     const { TempChannel } = client.db.models;
 
@@ -168,7 +169,7 @@ export const automation = {
   cooldown:        3000,
 
   async execute(client, interaction) {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     const sub = interaction.options.getSubcommand();
     const { Automation } = client.db.models;
     const isPremium = await checkPremium(client, interaction.guildId);

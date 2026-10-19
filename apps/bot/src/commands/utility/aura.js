@@ -1,7 +1,7 @@
 // ================================================================
 //  AURA BOT v2.0 — Aura Voice Assistant (AVA) Commands
 // ================================================================
-import { SlashCommandBuilder, PermissionFlagsBits } from 'discord.js';
+import { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } from 'discord.js';
 import { startListening } from '../../../shared/systems/voice/voiceAI.js';
 import { buildEmbed } from '../../../shared/utils/embedBuilder.js';
 import { getVoiceConnection } from '@discordjs/voice';
@@ -28,12 +28,12 @@ export const aura = {
     if (sub === 'join') {
       const channel = interaction.member?.voice?.channel;
       if (!channel) {
-        return interaction.reply({ embeds: [buildEmbed({ type: 'warning', description: '❌ You must be in a voice channel first.' })], ephemeral: true });
+        return interaction.reply({ embeds: [buildEmbed({ type: 'warning', description: '❌ You must be in a voice channel first.' })], flags: MessageFlags.Ephemeral });
       }
 
       const me = interaction.guild?.members?.me;
       if (!me) {
-        return interaction.reply({ embeds: [buildEmbed({ type: 'error', description: '❌ Unable to validate bot permissions in this server.' })], ephemeral: true });
+        return interaction.reply({ embeds: [buildEmbed({ type: 'error', description: '❌ Unable to validate bot permissions in this server.' })], flags: MessageFlags.Ephemeral });
       }
 
       const perms = channel.permissionsFor(me);
@@ -42,7 +42,7 @@ export const aura = {
       if (missing.length) {
         return interaction.reply({
           embeds: [buildEmbed({ type: 'error', description: `❌ I need **View Channel, Connect, and Speak** permissions in ${channel}.` })],
-          ephemeral: true
+          flags: MessageFlags.Ephemeral
         });
       }
 
@@ -71,9 +71,9 @@ export const aura = {
       const connection = getVoiceConnection(interaction.guildId);
       if (connection) {
         connection.destroy();
-        return interaction.reply({ embeds: [buildEmbed({ type: 'success', description: '👋 Aura has left the voice channel.' })], ephemeral: true });
+        return interaction.reply({ embeds: [buildEmbed({ type: 'success', description: '👋 Aura has left the voice channel.' })], flags: MessageFlags.Ephemeral });
       } else {
-        return interaction.reply({ embeds: [buildEmbed({ type: 'error', description: '❌ I am not in a voice channel.' })], ephemeral: true });
+        return interaction.reply({ embeds: [buildEmbed({ type: 'error', description: '❌ I am not in a voice channel.' })], flags: MessageFlags.Ephemeral });
       }
     }
   },

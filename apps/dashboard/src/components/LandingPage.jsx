@@ -1,39 +1,102 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import {
-  Shield,
-  Bot,
-  Ticket,
-  BarChart3,
-  Lock,
-  Sparkles,
-  Zap,
-  CheckCircle2,
-  ArrowRight,
-  LogIn,
-  Users,
-  Server,
-  Terminal,
   Activity,
-  Headphones,
-  Star,
-  ChevronLeft,
-  ChevronRight,
-  Radio,
+  ArrowUpRight,
   Award,
-  Coins,
-  Volume2,
-  FileText,
+  BarChart3,
+  Bot,
+  CheckCircle2,
+  ChevronRight,
+  Crown,
+  Globe,
+  Headphones,
+  LayoutDashboard,
+  Lock,
+  Plus,
+  Search,
+  Settings,
+  Shield,
   Sliders,
-  Play,
-  Share2,
+  Sparkles,
+  Star,
+  Terminal,
+  Ticket,
+  Users,
+  Youtube,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import AuraLogo from "./AuraLogo";
 
-/* Floating cosmic particle canvas background */
+/* ────────────────────────────────────────────────────────────────
+   Brand glyphs (inline SVG — lucide has no Discord / X marks)
+   ──────────────────────────────────────────────────────────────── */
+function DiscordGlyph({ className = "" }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className={className}>
+      <path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189Z" />
+    </svg>
+  );
+}
+
+function XGlyph({ className = "" }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className={className}>
+      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+    </svg>
+  );
+}
+
+/* ────────────────────────────────────────────────────────────────
+   Aurora canvas — near-black navy base + soft blurred glows
+   ──────────────────────────────────────────────────────────────── */
+function AuroraBackdrop() {
+  return (
+    <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
+      <div className="absolute inset-0 bg-[#05070D]" />
+
+      {/* soft radial glows */}
+      <div className="absolute -left-[16%] -top-[30%] h-[900px] w-[900px] rounded-full bg-[#1D4ED8]/[0.42] blur-[170px]" />
+      <div className="absolute -right-[14%] top-[-4%] h-[840px] w-[840px] rounded-full bg-[#4338CA]/[0.36] blur-[180px]" />
+      <div className="absolute left-[30%] top-[34%] h-[680px] w-[680px] rounded-full bg-[#0E7490]/[0.24] blur-[190px]" />
+      <div className="absolute -bottom-[20%] right-[0%] h-[760px] w-[760px] rounded-full bg-[#4C1D95]/[0.3] blur-[190px]" />
+      <div className="absolute left-[6%] top-[52%] h-[520px] w-[520px] rounded-full bg-[#0369A1]/[0.22] blur-[180px]" />
+
+      {/* faint diagonal rays */}
+      <div className="absolute -top-1/4 left-[8%] h-[160%] w-px rotate-[22deg] bg-gradient-to-b from-transparent via-white/[0.07] to-transparent" />
+      <div className="absolute -top-1/4 left-[26%] h-[160%] w-px rotate-[22deg] bg-gradient-to-b from-transparent via-white/[0.04] to-transparent" />
+      <div className="absolute -top-1/4 left-[74%] h-[160%] w-px rotate-[22deg] bg-gradient-to-b from-transparent via-white/[0.05] to-transparent" />
+
+      {/* wide sweeping light lines */}
+      <svg
+        className="absolute inset-0 h-full w-full"
+        viewBox="0 0 1440 900"
+        preserveAspectRatio="none"
+        aria-hidden="true"
+      >
+        <path
+          d="M-60 430 C 300 300, 720 540, 1500 250"
+          stroke="rgba(93,140,255,0.12)"
+          strokeWidth="1.4"
+          fill="none"
+        />
+        <path
+          d="M-60 540 C 320 410, 780 640, 1500 360"
+          stroke="rgba(56,189,248,0.08)"
+          strokeWidth="1.4"
+          fill="none"
+        />
+      </svg>
+
+      {/* vignette */}
+      <div className="absolute inset-0 bg-[radial-gradient(125%_95%_at_50%_-12%,transparent_45%,rgba(0,0,0,0.42)_100%)]" />
+    </div>
+  );
+}
+
+/* Floating cosmic particle canvas with connective lines */
 function AuraParticles() {
   const canvasRef = useRef(null);
 
@@ -51,20 +114,37 @@ function AuraParticles() {
     resize();
     window.addEventListener("resize", resize);
 
-    for (let i = 0; i < 90; i++) {
+    for (let i = 0; i < 70; i++) {
       particles.push({
         x: Math.random() * canvas.width,
         y: Math.random() * canvas.height,
-        r: Math.random() * 2.5 + 1,
-        dx: (Math.random() - 0.5) * 0.4,
-        dy: (Math.random() - 0.5) * 0.4,
-        opacity: Math.random() * 0.5 + 0.2,
-        hue: Math.random() * 50 + 260,
+        r: Math.random() * 2 + 0.8,
+        dx: (Math.random() - 0.5) * 0.35,
+        dy: (Math.random() - 0.5) * 0.35,
+        opacity: Math.random() * 0.4 + 0.15,
+        hue: Math.random() * 40 + 196,
       });
     }
 
     const draw = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      ctx.lineWidth = 0.5;
+      for (let i = 0; i < particles.length; i++) {
+        for (let j = i + 1; j < particles.length; j++) {
+          const p1 = particles[i];
+          const p2 = particles[j];
+          const dist = Math.hypot(p1.x - p2.x, p1.y - p2.y);
+          if (dist < 150) {
+            ctx.beginPath();
+            ctx.moveTo(p1.x, p1.y);
+            ctx.lineTo(p2.x, p2.y);
+            ctx.strokeStyle = `hsla(${p1.hue}, 90%, 70%, ${(1 - dist / 150) * 0.1})`;
+            ctx.stroke();
+          }
+        }
+      }
+
       for (const p of particles) {
         p.x += p.dx;
         p.y += p.dy;
@@ -75,7 +155,7 @@ function AuraParticles() {
 
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-        ctx.fillStyle = `hsla(${p.hue}, 85%, 65%, ${p.opacity})`;
+        ctx.fillStyle = `hsla(${p.hue}, 90%, 72%, ${p.opacity})`;
         ctx.fill();
       }
       animId = requestAnimationFrame(draw);
@@ -91,639 +171,962 @@ function AuraParticles() {
   return (
     <canvas
       ref={canvasRef}
-      className="fixed inset-0 pointer-events-none z-0 opacity-70"
+      className="pointer-events-none fixed inset-0 z-0 opacity-40"
+      aria-hidden="true"
     />
   );
 }
 
+/* ────────────────────────────────────────────────────────────────
+   Small shared pieces
+   ──────────────────────────────────────────────────────────────── */
+function LabelChip({ children, className = "" }) {
+  return (
+    <span
+      className={`inline-flex items-center gap-2 rounded-full border border-[#4F8BFF]/[0.22] bg-[#0B1220]/70 px-3 py-1.5 backdrop-blur-md ${className}`}
+    >
+      <span className="h-1.5 w-1.5 rounded-full bg-[#4FC3F7] shadow-[0_0_8px_2px_rgba(79,195,247,0.55)]" />
+      <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-300">
+        {children}
+      </span>
+    </span>
+  );
+}
+
+const primaryPill =
+  "inline-flex cursor-pointer items-center gap-2 rounded-full bg-gradient-to-r from-[#3B82F6] via-[#4F6BFF] to-[#7C5CFF] font-semibold text-white ring-1 ring-inset ring-white/15 shadow-[0_10px_30px_-8px_rgba(79,107,255,0.8)] transition-all duration-300 hover:brightness-110 hover:shadow-[0_16px_40px_-10px_rgba(79,107,255,0.95)]";
+
+const ghostPill =
+  "group inline-flex cursor-pointer items-center gap-2 rounded-full border border-white/[0.1] bg-white/[0.04] font-semibold text-slate-200 backdrop-blur-md transition-all duration-300 hover:border-white/[0.2] hover:bg-white/[0.07] hover:text-white";
+
+/* ────────────────────────────────────────────────────────────────
+   Hero art — layered glow rings, giant "A" mark, glossy orbs
+   ──────────────────────────────────────────────────────────────── */
+function HeroArt() {
+  return (
+    <div className="relative mx-auto aspect-square w-full max-w-[640px]">
+      {/* ambient bloom */}
+      <div className="pointer-events-none absolute inset-[-10%] rounded-full bg-[radial-gradient(closest-side,rgba(56,132,255,0.42),rgba(56,132,255,0.1)_58%,transparent_78%)] blur-[6px]" />
+
+      <svg viewBox="0 0 600 600" className="relative h-full w-full">
+        <defs>
+          <linearGradient id="lpHeroA" x1="12%" y1="0%" x2="88%" y2="100%">
+            <stop offset="0%" stopColor="#DCEBFF" />
+            <stop offset="28%" stopColor="#7EB0FF" />
+            <stop offset="62%" stopColor="#3B82F6" />
+            <stop offset="100%" stopColor="#1D3F9E" />
+          </linearGradient>
+          <radialGradient id="lpHeroCore" cx="50%" cy="48%" r="52%">
+            <stop offset="0%" stopColor="#0E2145" stopOpacity="1" />
+            <stop offset="70%" stopColor="#071026" stopOpacity="0.97" />
+            <stop offset="100%" stopColor="#05070D" stopOpacity="0" />
+          </radialGradient>
+          <radialGradient id="lpDiscFill" cx="50%" cy="18%" r="88%">
+            <stop offset="0%" stopColor="#14305F" stopOpacity="1" />
+            <stop offset="45%" stopColor="#0B1B3C" stopOpacity="1" />
+            <stop offset="100%" stopColor="#060C1C" stopOpacity="1" />
+          </radialGradient>
+          <linearGradient id="lpSheenGrad" x1="50%" y1="0%" x2="50%" y2="60%">
+            <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.16" />
+            <stop offset="100%" stopColor="#FFFFFF" stopOpacity="0" />
+          </linearGradient>
+          <linearGradient id="lpRingGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#22D3EE" stopOpacity="0.5" />
+            <stop offset="45%" stopColor="#4F8BFF" stopOpacity="0.9" />
+            <stop offset="100%" stopColor="#7C5CFF" stopOpacity="0.45" />
+          </linearGradient>
+          <radialGradient id="lpOrbBlue" cx="30%" cy="26%" r="76%">
+            <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.95" />
+            <stop offset="16%" stopColor="#A9CDFF" />
+            <stop offset="52%" stopColor="#2F62D8" />
+            <stop offset="100%" stopColor="#0A1738" />
+          </radialGradient>
+          <radialGradient id="lpOrbCyan" cx="30%" cy="26%" r="76%">
+            <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.95" />
+            <stop offset="18%" stopColor="#A5F3FC" />
+            <stop offset="55%" stopColor="#0E7C9B" />
+            <stop offset="100%" stopColor="#072033" />
+          </radialGradient>
+          <radialGradient id="lpOrbViolet" cx="30%" cy="26%" r="76%">
+            <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.9" />
+            <stop offset="18%" stopColor="#C7B9FF" />
+            <stop offset="58%" stopColor="#5B4BD6" />
+            <stop offset="100%" stopColor="#0C0A2B" />
+          </radialGradient>
+          <filter id="lpBlurLg" x="-60%" y="-60%" width="220%" height="220%">
+            <feGaussianBlur stdDeviation="18" />
+          </filter>
+          <filter id="lpBlurSm" x="-60%" y="-60%" width="220%" height="220%">
+            <feGaussianBlur stdDeviation="5" />
+          </filter>
+          <filter id="lpBlurMd" x="-60%" y="-60%" width="220%" height="220%">
+            <feGaussianBlur stdDeviation="10" />
+          </filter>
+        </defs>
+
+        {/* core disc */}
+        <circle cx="300" cy="300" r="262" fill="url(#lpHeroCore)" />
+
+        {/* sweeping orbit curves */}
+        <ellipse
+          cx="300"
+          cy="300"
+          rx="292"
+          ry="128"
+          transform="rotate(-26 300 300)"
+          fill="none"
+          stroke="rgba(147,197,253,0.18)"
+          strokeWidth="1"
+        />
+        <ellipse
+          cx="300"
+          cy="300"
+          rx="270"
+          ry="96"
+          transform="rotate(24 300 300)"
+          fill="none"
+          stroke="rgba(56,189,248,0.14)"
+          strokeWidth="1"
+        />
+
+        {/* outer rings */}
+        <circle
+          cx="300"
+          cy="300"
+          r="244"
+          fill="none"
+          stroke="#3B82F6"
+          strokeWidth="7"
+          opacity="0.42"
+          filter="url(#lpBlurLg)"
+        />
+        <circle cx="300" cy="300" r="244" fill="none" stroke="url(#lpRingGrad)" strokeWidth="1.6" />
+        <circle
+          cx="300"
+          cy="300"
+          r="212"
+          fill="none"
+          stroke="rgba(147,197,253,0.38)"
+          strokeWidth="1"
+          strokeDasharray="2 8"
+        />
+        <circle cx="300" cy="300" r="182" fill="none" stroke="rgba(147,197,253,0.2)" strokeWidth="1" />
+
+        {/* inner glass disc */}
+        <circle
+          cx="300"
+          cy="300"
+          r="180"
+          fill="none"
+          stroke="#4F8BFF"
+          strokeWidth="9"
+          opacity="0.55"
+          filter="url(#lpBlurMd)"
+        />
+        <circle cx="300" cy="300" r="176" fill="url(#lpDiscFill)" />
+        <path d="M 128 300 A 172 172 0 0 1 472 300 Z" fill="url(#lpSheenGrad)" />
+        <circle cx="300" cy="300" r="176" fill="none" stroke="rgba(170,210,255,0.5)" strokeWidth="1.3" />
+        <circle cx="300" cy="300" r="186" fill="none" stroke="rgba(120,170,255,0.3)" strokeWidth="1" />
+
+        {/* the "A" mark with bloom */}
+        <g transform="translate(300 300) scale(1.52) translate(-100 -100)">
+          <path
+            d="M 100 24 L 164 168 L 144 154 L 126 166 L 108 122 L 92 122 L 74 166 L 56 154 L 36 168 Z"
+            fill="#7EB0FF"
+            opacity="0.95"
+            filter="url(#lpBlurMd)"
+          />
+          <path
+            d="M 100 24 L 164 168 L 144 154 L 126 166 L 108 122 L 92 122 L 74 166 L 56 154 L 36 168 Z"
+            fill="url(#lpHeroA)"
+          />
+          <path
+            d="M 100 80 Q 100 102 113 102 Q 100 102 100 124 Q 100 102 87 102 Q 100 102 100 80 Z"
+            fill="#EAF4FF"
+          />
+        </g>
+
+        {/* floating glossy orbs */}
+        <motion.g
+          animate={{ y: [0, -12, 0] }}
+          transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
+        >
+          <circle cx="470" cy="178" r="46" fill="#3B82F6" opacity="0.22" filter="url(#lpBlurSm)" />
+          <circle cx="470" cy="178" r="31" fill="url(#lpOrbBlue)" />
+          <ellipse cx="458" cy="164" rx="9" ry="5.5" fill="#FFFFFF" opacity="0.5" transform="rotate(-24 458 164)" />
+        </motion.g>
+
+        <motion.g
+          animate={{ y: [0, 10, 0] }}
+          transition={{ duration: 8.5, repeat: Infinity, ease: "easeInOut", delay: 0.6 }}
+        >
+          <circle cx="132" cy="302" r="38" fill="#22D3EE" opacity="0.18" filter="url(#lpBlurSm)" />
+          <circle cx="132" cy="302" r="23" fill="url(#lpOrbCyan)" />
+        </motion.g>
+
+        <motion.g
+          animate={{ y: [0, -8, 0] }}
+          transition={{ duration: 6.4, repeat: Infinity, ease: "easeInOut", delay: 1.2 }}
+        >
+          <circle cx="438" cy="436" r="30" fill="#7C5CFF" opacity="0.18" filter="url(#lpBlurSm)" />
+          <circle cx="438" cy="436" r="18" fill="url(#lpOrbViolet)" />
+        </motion.g>
+
+        <motion.g
+          animate={{ y: [0, 7, 0] }}
+          transition={{ duration: 5.6, repeat: Infinity, ease: "easeInOut", delay: 0.3 }}
+        >
+          <circle cx="300" cy="76" r="15" fill="url(#lpOrbBlue)" />
+        </motion.g>
+      </svg>
+
+      {/* floating glass status card */}
+      <motion.div
+        animate={{ y: [0, -10, 0] }}
+        transition={{ duration: 6.8, repeat: Infinity, ease: "easeInOut" }}
+        className="absolute right-0 top-[28%] w-[186px] rounded-2xl border border-white/[0.12] bg-[#080D1A]/70 p-3.5 shadow-[0_24px_60px_-24px_rgba(0,0,0,0.95)] backdrop-blur-xl sm:right-[-6%] sm:w-[198px]"
+      >
+        <div className="flex items-start gap-2.5">
+          <span className="mt-1 flex h-2 w-2 shrink-0 rounded-full bg-[#39D98A] shadow-[0_0_8px_2px_rgba(57,217,138,0.5)]" />
+          <div className="min-w-0">
+            <p className="text-[12px] font-semibold leading-tight text-white">Aura Bot</p>
+            <p className="text-[10px] font-medium leading-tight text-[#39D98A]">Online</p>
+          </div>
+          <DiscordGlyph className="ml-auto h-4 w-4 shrink-0 text-slate-400" />
+        </div>
+        <div className="my-2.5 h-px bg-white/[0.08]" />
+        <p className="text-[10px] leading-relaxed text-slate-400">Your server, our priority.</p>
+      </motion.div>
+    </div>
+  );
+}
+
+/* ────────────────────────────────────────────────────────────────
+   Dashboard preview mock (pure markup + SVG, no assets)
+   ──────────────────────────────────────────────────────────────── */
+const mockNav = [
+  { label: "Dashboard", icon: LayoutDashboard, active: true },
+  { label: "Server Members", icon: Users },
+  { label: "Commands", icon: Terminal },
+  { label: "Moderation", icon: Shield },
+  { label: "Tickets", icon: Ticket },
+  { label: "Giveaways", icon: Award },
+  { label: "Levels & XP", icon: Star },
+  { label: "Server Stats", icon: BarChart3 },
+  { label: "Settings", icon: Settings },
+];
+
+const mockStats = [
+  { label: "Members", value: "12,483", delta: "+12%", icon: Users, tone: "text-[#7FB2FF] bg-[#4F8BFF]/[0.15]" },
+  { label: "Commands", value: "48,921", delta: "+8%", icon: Terminal, tone: "text-[#B69CFF] bg-[#8B5CF6]/[0.15]" },
+  { label: "Open Tickets", value: "342", delta: "+21%", icon: Ticket, tone: "text-[#6EE7F9] bg-[#22D3EE]/[0.15]" },
+  { label: "Nitro Boosts", value: "128", delta: "+16%", icon: Star, tone: "text-[#F9A8D4] bg-[#F472B6]/[0.15]" },
+];
+
+const mockActions = [
+  { label: "Invite Bot", icon: Plus },
+  { label: "View Commands", icon: Terminal },
+  { label: "Join Support Server", icon: Headphones },
+  { label: "Get Premium", icon: Crown },
+];
+
+function DashboardMock() {
+  return (
+    <div className="relative">
+      <div className="pointer-events-none absolute -inset-8 rounded-[40px] bg-[radial-gradient(60%_60%_at_65%_15%,rgba(79,107,255,0.22),transparent_72%)] blur-2xl" />
+
+      <div className="relative overflow-hidden rounded-2xl border border-white/[0.09] bg-[#060910]/85 shadow-[0_50px_100px_-45px_rgba(0,0,0,1)] backdrop-blur-xl">
+        {/* window chrome */}
+        <div className="flex items-center gap-3 border-b border-white/[0.06] bg-white/[0.02] px-3 py-2.5">
+          <div className="flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full bg-[#FF5C7A]/70" />
+            <span className="h-2 w-2 rounded-full bg-[#FFB547]/70" />
+            <span className="h-2 w-2 rounded-full bg-[#39D98A]/70" />
+          </div>
+          <div className="hidden min-w-0 flex-1 items-center gap-2 rounded-lg border border-white/[0.06] bg-white/[0.03] px-2.5 py-1.5 sm:flex">
+            <Search className="h-3 w-3 shrink-0 text-slate-500" />
+            <span className="truncate text-[10px] text-slate-500">Search anything...</span>
+          </div>
+          <div className="ml-auto flex items-center gap-2">
+            <span className="h-5 w-5 rounded-full border border-white/[0.1] bg-gradient-to-br from-[#4F8BFF] to-[#7C5CFF] text-center text-[9px] font-bold leading-[18px] text-white">
+              M
+            </span>
+            <span className="hidden text-[10px] text-slate-400 sm:inline">Marwan</span>
+          </div>
+        </div>
+
+        <div className="flex">
+          {/* mini sidebar */}
+          <aside className="hidden w-[124px] shrink-0 flex-col gap-0.5 border-r border-white/[0.05] bg-white/[0.015] p-2 sm:flex">
+            <div className="mb-1 flex items-center gap-1.5 px-1.5 py-1">
+              <AuraLogo size="xs" showRing={false} />
+              <span className="text-[9px] font-black tracking-[0.14em] text-white">
+                AURA <span className="text-[#5BC8F5]">BOT</span>
+              </span>
+            </div>
+            {mockNav.map((item) => {
+              const Icon = item.icon;
+              return (
+                <div
+                  key={item.label}
+                  className={`flex items-center gap-1.5 rounded-md px-1.5 py-1 text-[9.5px] ${
+                    item.active
+                      ? "border border-[#4F8BFF]/[0.25] bg-[#4F8BFF]/[0.12] font-semibold text-white"
+                      : "text-slate-500"
+                  }`}
+                >
+                  <Icon className="h-2.5 w-2.5 shrink-0" />
+                  <span className="truncate">{item.label}</span>
+                </div>
+              );
+            })}
+          </aside>
+
+          {/* mini content */}
+          <div className="min-w-0 flex-1 space-y-2.5 p-3">
+            <div>
+              <p className="font-body text-[13px] font-semibold text-white">Welcome back, Marwan 👋</p>
+              <p className="text-[9.5px] text-slate-500">Here's what's happening with your server today.</p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+              {mockStats.map((s) => {
+                const Icon = s.icon;
+                return (
+                  <div
+                    key={s.label}
+                    className="rounded-xl border border-white/[0.06] bg-white/[0.025] p-2.5"
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <span className={`grid h-5 w-5 shrink-0 place-items-center rounded-md ${s.tone}`}>
+                        <Icon className="h-3 w-3" />
+                      </span>
+                      <span className="truncate text-[8.5px] text-slate-400">{s.label}</span>
+                    </div>
+                    <p className="mt-1.5 font-body text-[15px] font-bold leading-none text-white">
+                      {s.value}
+                    </p>
+                    <p className="mt-1 flex items-center gap-1 text-[8.5px] font-semibold text-[#39D98A]">
+                      <ArrowUpRight className="h-2.5 w-2.5" />
+                      {s.delta}
+                      <span className="font-normal text-slate-500">vs. last 7 days</span>
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="grid grid-cols-1 gap-2 md:grid-cols-[1.6fr_1fr]">
+              {/* activity chart */}
+              <div className="rounded-xl border border-white/[0.06] bg-white/[0.025] p-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-semibold text-slate-300">Server Activity</span>
+                  <span className="rounded-md border border-white/[0.07] bg-white/[0.03] px-1.5 py-0.5 text-[8px] text-slate-400">
+                    Last 7 days
+                  </span>
+                </div>
+                <svg viewBox="0 0 300 84" className="mt-2 h-[74px] w-full" aria-hidden="true">
+                  <defs>
+                    <linearGradient id="lpChartFill" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#4F8BFF" stopOpacity="0.5" />
+                      <stop offset="100%" stopColor="#4F8BFF" stopOpacity="0" />
+                    </linearGradient>
+                  </defs>
+                  <path
+                    d="M0 62 C 28 40, 52 56, 82 36 S 128 20, 158 32 S 208 48, 238 20 S 276 12, 300 20 L300 84 L0 84 Z"
+                    fill="url(#lpChartFill)"
+                  />
+                  <path
+                    d="M0 62 C 28 40, 52 56, 82 36 S 128 20, 158 32 S 208 48, 238 20 S 276 12, 300 20"
+                    fill="none"
+                    stroke="#63B3FF"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                  />
+                  <path
+                    d="M0 76 C 38 64, 66 72, 106 56 S 176 50, 216 38 S 268 40, 300 30"
+                    fill="none"
+                    stroke="#8B5CF6"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    opacity="0.85"
+                  />
+                </svg>
+                <div className="mt-1 flex justify-between text-[7.5px] text-slate-500">
+                  {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
+                    <span key={d}>{d}</span>
+                  ))}
+                </div>
+              </div>
+
+              {/* quick actions */}
+              <div className="space-y-1.5 rounded-xl border border-white/[0.06] bg-white/[0.025] p-2.5">
+                <span className="text-[10px] font-semibold text-slate-300">Quick Actions</span>
+                {mockActions.map((a) => {
+                  const Icon = a.icon;
+                  return (
+                    <div
+                      key={a.label}
+                      className="flex items-center gap-1.5 rounded-lg border border-white/[0.05] bg-white/[0.02] px-1.5 py-1.5"
+                    >
+                      <span className="grid h-4 w-4 shrink-0 place-items-center rounded bg-[#4F8BFF]/[0.15] text-[#7FB2FF]">
+                        <Icon className="h-2.5 w-2.5" />
+                      </span>
+                      <span className="truncate text-[9px] text-slate-300">{a.label}</span>
+                      <ChevronRight className="ml-auto h-2.5 w-2.5 shrink-0 text-slate-600" />
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ────────────────────────────────────────────────────────────────
+   Landing page
+   ──────────────────────────────────────────────────────────────── */
 export default function LandingPage({ onLaunchDashboard }) {
-  const { login, isAuthenticated } = useAuth();
-  const [activeModuleFilter, setActiveModuleFilter] = useState("all");
+  const { login } = useAuth();
+
+  const navLinks = [
+    { label: "Home", href: "#home" },
+    { label: "Features", href: "#features" },
+    { label: "Commands", href: "#modules" },
+    { label: "Premium", href: "#premium" },
+    { label: "Support", href: "#support" },
+  ];
 
   const featureCards = [
     {
       icon: Shield,
       title: "Advanced Moderation",
       desc: "Powerful moderation tools to keep your server safe and secure.",
-      color: "text-purple-400 border-purple-500/30 bg-purple-950/30 shadow-purple-900/20",
+      tone: "blue",
     },
     {
       icon: Bot,
       title: "Smart Automation",
       desc: "Automate tasks, welcome members, assign roles and much more.",
-      color: "text-blue-400 border-blue-500/30 bg-blue-950/30 shadow-blue-900/20",
+      tone: "violet",
     },
     {
       icon: Ticket,
       title: "Ticket System",
       desc: "Professional ticket system with transcripts and custom workflows.",
-      color: "text-emerald-400 border-emerald-500/30 bg-emerald-950/30 shadow-emerald-900/20",
+      tone: "cyan",
+    },
+    {
+      icon: Award,
+      title: "Giveaways",
+      desc: "Run giveaways and grow your community.",
+      tone: "pink",
     },
     {
       icon: BarChart3,
       title: "Analytics & Insights",
       desc: "Beautiful analytics to track growth and server engagement.",
-      color: "text-pink-400 border-pink-500/30 bg-pink-950/30 shadow-pink-900/20",
+      tone: "cyan",
     },
     {
       icon: Lock,
       title: "Security & Protection",
       desc: "Anti-raid, anti-nuke and advanced security features.",
-      color: "text-amber-400 border-amber-500/30 bg-amber-950/30 shadow-amber-900/20",
+      tone: "violet",
+    },
+    {
+      icon: Star,
+      title: "Leveling System",
+      desc: "Reward your active members.",
+      tone: "pink",
+    },
+    {
+      icon: Sliders,
+      title: "And More",
+      desc: "50+ features to make your server better.",
+      tone: "blue",
     },
   ];
+
+  const featureTones = {
+    blue: "border-[#4F8BFF]/[0.3] bg-[#4F8BFF]/[0.12] text-[#7FB2FF]",
+    violet: "border-[#8B5CF6]/[0.3] bg-[#8B5CF6]/[0.12] text-[#B69CFF]",
+    cyan: "border-[#22D3EE]/[0.3] bg-[#22D3EE]/[0.12] text-[#6EE7F9]",
+    pink: "border-[#F472B6]/[0.3] bg-[#F472B6]/[0.12] text-[#F9A8D4]",
+  };
 
   const modulesGrid = [
-    { name: "Welcome System", icon: Sparkles, color: "text-emerald-400 border-emerald-500/30" },
-    { name: "Verification", icon: Shield, color: "text-blue-400 border-blue-500/30" },
-    { name: "Reaction Roles", icon: Bot, color: "text-purple-400 border-purple-500/30" },
-    { name: "Giveaways", icon: Award, color: "text-amber-400 border-amber-500/30" },
-    { name: "Invites Tracker", icon: Share2, color: "text-pink-400 border-pink-500/30" },
-    { name: "Auto Moderation", icon: Lock, color: "text-red-400 border-red-500/30" },
-    { name: "Polls", icon: BarChart3, color: "text-indigo-400 border-indigo-500/30" },
-    { name: "Leveling System", icon: Star, color: "text-yellow-400 border-yellow-500/30" },
-    { name: "Economy", icon: Coins, color: "text-cyan-400 border-cyan-500/30" },
-    { name: "Voice Management", icon: Volume2, color: "text-violet-400 border-violet-500/30" },
-    { name: "Logs & Audits", icon: FileText, color: "text-teal-400 border-teal-500/30" },
-    { name: "And More...", icon: Sliders, color: "text-purple-400 border-purple-500/30" },
+    { name: "Welcome System", icon: Sparkles },
+    { name: "Verification", icon: Shield },
+    { name: "Reaction Roles", icon: Bot },
+    { name: "Giveaways", icon: Award },
+    { name: "Invites Tracker", icon: Users },
+    { name: "Auto Moderation", icon: Lock },
+    { name: "Polls", icon: BarChart3 },
+    { name: "Leveling System", icon: Star },
+    { name: "Economy", icon: Crown },
+    { name: "Voice Management", icon: Headphones },
+    { name: "Logs & Audits", icon: Terminal },
+    { name: "And More...", icon: Sliders },
   ];
 
-  const testimonials = [
-    {
-      name: "Crystal#0001",
-      role: "Server Owner • 88K Members",
-      quote: "Aura Bot is an absolute game-changer. It has everything we need and more!",
-      avatar: "C",
-      avatarBg: "bg-purple-600",
-    },
-    {
-      name: "Nebulaf#0420",
-      role: "Community Manager • 42K Members",
-      quote: "The dashboard is so intuitive and beautiful. Managing my server has never been easier.",
-      avatar: "N",
-      avatarBg: "bg-blue-600",
-    },
-    {
-      name: "Infinity#9999",
-      role: "Server Owner • 120K Members",
-      quote: "Best support, always listening to the community and adding amazing features.",
-      avatar: "I",
-      avatarBg: "bg-pink-600",
-    },
+  const stats = [
+    { icon: Users, value: "1M+", label: "Servers" },
+    { icon: Star, value: "4.9/5", label: "User rating" },
+    { icon: Activity, value: "99.9%", label: "Uptime" },
   ];
+
+  const checklist = [
+    "Real-time data & live updates",
+    "Fully responsive on all devices",
+    "Lightning fast performance",
+  ];
+
+  const communityAvatars = [
+    { initial: "C", bg: "from-[#7C5CFF] to-[#4F6BFF]" },
+    { initial: "N", bg: "from-[#3B82F6] to-[#22D3EE]" },
+    { initial: "I", bg: "from-[#F472B6] to-[#8B5CF6]" },
+    { initial: "A", bg: "from-[#22D3EE] to-[#39D98A]" },
+  ];
+
+  const fadeUp = {
+    initial: { opacity: 0, y: 18 },
+    whileInView: { opacity: 1, y: 0 },
+    viewport: { once: true, amount: 0.2 },
+  };
 
   return (
-    <div className="min-h-screen bg-[#05040a] text-zinc-100 relative overflow-hidden select-none antialiased font-sans">
+    <div className="relative min-h-screen overflow-hidden bg-[#05070D] font-sans text-slate-100 antialiased">
+      <AuroraBackdrop />
       <AuraParticles />
 
-      {/* Ambient background glow nebulae */}
-      <div className="fixed inset-0 pointer-events-none z-0">
-        <div className="absolute top-[-10%] left-[-10%] w-[700px] h-[700px] rounded-full bg-purple-600/15 blur-[180px]" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[700px] h-[700px] rounded-full bg-indigo-600/15 blur-[180px]" />
-        <div className="absolute top-[40%] left-[30%] w-[500px] h-[500px] rounded-full bg-pink-600/10 blur-[180px]" />
-      </div>
-
-      {/* ── 1. Top Navigation Bar (Matching Photo 2) ────────────────── */}
-      <header className="sticky top-0 z-50 w-full bg-[#05040a]/90 backdrop-blur-xl border-b border-purple-500/15">
-        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <AuraLogo size="md" />
-            <div>
-              <span className="font-black text-white text-base tracking-wider block">
-                AURA BOT
-              </span>
-              <span className="text-[9px] text-purple-400 font-extrabold tracking-widest uppercase block -mt-1">
-                NEXT-GEN DISCORD EXPERIENCE
-              </span>
-            </div>
-          </div>
-
-          <nav className="hidden md:flex items-center gap-8 text-xs font-bold text-zinc-300">
-            <a href="#features" className="hover:text-purple-300 transition-colors">Features</a>
-            <a href="#modules" className="hover:text-purple-300 transition-colors">Modules</a>
-            <a href="#pricing" className="hover:text-purple-300 transition-colors">Pricing</a>
-            <a href="#docs" className="hover:text-purple-300 transition-colors">Docs</a>
-            <a href="#support" className="hover:text-purple-300 transition-colors">Support</a>
-            <a href="#changelog" className="hover:text-purple-300 transition-colors relative">
-              Changelog
-              <span className="absolute -top-1 -right-2 w-2 h-2 rounded-full bg-pink-500 animate-pulse" />
-            </a>
-          </nav>
-
-          <div className="flex items-center gap-3">
-            {!isAuthenticated && (
-              <button
-                onClick={login}
-                className="hidden sm:flex items-center gap-1.5 px-4 py-1.5 rounded-xl text-xs font-bold text-zinc-300 hover:text-white border border-purple-500/30 hover:border-purple-500/60 bg-purple-950/30 transition-all cursor-pointer"
-              >
-                <LogIn className="w-3.5 h-3.5" />
-                <span>Log in</span>
-              </button>
-            )}
-
-            <button
-              onClick={login}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-extrabold text-white bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 shadow-lg shadow-purple-900/40 transition-all cursor-pointer"
-            >
+      {/* ── 1. Sticky glass nav pill ───────────────────────────── */}
+      <header className="fixed inset-x-0 top-0 z-50 px-4 pt-4 md:px-6">
+        <div className="mx-auto max-w-[1180px] rounded-2xl border border-white/[0.08] bg-[#070A12]/70 px-4 shadow-[0_18px_50px_-25px_rgba(0,0,0,0.95)] backdrop-blur-2xl md:px-5">
+          <div className="flex h-16 items-center justify-between gap-4">
+            <a href="#home" className="flex shrink-0 items-center gap-2.5">
               <AuraLogo size="sm" />
-              <span>Add to Discord</span>
-            </button>
+              <span className="text-[13px] font-bold tracking-[0.22em] text-white">
+                AURA <span className="text-[#5BC8F5]">BOT</span>
+              </span>
+            </a>
+
+            <nav className="hidden items-center gap-8 md:flex">
+              {navLinks.map((l, i) => (
+                <a
+                  key={l.label}
+                  href={l.href}
+                  className={`text-[12.5px] transition-colors ${
+                    i === 0
+                      ? "font-semibold text-white"
+                      : "font-medium text-slate-400 hover:text-white"
+                  }`}
+                >
+                  {l.label}
+                </a>
+              ))}
+            </nav>
+
+            <div className="flex shrink-0 items-center gap-2.5">
+              <button
+                type="button"
+                onClick={login}
+                aria-label="Continue with Discord"
+                title="Continue with Discord"
+                className="hidden h-9 w-9 cursor-pointer items-center justify-center rounded-xl border border-white/[0.08] bg-white/[0.03] text-slate-300 transition-colors hover:border-white/[0.18] hover:text-white sm:flex"
+              >
+                <DiscordGlyph className="h-4 w-4" />
+              </button>
+
+              <button
+                type="button"
+                onClick={login}
+                className={`${primaryPill} h-9 px-4 text-[12.5px]`}
+              >
+                <DiscordGlyph className="h-3.5 w-3.5" />
+                <span>Add to Discord</span>
+                <ChevronRight className="h-3.5 w-3.5" />
+              </button>
+            </div>
           </div>
         </div>
       </header>
 
-      {/* ── 2. Hero Section (Matching Photo 2) ─────────────────────── */}
-      <section className="relative z-10 max-w-7xl mx-auto px-6 pt-16 pb-20">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
-          
-          {/* Left Column Text & CTAs */}
-          <div className="lg:col-span-6 space-y-6 text-left">
+      {/* ── 2. Hero ────────────────────────────────────────────── */}
+      <section id="home" className="relative z-10 mx-auto max-w-[1180px] px-6 pb-16 pt-32 md:pt-36">
+        <div className="grid grid-cols-1 items-center gap-14 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] lg:gap-6">
+          {/* copy */}
+          <div className="space-y-6">
             <motion.div
-              initial={{ opacity: 0, y: 15 }}
+              initial={{ opacity: 0, y: 14 }}
               animate={{ opacity: 1, y: 0 }}
-              className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-purple-950/60 border border-purple-500/30 text-purple-300 text-xs font-extrabold shadow-inner"
+              transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
             >
-              <Zap className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
-              <span>THE ALL-IN-ONE DISCORD BOT</span>
+              <LabelChip>The Ultimate Discord Bot</LabelChip>
             </motion.div>
 
             <motion.h1
-              initial={{ opacity: 0, y: 15 }}
+              initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
-              className="text-4xl md:text-5xl lg:text-6xl font-black text-white leading-tight tracking-tight"
+              transition={{ duration: 0.6, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
+              className="font-body text-[42px] font-extrabold leading-[1.04] tracking-[-0.03em] text-white sm:text-[54px] lg:text-[62px] xl:text-[66px]"
             >
-              Powerful. Beautiful. Built for{" "}
-              <span className="bg-gradient-to-r from-purple-400 via-pink-400 to-indigo-300 bg-clip-text text-transparent">
-                your server.
+              More Than Just
+              <br />
+              <span className="bg-gradient-to-r from-[#5B8CFF] via-[#4FC3F7] to-[#22D3EE] bg-clip-text text-transparent">
+                a Bot.
               </span>
             </motion.h1>
 
             <motion.p
-              initial={{ opacity: 0, y: 15 }}
+              initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className="text-sm md:text-base text-zinc-300 max-w-xl leading-relaxed"
+              transition={{ duration: 0.6, delay: 0.16, ease: [0.22, 1, 0.36, 1] }}
+              className="max-w-[38ch] text-[14.5px] leading-relaxed text-slate-400"
             >
-              Aura Bot combines the most advanced moderation, automation, and engagement tools in one intuitive dashboard. Everything you need. Nothing you don't.
+              Moderation, automation, engagement and more — all in one simple, beautiful bot.
             </motion.p>
 
-            {/* CTAs */}
             <motion.div
-              initial={{ opacity: 0, y: 15 }}
+              initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
-              className="flex flex-wrap items-center gap-4 pt-2"
+              transition={{ duration: 0.6, delay: 0.24, ease: [0.22, 1, 0.36, 1] }}
+              className="flex flex-wrap items-center gap-3 pt-1"
             >
-              <button
-                onClick={login}
-                className="flex items-center gap-2.5 px-6 py-3 rounded-xl text-xs font-black text-white bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-600 hover:from-purple-500 hover:to-indigo-500 shadow-xl shadow-purple-900/50 transition-all cursor-pointer"
-              >
-                <AuraLogo size="sm" />
-                <span>Add Aura Bot to Discord</span>
+              <button type="button" onClick={login} className={`${primaryPill} h-12 px-6 text-[13.5px]`}>
+                <DiscordGlyph className="h-4 w-4" />
+                <span>Add to Discord</span>
               </button>
 
               <button
+                type="button"
                 onClick={onLaunchDashboard}
-                className="flex items-center gap-2 px-5 py-3 rounded-xl text-xs font-bold text-zinc-300 hover:text-white border border-purple-500/30 hover:border-purple-500/60 bg-[#0d091e] transition-all cursor-pointer"
+                className={`${ghostPill} h-12 px-6 text-[13.5px]`}
               >
-                <Play className="w-3.5 h-3.5 text-purple-400 fill-purple-400" />
-                <span>View Features</span>
+                <span>Explore Features</span>
+                <ChevronRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-0.5" />
               </button>
             </motion.div>
 
-            {/* 3 Feature Pills */}
+            {/* stats */}
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.4 }}
-              className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-4 border-t border-purple-500/15"
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.32, ease: [0.22, 1, 0.36, 1] }}
+              className="flex flex-wrap items-center gap-x-8 gap-y-4 pt-4"
             >
-              <div className="flex items-center gap-2.5">
-                <Zap className="w-4 h-4 text-purple-400 shrink-0" />
-                <div>
-                  <h4 className="text-xs font-bold text-white leading-tight">Easy to use</h4>
-                  <span className="text-[10px] text-zinc-400">Intuitive dashboard</span>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2.5">
-                <Shield className="w-4 h-4 text-cyan-400 shrink-0" />
-                <div>
-                  <h4 className="text-xs font-bold text-white leading-tight">Trusted by thousands</h4>
-                  <span className="text-[10px] text-zinc-400">Active on 100,000+ servers</span>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2.5">
-                <Sparkles className="w-4 h-4 text-pink-400 shrink-0" />
-                <div>
-                  <h4 className="text-xs font-bold text-white leading-tight">Always improving</h4>
-                  <span className="text-[10px] text-zinc-400">Weekly updates</span>
-                </div>
-              </div>
+              {stats.map((s) => {
+                const Icon = s.icon;
+                return (
+                  <div key={s.label} className="flex items-center gap-2.5">
+                    <span className="grid h-10 w-10 place-items-center rounded-xl border border-white/[0.08] bg-white/[0.035] text-[#7FB2FF] backdrop-blur-md">
+                      <Icon className="h-4 w-4" />
+                    </span>
+                    <span className="leading-tight">
+                      <span className="block font-body text-[15px] font-bold text-white">
+                        {s.value}
+                      </span>
+                      <span className="block text-[11px] text-slate-500">{s.label}</span>
+                    </span>
+                  </div>
+                );
+              })}
             </motion.div>
           </div>
 
-          {/* Right Column Floating 3D Dashboard Mockup Preview */}
-          <div className="lg:col-span-6 relative">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              transition={{ duration: 0.6 }}
+          {/* art */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.94 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.8, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
+            className="relative order-last lg:-mr-10"
+          >
+            <HeroArt />
+          </motion.div>
+        </div>
+
+        {/* scroll hint */}
+        <div className="mt-8 flex items-center justify-center gap-2 text-[11.5px] text-slate-600">
+          <span>Scroll to explore</span>
+          <span className="text-slate-500">↓</span>
+        </div>
+      </section>
+
+      {/* ── 3. Features ────────────────────────────────────────── */}
+      <section id="features" className="relative z-10 mx-auto max-w-[1180px] px-6 py-14">
+        <div className="rounded-3xl border border-white/[0.08] bg-white/[0.02] p-6 backdrop-blur-sm md:p-9">
+          <motion.div
+            {...fadeUp}
+            transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+            className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between"
+          >
+            <div className="space-y-3">
+              <LabelChip>What We Offer</LabelChip>
+              <h2 className="font-body text-[30px] font-extrabold tracking-[-0.02em] md:text-[38px]">
+                <span className="bg-gradient-to-r from-white via-white to-[#8FB9FF] bg-clip-text text-transparent">
+                  Powerful Features
+                </span>
+              </h2>
+              <p className="max-w-[46ch] text-[13.5px] leading-relaxed text-slate-400">
+                Everything you need to manage, protect and grow your server.
+              </p>
+            </div>
+
+            <button
+              type="button"
               onClick={onLaunchDashboard}
-              className="relative rounded-2xl overflow-hidden border border-purple-500/30 bg-[#0d0a1f] p-2 shadow-[0_0_50px_rgba(168,85,247,0.3)] hover:scale-[1.02] transition-transform cursor-pointer group"
+              className={`${ghostPill} h-10 shrink-0 px-4 text-[12.5px]`}
             >
-              {/* Fake Dashboard Title bar */}
-              <div className="h-8 bg-[#070512] rounded-t-xl px-4 flex items-center justify-between border-b border-purple-500/20">
-                <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-red-500/80" />
-                  <span className="w-2.5 h-2.5 rounded-full bg-yellow-500/80" />
-                  <span className="w-2.5 h-2.5 rounded-full bg-green-500/80" />
-                  <span className="text-[10px] text-zinc-400 font-mono ml-2">dashboard.aurabot.io</span>
-                </div>
-                <span className="text-[10px] font-mono text-purple-400 font-bold px-2 py-0.5 rounded bg-purple-500/10">
-                  LIVE DASHBOARD
-                </span>
-              </div>
+              <span>View all features</span>
+              <ChevronRight className="h-3.5 w-3.5" />
+            </button>
+          </motion.div>
 
-              {/* Inner Dashboard Preview Representation */}
-              <div className="bg-[#0b0818] p-4 space-y-4 rounded-b-xl">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <AuraLogo size="sm" />
-                    <div>
-                      <h3 className="text-xs font-bold text-white">Good evening, Marwan! 👋</h3>
-                      <span className="text-[10px] text-zinc-400">24 Servers • 128.4K Members</span>
-                    </div>
-                  </div>
-                  <span className="px-3 py-1 rounded-lg bg-emerald-500/15 text-emerald-400 font-extrabold text-[10px] border border-emerald-500/30">
-                    ONLINE
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-3 gap-2">
-                  <div className="bg-[#130d2a] p-2.5 rounded-xl border border-purple-500/20">
-                    <span className="text-[9px] text-zinc-400 block">Servers</span>
-                    <span className="text-sm font-black text-white">24</span>
-                  </div>
-                  <div className="bg-[#130d2a] p-2.5 rounded-xl border border-purple-500/20">
-                    <span className="text-[9px] text-zinc-400 block">Members</span>
-                    <span className="text-sm font-black text-white">128.4K</span>
-                  </div>
-                  <div className="bg-[#130d2a] p-2.5 rounded-xl border border-purple-500/20">
-                    <span className="text-[9px] text-zinc-400 block">Commands</span>
-                    <span className="text-sm font-black text-white">28.7M</span>
-                  </div>
-                </div>
-
-                <div className="bg-[#130d2a] p-3 rounded-xl border border-purple-500/20 h-24 flex items-end">
-                  <div className="w-full flex items-end gap-1.5 h-16">
-                    {[40, 65, 45, 80, 95, 70, 85, 100].map((h, i) => (
-                      <div
-                        key={i}
-                        className="flex-1 bg-gradient-to-t from-purple-600 to-pink-500 rounded-t"
-                        style={{ height: `${h}%` }}
-                      />
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Hover overlay hint */}
-              <div className="absolute inset-0 bg-purple-950/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-xs">
-                <span className="px-5 py-2.5 rounded-xl bg-purple-600 text-white font-extrabold text-xs shadow-2xl flex items-center gap-2">
-                  <span>Click to Launch Interactive Dashboard</span>
-                  <ArrowRight className="w-4 h-4" />
-                </span>
-              </div>
-            </motion.div>
-          </div>
-        </div>
-      </section>
-
-      {/* ── 3. Stats Bar Section (Matching Photo 2) ────────────────── */}
-      <section id="stats" className="border-y border-purple-500/15 bg-[#080612]/80 py-10 relative z-10">
-        <div className="max-w-7xl mx-auto px-6 grid grid-cols-2 md:grid-cols-5 gap-6 text-center">
-          <div>
-            <span className="text-2xl md:text-3xl font-black text-white block">100,000+</span>
-            <span className="text-xs text-purple-300/70 font-medium">Active Servers</span>
-          </div>
-          <div>
-            <span className="text-2xl md:text-3xl font-black text-white block">12.4M+</span>
-            <span className="text-xs text-purple-300/70 font-medium">Users Protected</span>
-          </div>
-          <div>
-            <span className="text-2xl md:text-3xl font-black text-white block">28M+</span>
-            <span className="text-xs text-purple-300/70 font-medium">Commands Executed</span>
-          </div>
-          <div>
-            <span className="text-2xl md:text-3xl font-black text-white block">99.97%</span>
-            <span className="text-xs text-purple-300/70 font-medium">Uptime</span>
-          </div>
-          <div className="col-span-2 md:col-span-1">
-            <span className="text-2xl md:text-3xl font-black text-white block">24/7</span>
-            <span className="text-xs text-purple-300/70 font-medium">Support</span>
-          </div>
-        </div>
-      </section>
-
-      {/* ── 4. Powerful Features Section (Matching Photo 2) ────────── */}
-      <section id="features" className="py-24 max-w-7xl mx-auto px-6 relative z-10 text-center">
-        <div className="mb-14 space-y-3">
-          <span className="text-[10px] font-extrabold text-purple-400 tracking-widest uppercase bg-purple-950/60 px-3 py-1 rounded-full border border-purple-500/30">
-            BUILT WITH POWER IN MIND
-          </span>
-          <h2 className="text-3xl md:text-4xl font-black text-white">
-            Powerful features for modern communities
-          </h2>
-          <p className="text-sm text-zinc-400 max-w-xl mx-auto">
-            Everything you need to manage, protect and grow your server.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-5">
-          {featureCards.map((c, i) => {
-            const Icon = c.icon;
-            return (
-              <motion.div
-                key={c.title}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.1 }}
-                className={`p-6 rounded-2xl border flex flex-col justify-between h-64 text-left dark-panel-hover ${c.color}`}
-              >
-                <div>
-                  <div className="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center mb-4 border border-white/10">
-                    <Icon className="w-6 h-6" />
-                  </div>
-                  <h3 className="text-base font-extrabold text-white mb-2">
-                    {c.title}
-                  </h3>
-                  <p className="text-xs text-zinc-300 leading-relaxed">
-                    {c.desc}
-                  </p>
-                </div>
-
-                <button
-                  onClick={onLaunchDashboard}
-                  className="text-xs font-bold text-purple-300 hover:text-white flex items-center gap-1 transition-colors cursor-pointer pt-2"
-                >
-                  <span>Learn more</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </button>
-              </motion.div>
-            );
-          })}
-        </div>
-      </section>
-
-      {/* ── 5. All-In-One Solution Section (Matching Photo 2) ──────── */}
-      <section id="modules" className="py-20 bg-[#080612]/60 border-y border-purple-500/15 relative z-10 text-center">
-        <div className="max-w-7xl mx-auto px-6 space-y-12">
-          <div className="space-y-3">
-            <span className="text-[10px] font-extrabold text-purple-400 tracking-widest uppercase bg-purple-950/60 px-3 py-1 rounded-full border border-purple-500/30">
-              ALL-IN-ONE SOLUTION
-            </span>
-            <h2 className="text-3xl md:text-4xl font-black text-white">
-              Everything you need in one place
-            </h2>
-            <p className="text-sm text-zinc-400 max-w-xl mx-auto">
-              Enable powerful modules to supercharge your server.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 max-w-5xl mx-auto">
-            {modulesGrid.map((m) => {
-              const Icon = m.icon;
+          <div className="mt-8 grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
+            {featureCards.map((c, i) => {
+              const Icon = c.icon;
               return (
-                <button
-                  key={m.name}
+                <motion.button
+                  key={c.title}
+                  type="button"
                   onClick={onLaunchDashboard}
-                  className={`flex items-center gap-2.5 p-3 rounded-xl bg-[#0d091f] border hover:border-purple-500/50 text-xs font-bold text-zinc-200 transition-all hover:-translate-y-0.5 cursor-pointer shadow-md ${m.color}`}
+                  initial={{ opacity: 0, y: 18 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, amount: 0.15 }}
+                  transition={{ duration: 0.45, delay: (i % 4) * 0.06, ease: [0.22, 1, 0.36, 1] }}
+                  className="group relative flex cursor-pointer items-start gap-3 rounded-2xl border border-white/[0.08] bg-white/[0.03] p-3.5 text-left backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:border-[#4F8BFF]/[0.38] hover:bg-white/[0.055] hover:shadow-[0_20px_45px_-22px_rgba(79,139,255,0.7)]"
                 >
-                  <Icon className="w-4 h-4 shrink-0" />
-                  <span className="truncate">{m.name}</span>
-                </button>
+                  <span
+                    className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl border ${featureTones[c.tone]}`}
+                  >
+                    <Icon className="h-[18px] w-[18px]" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[12.5px] font-semibold leading-snug text-white">
+                      {c.title}
+                    </span>
+                    <span className="mt-1 line-clamp-2 block text-[11px] leading-relaxed text-slate-400">
+                      {c.desc}
+                    </span>
+                  </span>
+                  <ChevronRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-600 transition-all duration-300 group-hover:translate-x-0.5 group-hover:text-white" />
+                </motion.button>
               );
             })}
           </div>
 
-          <div>
-            <button
-              onClick={onLaunchDashboard}
-              className="px-6 py-3 rounded-xl bg-purple-950/80 hover:bg-purple-900 border border-purple-500/40 text-white font-extrabold text-xs transition-all shadow-lg cursor-pointer"
-            >
-              Explore all modules
-            </button>
-          </div>
-        </div>
-      </section>
-
-      {/* ── 6. Showcase Dashboard Section (Matching Photo 2) ────────── */}
-      <section className="py-24 max-w-7xl mx-auto px-6 relative z-10">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
-          
-          {/* Left Column Visual Preview */}
-          <div className="lg:col-span-7 relative">
-            <div className="relative rounded-2xl border border-purple-500/30 bg-[#0d0a1f] p-4 shadow-[0_0_60px_rgba(168,85,247,0.35)]">
-              <div className="bg-[#080612] p-4 rounded-xl space-y-4">
-                <div className="flex items-center justify-between border-b border-purple-500/20 pb-3">
-                  <div className="flex items-center gap-3">
-                    <AuraLogo size="sm" />
-                    <span className="font-extrabold text-white text-sm">AURA BOT CONTROL PANEL</span>
-                  </div>
-                  <span className="text-[10px] font-mono text-emerald-400 font-bold px-2.5 py-0.5 rounded bg-emerald-500/15 border border-emerald-500/30">
-                    Real-time Connected
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="p-3 bg-[#130d2a] rounded-xl border border-purple-500/20">
-                    <span className="text-[10px] text-zinc-400 block">Server Health</span>
-                    <span className="text-xl font-black text-white">92 / 100</span>
-                    <span className="text-[10px] text-emerald-400 font-bold block mt-1">Excellent</span>
-                  </div>
-                  <div className="p-3 bg-[#130d2a] rounded-xl border border-purple-500/20">
-                    <span className="text-[10px] text-zinc-400 block">Active Automation</span>
-                    <span className="text-xl font-black text-white">12 Modules</span>
-                    <span className="text-[10px] text-purple-400 font-bold block mt-1">Running now</span>
-                  </div>
-                </div>
+          {/* module strip (existing module shortcuts + handlers preserved) */}
+          <div id="modules" className="mt-9 border-t border-white/[0.06] pt-7">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="font-body text-[14px] font-semibold text-white">
+                  Everything you need in one place
+                </p>
+                <p className="mt-0.5 text-[11.5px] text-slate-400">
+                  Enable powerful modules to supercharge your server.
+                </p>
               </div>
-
-              {/* Floating Real-time pill */}
-              <div className="absolute -top-4 -right-4 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-extrabold text-xs px-4 py-2 rounded-xl shadow-xl flex items-center gap-2 border border-emerald-400/40 animate-bounce">
-                <span className="w-2 h-2 rounded-full bg-white animate-ping" />
-                <span>Real-time Live Updates</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Right Column Checklist */}
-          <div className="lg:col-span-5 space-y-6">
-            <div className="space-y-2">
-              <span className="text-[10px] font-extrabold text-purple-400 tracking-widest uppercase bg-purple-950/60 px-3 py-1 rounded-full border border-purple-500/30">
-                BEAUTIFUL. RESPONSIVE. INTUITIVE.
-              </span>
-              <h2 className="text-3xl font-black text-white">
-                A dashboard you'll actually enjoy using.
-              </h2>
-              <p className="text-sm text-zinc-400 leading-relaxed">
-                We crafted every detail to give you the best possible experience. Clean, fast and powerful.
-              </p>
-            </div>
-
-            <div className="space-y-3 pt-2">
-              {[
-                "Real-time data & live updates",
-                "Fully responsive on all devices",
-                "Dark mode with customizable accent",
-                "Lightning fast performance",
-              ].map((item) => (
-                <div key={item} className="flex items-center gap-3 text-sm font-bold text-zinc-200">
-                  <div className="w-5 h-5 rounded-full bg-purple-500/20 border border-purple-500/50 flex items-center justify-center text-purple-400 shrink-0">
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                  </div>
-                  <span>{item}</span>
-                </div>
-              ))}
-            </div>
-
-            <div className="pt-4">
               <button
+                type="button"
                 onClick={onLaunchDashboard}
-                className="flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-extrabold text-xs shadow-xl shadow-purple-900/40 transition-all cursor-pointer"
+                className={`${ghostPill} h-9 shrink-0 px-4 text-[12px]`}
               >
-                <Play className="w-3.5 h-3.5 fill-white" />
-                <span>See Dashboard in Action</span>
+                <span>Explore all modules</span>
+                <ChevronRight className="h-3.5 w-3.5" />
               </button>
             </div>
+
+            <div className="mt-5 flex flex-wrap justify-center gap-1.5 lg:justify-start">
+              {modulesGrid.map((m) => {
+                const Icon = m.icon;
+                return (
+                  <button
+                    key={m.name}
+                    type="button"
+                    onClick={onLaunchDashboard}
+                    className="flex cursor-pointer items-center gap-1.5 rounded-full border border-white/[0.07] bg-white/[0.025] px-3 py-1.5 text-[11px] font-medium text-slate-300 backdrop-blur-md transition-all duration-300 hover:-translate-y-0.5 hover:border-[#4F8BFF]/[0.35] hover:text-white"
+                  >
+                    <Icon className="h-3 w-3 shrink-0 text-[#7FB2FF]" />
+                    <span className="truncate">{m.name}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
       </section>
 
-      {/* ── 7. Loved By Server Owners Testimonials (Matching Photo 2) ─ */}
-      <section className="py-20 bg-[#080612]/60 border-t border-purple-500/15 relative z-10 text-center">
-        <div className="max-w-7xl mx-auto px-6 space-y-12">
-          <div className="space-y-3">
-            <span className="text-[10px] font-extrabold text-purple-400 tracking-widest uppercase bg-purple-950/60 px-3 py-1 rounded-full border border-purple-500/30">
-              TRUSTED BY AMAZING COMMUNITIES
-            </span>
-            <h2 className="text-3xl md:text-4xl font-black text-white">
-              Loved by server owners worldwide
-            </h2>
-          </div>
+      {/* ── 4. Dashboard preview ───────────────────────────────── */}
+      <section id="dashboard" className="relative z-10 mx-auto max-w-[1180px] px-6 py-14">
+        <div className="overflow-hidden rounded-3xl border border-white/[0.07] bg-gradient-to-br from-white/[0.05] via-white/[0.02] to-transparent p-6 backdrop-blur-sm md:p-9">
+          <div className="grid grid-cols-1 items-center gap-10 lg:grid-cols-[minmax(0,0.82fr)_minmax(0,1.18fr)]">
+            <motion.div
+              {...fadeUp}
+              transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+              className="space-y-5"
+            >
+              <LabelChip>Your Server, Simplified</LabelChip>
+              <h2 className="font-body text-[30px] font-extrabold leading-tight tracking-[-0.02em] md:text-[38px]">
+                <span className="bg-gradient-to-r from-white via-white to-[#8FB9FF] bg-clip-text text-transparent">
+                  Powerful Dashboard
+                </span>
+              </h2>
+              <p className="max-w-[42ch] text-[13.5px] leading-relaxed text-slate-400">
+                Manage your server with an intuitive and modern dashboard.
+              </p>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
-            {testimonials.map((t) => (
-              <div
-                key={t.name}
-                className="p-6 rounded-2xl bg-[#0d091f] border border-purple-500/20 flex flex-col justify-between space-y-4 shadow-xl"
-              >
-                {/* 5 Stars */}
-                <div className="flex items-center gap-1 text-amber-400">
-                  {[...Array(5)].map((_, i) => (
-                    <Star key={i} className="w-4 h-4 fill-amber-400" />
-                  ))}
-                </div>
-
-                <p className="text-xs text-zinc-200 leading-relaxed font-medium">
-                  "{t.quote}"
-                </p>
-
-                <div className="flex items-center gap-3 pt-2 border-t border-purple-500/10">
-                  <div className={`w-9 h-9 rounded-full ${t.avatarBg} flex items-center justify-center font-black text-white text-xs`}>
-                    {t.avatar}
+              <div className="space-y-3 pt-1">
+                {checklist.map((item) => (
+                  <div key={item} className="flex items-center gap-3 text-[13px] text-slate-200">
+                    <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full border border-[#4F8BFF]/[0.35] bg-[#4F8BFF]/[0.12] text-[#8FC0FF]">
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                    </span>
+                    <span>{item}</span>
                   </div>
-                  <div>
-                    <h4 className="text-xs font-bold text-white">{t.name}</h4>
-                    <span className="text-[10px] text-zinc-400">{t.role}</span>
-                  </div>
-                </div>
+                ))}
               </div>
-            ))}
+
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={onLaunchDashboard}
+                  className={`${primaryPill} h-11 px-5 text-[13px]`}
+                >
+                  <span>Explore Dashboard</span>
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+            </motion.div>
+
+            <motion.div
+              {...fadeUp}
+              transition={{ duration: 0.6, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
+            >
+              <DashboardMock />
+            </motion.div>
           </div>
         </div>
       </section>
 
-      {/* ── 8. Call To Action Banner & Footer (Matching Photo 2) ────── */}
-      <footer className="relative z-10 bg-[#05040a] border-t border-purple-500/15 pt-16 pb-12">
-        <div className="max-w-7xl mx-auto px-6 space-y-16">
-          {/* CTA Box */}
-          <div className="p-8 md:p-12 rounded-3xl bg-gradient-to-r from-purple-950/80 via-[#130a2e] to-purple-950/80 border border-purple-500/30 flex flex-col md:flex-row items-center justify-between gap-6 text-center md:text-left shadow-2xl">
-            <div>
-              <h3 className="text-2xl md:text-3xl font-black text-white">
-                Ready to get started?
+      {/* ── 5. Community banner ────────────────────────────────── */}
+      <section id="premium" className="relative z-10 mx-auto max-w-[1180px] px-6 py-14">
+        <motion.div
+          {...fadeUp}
+          transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+          className="relative overflow-hidden rounded-3xl border border-white/[0.08] bg-[#080D1A]/60 p-6 backdrop-blur-xl md:p-8"
+        >
+          <div className="pointer-events-none absolute -left-10 top-1/2 h-[320px] w-[320px] -translate-y-1/2 rounded-full bg-[#4F8BFF]/[0.16] blur-[110px]" />
+          <div className="pointer-events-none absolute right-0 top-0 h-[260px] w-[260px] rounded-full bg-[#7C5CFF]/[0.14] blur-[110px]" />
+
+          <div className="relative flex flex-col items-center gap-6 text-center lg:flex-row lg:items-center lg:gap-7 lg:text-left">
+            <span className="grid h-24 w-24 shrink-0 place-items-center rounded-3xl border border-[#4F8BFF]/[0.32] bg-gradient-to-br from-[#4F8BFF]/[0.26] to-[#7C5CFF]/[0.14] text-white shadow-[0_22px_55px_-18px_rgba(79,107,255,0.95)]">
+              <DiscordGlyph className="h-11 w-11" />
+            </span>
+
+            <div className="min-w-0 flex-1 space-y-2.5">
+              <LabelChip>Join Our Community</LabelChip>
+              <h3 className="font-body text-[26px] font-extrabold tracking-[-0.02em] text-white md:text-[32px]">
+                Join Thousands of Servers
               </h3>
-              <p className="text-xs text-purple-200/80 mt-1">
+              <p className="mx-auto max-w-[52ch] text-[13px] leading-relaxed text-slate-400 lg:mx-0">
                 Add Aura Bot to your server in less than 30 seconds.
               </p>
-            </div>
-            <button
-              onClick={login}
-              className="flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-extrabold text-xs shadow-xl shadow-purple-900/50 transition-all cursor-pointer shrink-0"
-            >
-              <AuraLogo size="sm" />
-              <span>Add to Discord</span>
-            </button>
-          </div>
 
-          {/* Footer Grid */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-8 text-xs">
-            <div className="col-span-2 space-y-4">
-              <div className="flex items-center gap-3">
-                <AuraLogo size="md" />
-                <span className="font-black text-white text-base tracking-wider">
-                  AURA BOT
+              <div className="flex flex-col items-center gap-3 pt-1 sm:flex-row lg:pt-2">
+                <div className="flex -space-x-2.5">
+                  {communityAvatars.map((a) => (
+                    <span
+                      key={a.initial}
+                      className={`grid h-8 w-8 place-items-center rounded-full border-2 border-[#080D1A] bg-gradient-to-br ${a.bg} text-[11px] font-bold text-white`}
+                    >
+                      {a.initial}
+                    </span>
+                  ))}
+                </div>
+                <span className="text-[11.5px] font-medium text-slate-400">
+                  Trusted by <span className="font-semibold text-white">1M+</span> servers
                 </span>
               </div>
-              <p className="text-zinc-400 text-xs leading-relaxed max-w-sm">
-                The next-generation Discord bot for modern communities. Powerful, intelligent, unstoppable.
-              </p>
             </div>
 
-            <div className="space-y-3">
-              <h4 className="font-extrabold text-white uppercase text-[10px] tracking-wider">Product</h4>
-              <ul className="space-y-2 text-zinc-400 font-medium">
-                <li><a href="#features" className="hover:text-white transition-colors">Features</a></li>
-                <li><a href="#modules" className="hover:text-white transition-colors">Modules</a></li>
-                <li><a href="#pricing" className="hover:text-white transition-colors">Pricing</a></li>
-                <li><a href="#changelog" className="hover:text-white transition-colors">Changelog</a></li>
-              </ul>
+            <button
+              type="button"
+              onClick={login}
+              className={`${primaryPill} h-11 shrink-0 px-5 text-[13px]`}
+            >
+              <DiscordGlyph className="h-4 w-4" />
+              <span>Add to Discord</span>
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+        </motion.div>
+      </section>
+
+      {/* ── 6. Footer ──────────────────────────────────────────── */}
+      <footer id="support" className="relative z-10 mt-10 border-t border-white/[0.07] pb-8 pt-10">
+        <div className="mx-auto max-w-[1180px] px-6">
+          <div className="flex flex-col items-center gap-8 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex items-center gap-3">
+              <AuraLogo size="md" />
+              <div>
+                <p className="text-[13px] font-bold tracking-[0.2em] text-white">
+                  AURA <span className="text-[#5BC8F5]">BOT</span>
+                </p>
+                <p className="mt-0.5 text-[11px] text-slate-500">
+                  The next-generation Discord bot for modern communities.
+                </p>
+              </div>
             </div>
 
-            <div className="space-y-3">
-              <h4 className="font-extrabold text-white uppercase text-[10px] tracking-wider">Resources</h4>
-              <ul className="space-y-2 text-zinc-400 font-medium">
-                <li><a href="#docs" className="hover:text-white transition-colors">Documentation</a></li>
-                <li><a href="#tutorials" className="hover:text-white transition-colors">Tutorials</a></li>
-                <li><a href="#api" className="hover:text-white transition-colors">API Reference</a></li>
-                <li><a href="#blog" className="hover:text-white transition-colors">Blog</a></li>
-              </ul>
-            </div>
+            <nav className="flex flex-wrap items-center justify-center gap-x-7 gap-y-3">
+              {navLinks.map((l) => (
+                <a
+                  key={l.label}
+                  href={l.href}
+                  className="text-[12.5px] font-medium text-slate-400 transition-colors hover:text-white"
+                >
+                  {l.label}
+                </a>
+              ))}
+            </nav>
 
-            <div className="space-y-3">
-              <h4 className="font-extrabold text-white uppercase text-[10px] tracking-wider">Support</h4>
-              <ul className="space-y-2 text-zinc-400 font-medium">
-                <li><a href="#support" className="hover:text-white transition-colors">Support Center</a></li>
-                <li><a href="#contact" className="hover:text-white transition-colors">Contact Us</a></li>
-                <li><a href="#status" className="hover:text-white transition-colors">Status Page</a></li>
-                <li><a href="#bug" className="hover:text-white transition-colors">Report a Bug</a></li>
-              </ul>
+            <div className="flex items-center gap-2">
+              {[
+                { label: "Discord", node: <DiscordGlyph className="h-4 w-4" /> },
+                { label: "X", node: <XGlyph className="h-3.5 w-3.5" /> },
+                { label: "YouTube", node: <Youtube className="h-4 w-4" /> },
+                { label: "Website", node: <Globe className="h-4 w-4" /> },
+              ].map((s) => (
+                <a
+                  key={s.label}
+                  href="#"
+                  aria-label={s.label}
+                  title={s.label}
+                  className="grid h-9 w-9 place-items-center rounded-xl border border-white/[0.08] bg-white/[0.03] text-slate-400 transition-all duration-300 hover:-translate-y-0.5 hover:border-white/[0.18] hover:text-white"
+                >
+                  {s.node}
+                </a>
+              ))}
             </div>
           </div>
 
-          <div className="pt-8 border-t border-purple-500/10 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-zinc-500">
-            <span>© 2024 Aura Bot. All rights reserved.</span>
-            <div className="flex items-center gap-4">
-              <a href="#privacy" className="hover:text-zinc-300">Privacy Policy</a>
-              <a href="#terms" className="hover:text-zinc-300">Terms of Service</a>
+          <div className="mt-8 flex flex-col items-center justify-between gap-3 border-t border-white/[0.06] pt-5 text-[11.5px] text-slate-500 sm:flex-row">
+            <span>© 2025 Aura Bot. All rights reserved.</span>
+            <div className="flex items-center gap-6">
+              <a href="#privacy" className="transition-colors hover:text-slate-300">
+                Privacy Policy
+              </a>
+              <a href="#terms" className="transition-colors hover:text-slate-300">
+                Terms of Service
+              </a>
             </div>
           </div>
         </div>
       </footer>
+
     </div>
   );
 }

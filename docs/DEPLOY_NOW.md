@@ -37,7 +37,6 @@ Steps:
    | `CLOUDFLARE_API_TOKEN` | (from your .env) |
    | `TELEGRAM_BOT_TOKEN` | (from your .env) |
    | `TELEGRAM_CHAT_ID` | (from your .env) |
-   | `SESSION_SECRET` | (from your .env) |
    | `JWT_SECRET` | (from your .env) |
 
    Mark each one as **Secret**.

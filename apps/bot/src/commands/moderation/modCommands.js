@@ -1,9 +1,9 @@
 // ================================================================
 //  Moderation Commands v2 — ban, kick, timeout, warn, clear, softban
 // ================================================================
-import { SlashCommandBuilder, PermissionFlagsBits } from 'discord.js';
-import { buildEmbed, buildModEmbed } from '../../../shared/utils/embedBuilder.js';
-import { createCase, sendModLog } from '../../../shared/utils/moderation.js';
+import { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } from 'discord.js';
+import { buildEmbed, buildModEmbed } from '../../../../../packages/utils/embedBuilder.js';
+import { createCase, sendModLog } from '../../../../../packages/utils/moderation.js';
 import ms from 'ms';
 
 async function getWarnCount(client, guildId, userId) {
@@ -35,7 +35,7 @@ export const ban = {
     .addBooleanOption(o => o.setName('silent').setDescription('Do not DM the user')),
   userPermissions: [PermissionFlagsBits.BanMembers], botPermissions: [PermissionFlagsBits.BanMembers], guildOnly: true, cooldown: 3000,
   async execute(client, interaction) {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     const lang       = await client.i18n.resolveLanguage(client, interaction.user.id, interaction.guildId);
     const target     = interaction.options.getUser('user');
     const reason     = interaction.options.getString('reason') || 'No reason provided';
@@ -68,7 +68,7 @@ export const kick = {
     .addStringOption(o => o.setName('reason').setDescription('Reason').setMaxLength(512)),
   userPermissions: [PermissionFlagsBits.KickMembers], botPermissions: [PermissionFlagsBits.KickMembers], guildOnly: true, cooldown: 3000,
   async execute(client, interaction) {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     const lang   = await client.i18n.resolveLanguage(client, interaction.user.id, interaction.guildId);
     const target = interaction.options.getMember('user');
     const reason = interaction.options.getString('reason') || 'No reason provided';
@@ -95,7 +95,7 @@ export const timeout = {
     .addBooleanOption(o => o.setName('remove').setDescription('Remove existing timeout')),
   userPermissions: [PermissionFlagsBits.ModerateMembers], botPermissions: [PermissionFlagsBits.ModerateMembers], guildOnly: true, cooldown: 2000,
   async execute(client, interaction) {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     const lang     = await client.i18n.resolveLanguage(client, interaction.user.id, interaction.guildId);
     const target   = interaction.options.getMember('user');
     const durStr   = interaction.options.getString('duration');
@@ -123,7 +123,7 @@ export const warn = {
     .addStringOption(o => o.setName('reason').setDescription('Reason').setRequired(true).setMaxLength(512)),
   userPermissions: [PermissionFlagsBits.ModerateMembers], guildOnly: true, cooldown: 2000,
   async execute(client, interaction) {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     const lang   = await client.i18n.resolveLanguage(client, interaction.user.id, interaction.guildId);
     const target = interaction.options.getMember('user');
     const reason = interaction.options.getString('reason');
@@ -149,7 +149,7 @@ export const clear = {
     .addBooleanOption(o => o.setName('bots').setDescription('Only bot messages')),
   userPermissions: [PermissionFlagsBits.ManageMessages], botPermissions: [PermissionFlagsBits.ManageMessages], guildOnly: true, cooldown: 5000,
   async execute(client, interaction) {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     const lang   = await client.i18n.resolveLanguage(client, interaction.user.id, interaction.guildId);
     const amount = interaction.options.getInteger('amount');
     const user   = interaction.options.getUser('user');
@@ -176,7 +176,7 @@ export const softban = {
     .addIntegerOption(o => o.setName('delete_days').setDescription('Days of messages (1-7)').setMinValue(1).setMaxValue(7)),
   userPermissions: [PermissionFlagsBits.BanMembers], botPermissions: [PermissionFlagsBits.BanMembers], guildOnly: true, cooldown: 5000,
   async execute(client, interaction) {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     const lang       = await client.i18n.resolveLanguage(client, interaction.user.id, interaction.guildId);
     const target     = interaction.options.getUser('user');
     const reason     = interaction.options.getString('reason') || 'Softban';
@@ -206,7 +206,7 @@ export const history = {
     .addIntegerOption(o => o.setName('page').setDescription('Page').setMinValue(1)),
   userPermissions: [PermissionFlagsBits.ModerateMembers], guildOnly: true, cooldown: 3000,
   async execute(client, interaction) {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     const lang   = await client.i18n.resolveLanguage(client, interaction.user.id, interaction.guildId);
     const target = interaction.options.getUser('user');
     const page   = (interaction.options.getInteger('page') || 1) - 1;
@@ -228,7 +228,7 @@ export const warnings = {
     .addUserOption(o => o.setName('user').setDescription('User').setRequired(true)),
   userPermissions: [PermissionFlagsBits.ModerateMembers], guildOnly: true, cooldown: 3000,
   async execute(client, interaction) {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     const target = interaction.options.getUser('user');
     const { Warning } = client.db.models;
     const warns = await Warning.findAll({ where: { guildId: interaction.guildId, userId: target.id, active: true }, order: [['createdAt', 'DESC']] });

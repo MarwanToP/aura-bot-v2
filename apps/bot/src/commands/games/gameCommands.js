@@ -9,11 +9,10 @@ import config         from '../../../shared/config/config.js';
 
 // ─── Blackjack ────────────────────────────────────────────────
 export const blackjack = {
-  register: false,
   data: new SlashCommandBuilder()
     .setName('blackjack')
     .setDescription('Play a game of Blackjack against Aura AI')
-    .addIntegerOption(o => o.setName('bet').setDescription('Amount of points to bet').setMinValue(10).setRequired(true)),
+    .addIntegerOption(o => o.setName('bet').setDescription('Amount of points to bet').setMinValue(10).setMaxValue(1000000).setRequired(true)),
 
   guildOnly: true,
   cooldown:  10000,
@@ -50,7 +49,7 @@ export const blackjack = {
         : dealerHand.map(c => `\`${c.rank}${c.suit}\``).join(' ');
 
       return buildEmbed({
-        type:  status === 'win' ? 'success' : status === 'lost' ? 'error' : 'primary',
+        type:  status === 'win' ? 'success' : status === 'lost' ? 'error' : status === 'timeout' ? 'warning' : 'primary',
         title: `🃏 Blackjack — ${status.toUpperCase()}`,
         fields: [
           { name: `👤 Your Hand (${pScore})`, value: pCards, inline: true },
@@ -72,7 +71,11 @@ export const blackjack = {
       time: 60000
     });
 
+    // Single-settle guard — a round must never be refunded/paid out twice.
+    let settled = false;
+
     collector.on('collect', async i => {
+      if (settled) return;
       if (i.customId === 'bj:hit') {
         playerHand.push(drawCard(deck));
         if (getScore(playerHand) > 21) {
@@ -88,8 +91,20 @@ export const blackjack = {
     });
 
     collector.on('end', async (_, reason) => {
-      if (reason === 'time') return interaction.editReply({ components: [] });
-      if (reason === 'lost') return; // Already handled
+      if (settled) return;           // Round already settled — no double refund/payout
+      settled = true;
+
+      if (reason === 'lost') return; // Already handled — wager stays with the house
+
+      // Timeout — void the round and refund the wager so no bet is silently destroyed
+      if (reason === 'time') {
+        await wallet.increment('balance', { by: bet });
+        return interaction.editReply({
+          embeds: [buildGameEmbed('timeout')],
+          components: [],
+          content: `⌛ Time's up! The round was voided and your **${bet.toLocaleString()}** point bet was refunded.`,
+        });
+      }
 
       // Dealer Turn
       let dScore = getScore(dealerHand);
@@ -125,11 +140,10 @@ export const blackjack = {
 
 // ─── Slots ────────────────────────────────────────────────────
 export const slots = {
-  register: false,
   data: new SlashCommandBuilder()
     .setName('slots')
     .setDescription('Spin the Aura Slots')
-    .addIntegerOption(o => o.setName('bet').setDescription('Amount to bet').setMinValue(10).setRequired(true)),
+    .addIntegerOption(o => o.setName('bet').setDescription('Amount to bet').setMinValue(10).setMaxValue(1000000).setRequired(true)),
 
   guildOnly: true,
   cooldown:  5000,
@@ -168,7 +182,7 @@ export const slots = {
       type:  multiplier > 0 ? 'success' : 'error',
       title: '🎰 Aura Slots',
       description: `\n**[ ${rolls.join(' | ')} ]**\n\n${multiplier > 0 ? `✨ You won **${Math.floor(bet * multiplier).toLocaleString()}** points!` : '💀 Better luck next time.'}`,
-      footer: `Bet: ${bet} points • Balance: ${Number(wallet.balance) - bet + (multiplier > 0 ? Math.floor(bet * multiplier) : 0)}`,
+      footer: `Bet: ${bet} points • Balance: ${Number(wallet.balance).toLocaleString()}`,
     });
 
     return interaction.editReply({ embeds: [embed] });

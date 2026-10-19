@@ -2,7 +2,7 @@
 //  AURA BOT v2.0 — Verification / Captcha Gate
 //  Slash command + button handler for new-member verification
 // ================================================================
-import { SlashCommandBuilder, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
+import { SlashCommandBuilder, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } from 'discord.js';
 import { buildEmbed } from '../../../shared/utils/embedBuilder.js';
 
 export const verify = {
@@ -33,7 +33,7 @@ export const verify = {
   cooldown: 5000,
 
   async execute(client, interaction) {
-    await interaction.deferReply({ ephemeral: true }).catch(() => {});
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral }).catch(() => {});
 
     try {
       const { GuildSettings } = client.db.models;
@@ -125,3 +125,73 @@ export const verify = {
 };
 
 export default verify;
+
+/**
+ * Handle clicks on the verification panel button.
+ * The customId is the bare `verify_button` (no prefix token), so the component
+ * router registers it under that exact id and args arrives here as ''.
+ * Registered via events/interactionCreate → COMPONENT_REGISTRY.
+ * Single-ack contract: deferUpdate() first, then an ephemeral followUp for
+ * every outcome (success / already verified / not configured / failure).
+ */
+export async function handleButton(client, interaction, args) {
+  // Ack before any DB/role work — those can exceed Discord's 3s deadline.
+  await interaction.deferUpdate().catch(() => {});
+
+  const fail = (description) => interaction.followUp({
+    embeds: [buildEmbed({ type: 'error', description })],
+    flags: MessageFlags.Ephemeral,
+  }).catch(() => {});
+
+  try {
+    if (!interaction.guild) {
+      return fail('❌ Could not verify you — please click the button from inside this server.');
+    }
+
+    // interaction.member can be null or a raw API member (no role manager) —
+    // safe-deny, then fall back to fetching the full GuildMember.
+    let member = interaction.member;
+    if (!member || typeof member.roles?.add !== 'function') {
+      member = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
+    }
+    if (!member) {
+      return fail('❌ Could not resolve your member record — please try again from inside this server.');
+    }
+
+    const { GuildSettings } = client.db?.models || {};
+    const settings = await GuildSettings?.findOne({ where: { guildId: interaction.guildId } }).catch(() => null);
+
+    if (!settings?.verificationEnabled || !settings.verificationRoleId) {
+      return fail('❌ Verification is not configured on this server. Please contact an administrator.');
+    }
+
+    const role = interaction.guild.roles.cache.get(settings.verificationRoleId)
+      || await interaction.guild.roles.fetch(settings.verificationRoleId).catch(() => null);
+    if (!role) {
+      client.logger?.warn?.(`[Verify] Configured role ${settings.verificationRoleId} no longer exists (guild ${interaction.guildId})`);
+      return fail('❌ The configured verification role no longer exists. Please contact an administrator.');
+    }
+
+    if (member.roles.cache.has(role.id)) {
+      return interaction.followUp({
+        embeds: [buildEmbed({ type: 'info', description: 'ℹ️ You are already verified — you already have the required role.' })],
+        flags: MessageFlags.Ephemeral,
+      }).catch(() => {});
+    }
+
+    try {
+      await member.roles.add(role, 'Verification gate: member clicked Verify');
+    } catch (err) {
+      client.logger?.warn?.(`[Verify] Failed to grant role ${role.id} to ${interaction.user.id} (guild ${interaction.guildId}): ${err.message}`);
+      return fail('❌ I could not assign the verification role — check my role hierarchy and permissions.');
+    }
+
+    return interaction.followUp({
+      embeds: [buildEmbed({ type: 'success', description: `✅ You are verified! Welcome to **${interaction.guild.name}**.` })],
+      flags: MessageFlags.Ephemeral,
+    }).catch(() => {});
+  } catch (err) {
+    client.logger?.warn?.('[Verify] handleButton failed:', err);
+    return fail('❌ Something went wrong while verifying you. Please try again.');
+  }
+}

@@ -2,8 +2,8 @@
 //  AURA BOT v2.0 — Smoke test: existing safe commands
 // ================================================================
 import { Collection } from 'discord.js';
-import { loadCommands } from '../../../bot/core/commandHandler.js';
-import database from '../../database/index.js';
+import { loadCommands } from '../../../apps/bot/src/core/commandHandler.js';
+import database from '../../../packages/database/index.js';
 
 const client = {
   commands: new Collection(),

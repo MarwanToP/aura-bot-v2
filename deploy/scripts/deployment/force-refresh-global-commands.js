@@ -14,7 +14,7 @@ const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 client.once('ready', async () => {
   console.log(`Bot logged in as ${client.user.tag}`);
   
-  const { loadCommands } = await import('../../../bot/core/commandHandler.js');
+  const { loadCommands } = await import('../../../apps/bot/src/core/commandHandler.js');
   const dummyClient = { commands: new Map() };
   await loadCommands(dummyClient);
   

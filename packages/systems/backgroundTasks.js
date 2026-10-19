@@ -50,9 +50,10 @@ export function startBackgroundTasks(client) {
     await checkTicketSLA(client);
   }, null, true);
 
-  // ── 8. Temp Channel Cleanup (every 5 minutes) ────────────
-  new CronJob('*/5 * * * *', async () => {
+  // ── 8. Temp Channel Cleanup + Reminders (every minute) ───
+  new CronJob('* * * * *', async () => {
     await cleanupTempChannels(client);
+    await processReminders(client);
   }, null, true);
 
   // ── 9. Log Cleanup (daily at 2 AM) ───────────────────────
@@ -194,7 +195,11 @@ async function checkTicketSLA(client) {
 async function cleanupTempChannels(client) {
   try {
     const { TempChannel } = client.db.models;
-    const expired = await TempChannel.findAll({ where: { expiresAt: { [client.db.Op.lte]: new Date() } } });
+    if (!TempChannel) return;
+    const now = new Date();
+
+    // 1) Expired temp channels — delete the channel and drop the row (unchanged behaviour)
+    const expired = await TempChannel.findAll({ where: { expiresAt: { [client.db.Op.lte]: now } } });
 
     for (const tc of expired) {
       try {
@@ -203,7 +208,99 @@ async function cleanupTempChannels(client) {
         await tc.destroy();
       } catch {}
     }
+
+    // 2) Reaper for rows created without an expiry (voiceSystem creates TempChannel rows
+    //    with expiresAt NULL, so a channel deleted while the bot was offline would leak
+    //    its row forever). If the channel no longer exists → drop the row; if it is an
+    //    empty voice channel → delete the channel and the row; if members are inside,
+    //    leave the channel alone. Capped at 25 rows per pass to bound API calls.
+    const orphans = await TempChannel.findAll({ where: { expiresAt: null }, limit: 25 });
+
+    for (const tc of orphans) {
+      try {
+        let channel = null;
+        try {
+          channel = await client.channels.fetch(tc.channelId);
+        } catch (err) {
+          // Only a genuine "Unknown Channel" (Discord 10003 / HTTP 404) proves the
+          // channel is gone → drop the row. Transient failures (network hiccups, bot
+          // not connected yet) must NOT destroy the row — the next pass retries.
+          if (err?.code === 10003 || err?.status === 404) await tc.destroy();
+          continue;
+        }
+        if (!channel) {
+          await tc.destroy();
+          continue;
+        }
+        if (channel.isVoiceBased?.() && channel.members?.size === 0) {
+          await channel.delete('[Aura] Orphaned temp channel removed').catch(() => {});
+          await tc.destroy();
+        }
+      } catch {}
+    }
   } catch {}
+}
+
+// ─── Reminders ────────────────────────────────────────────────
+export async function processReminders(client) {
+  try {
+    const { Reminder } = client.db.models;
+    if (!Reminder) return;
+    const now = new Date();
+
+    const due = await Reminder.findAll({
+      where: { sent: false, remindAt: { [client.db.Op.lte]: now } },
+      order: [['remindAt', 'ASC']],
+      limit: 25,
+    });
+
+    for (const row of due) {
+      try {
+        let delivered = false;
+
+        // Primary path: the channel the reminder was created in
+        try {
+          const channel = await client.channels.fetch(row.channelId);
+          if (channel) {
+            await channel.send(`<@${row.userId}> ⏰ ${row.content}`);
+            delivered = true;
+          }
+        } catch {}
+
+        // Fallback: channel deleted/inaccessible → DM the user instead
+        if (!delivered) {
+          try {
+            const user = await client.users.fetch(row.userId);
+            await user.send(`⏰ ${row.content}`);
+            delivered = true;
+          } catch {}
+        }
+
+        // Both paths failed (e.g. DMs closed + channel gone): still mark the row as sent
+        // so the cron never retries it forever — a stuck row would block the batch's
+        // limit-25 window for every future pass. The user can re-create the reminder.
+        if (!delivered) {
+          logger.warn(`[Tasks] Reminder #${row.id} undeliverable (user ${row.userId}, channel ${row.channelId}); marked as sent to prevent infinite retries.`);
+        }
+        await row.update({ sent: true });
+      } catch (err) {
+        logger.warn(`[Tasks] Reminder #${row.id} failed:`, err.message);
+      }
+    }
+
+    // Purge delivered reminders older than 30 days (bounded to 100 rows per pass).
+    const cutoff = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const stale = await Reminder.findAll({
+      where: { sent: true, remindAt: { [client.db.Op.lt]: cutoff } },
+      attributes: ['id'],
+      limit: 100,
+    });
+    if (stale.length) {
+      await Reminder.destroy({ where: { id: { [client.db.Op.in]: stale.map(r => r.id) } } }).catch(() => {});
+    }
+  } catch (err) {
+    logger.debug('[Tasks] Reminders:', err.message);
+  }
 }
 
 // ─── Log Cleanup ─────────────────────────────────────────────

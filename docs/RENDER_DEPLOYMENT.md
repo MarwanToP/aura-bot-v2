@@ -44,7 +44,6 @@ If you are using Render's **Free Tier**, you can run both the Discord Bot and We
    | `REDIS_TLS` | `true` (if using Upstash) |
    | `DISCORD_CLIENT_ID` | OAuth2 Client ID |
    | `DISCORD_CLIENT_SECRET` | OAuth2 Client Secret |
-   | `SESSION_SECRET` | Random 32+ character string |
    | `JWT_SECRET` | Random 32+ character string |
 7. Set **Health Check Path**: `/api/health`
 8. Click **Create Web Service**.

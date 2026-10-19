@@ -6,6 +6,22 @@ import { requireAuth } from '../middleware/auth.js';
 
 const router = Router();
 
+// Discord requires the redirect URI used in the authorize URL and in the token
+// exchange to be byte-identical. In dev, honor an explicitly-configured
+// localhost URI, otherwise pin to the local dashboard (next dev runs on 3000);
+// production honors DISCORD_REDIRECT_URI.
+const DISCORD_REDIRECT_URI =
+  env.NODE_ENV !== 'production' && !env.DISCORD_REDIRECT_URI.includes('localhost')
+    ? 'http://localhost:3000/api/auth/callback'
+    : env.DISCORD_REDIRECT_URI;
+
+// Where the browser lands after a successful login. In dev, honor a localhost
+// DOMAIN, otherwise pin to the local dashboard; production honors DOMAIN.
+const POST_LOGIN_URL =
+  env.NODE_ENV !== 'production' && !env.DOMAIN.includes('localhost')
+    ? 'http://localhost:3000/'
+    : `${env.DOMAIN}/`;
+
 // 1. Redirect to Discord OAuth2 Authorization Page with CSRF State Token
 router.get('/login', (req, res) => {
   const state = crypto.randomBytes(16).toString('hex');
@@ -16,7 +32,7 @@ router.get('/login', (req, res) => {
     maxAge: 10 * 60 * 1000,
   });
 
-  const discordAuthUrl = `https://discord.com/api/oauth2/authorize?client_id=${env.DISCORD_CLIENT_ID}&redirect_uri=${encodeURIComponent(env.DISCORD_REDIRECT_URI)}&response_type=code&scope=identify%20guilds&state=${state}`;
+  const discordAuthUrl = `https://discord.com/api/oauth2/authorize?client_id=${env.DISCORD_CLIENT_ID}&redirect_uri=${encodeURIComponent(DISCORD_REDIRECT_URI)}&response_type=code&scope=identify%20guilds&state=${state}`;
   res.redirect(discordAuthUrl);
 });
 
@@ -48,7 +64,7 @@ router.get('/callback', async (req, res) => {
         client_secret: env.DISCORD_CLIENT_SECRET,
         grant_type: 'authorization_code',
         code: String(code),
-        redirect_uri: env.DISCORD_REDIRECT_URI,
+        redirect_uri: DISCORD_REDIRECT_URI,
       }),
       signal: controller.signal,
     }).finally(() => clearTimeout(timeout));
@@ -89,7 +105,7 @@ router.get('/callback', async (req, res) => {
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
-    res.redirect(`${env.DOMAIN}/dashboard`);
+    res.redirect(POST_LOGIN_URL);
   } catch (error) {
     console.error('❌ Discord OAuth Callback Error:', error.message);
     res.status(500).json({ error: 'Authentication failed' });

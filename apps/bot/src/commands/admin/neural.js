@@ -2,12 +2,11 @@
 //  Command: /neural analyze (Neural Summary & Proactive Protection)
 // ================================================================
 
-import { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } from 'discord.js';
+import { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder, MessageFlags } from 'discord.js';
 import { buildEmbed } from '../../../shared/utils/embedBuilder.js';
 import config         from '../../../shared/config/config.js';
 
 export default {
-  register: false,
   data: new SlashCommandBuilder()
     .setName('neural')
     .setDescription('Access the Aura Neural Control Center')
@@ -21,11 +20,13 @@ export default {
       .setDescription('Check the status of the Neural Protection system')
     ),
 
+  guildOnly: true,
+
   async execute(client, interaction) {
     if (!interaction.guild) return;
     const sub = interaction.options.getSubcommand();
 
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     if (sub === 'analyze') {
       try {

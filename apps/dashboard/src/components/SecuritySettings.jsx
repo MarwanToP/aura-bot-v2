@@ -1,8 +1,61 @@
 "use client";
 
 import React, { useState } from "react";
-import { motion } from "framer-motion";
-import { ShieldCheck, ShieldAlert, Lock, UserX, AlertTriangle, Key, Bot, Eye, RefreshCw } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  ShieldCheck,
+  ShieldAlert,
+  Key,
+  Bot,
+  UserX,
+  Clock,
+  AlertTriangle,
+  CheckCircle2,
+  Save,
+} from "lucide-react";
+
+/* ────────────────────────────── motion helpers ────────────────────────────── */
+
+const EASE = [0.22, 1, 0.36, 1];
+
+const stagger = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.055, delayChildren: 0.03 } },
+};
+
+const rise = {
+  hidden: { opacity: 0, y: 12 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: EASE } },
+};
+
+/* ────────────────────────────── shared styles ────────────────────────────── */
+
+const numberCls =
+  "w-16 bg-white/[0.03] border border-white/[0.08] rounded-lg px-2.5 py-1 text-center font-mono text-xs text-white focus:outline-none focus:border-[#7C5CFF]/50 transition-colors";
+
+const btnPrimary =
+  "inline-flex items-center gap-2 bg-[#7C5CFF] hover:bg-[#6a4cf0] text-white text-xs font-semibold rounded-lg px-3.5 py-2 transition-colors shadow-[0_0_18px_rgba(124,92,255,0.35)] cursor-pointer";
+
+function Toggle({ enabled, onChange }) {
+  return (
+    <button
+      type="button"
+      onClick={() => onChange(!enabled)}
+      className={`relative h-6 w-11 shrink-0 cursor-pointer rounded-full border transition-colors ${
+        enabled ? "border-[#7C5CFF]/50 bg-[#7C5CFF]/80" : "border-white/[0.08] bg-white/[0.05]"
+      }`}
+      aria-pressed={enabled}
+    >
+      <motion.span
+        layout
+        transition={{ type: "spring", stiffness: 500, damping: 32 }}
+        className={`absolute top-[3px] h-4 w-4 rounded-full bg-white shadow ${
+          enabled ? "left-[25px]" : "left-[3px]"
+        }`}
+      />
+    </button>
+  );
+}
 
 export default function SecuritySettings({ guildId = "1" }) {
   const [antiNuke, setAntiNuke] = useState(true);
@@ -12,152 +65,183 @@ export default function SecuritySettings({ guildId = "1" }) {
   const [massBanLimit, setMassBanLimit] = useState(5);
   const [massRoleDeleteLimit, setMassRoleDeleteLimit] = useState(3);
   const [quarantineRole, setQuarantineRole] = useState("@Quarantine");
+  const [toast, setToast] = useState(null);
+
+  const showToast = (msg) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 3200);
+  };
 
   return (
-    <div className="space-y-8">
+    <motion.div variants={stagger} initial="hidden" animate="show" className="space-y-5 text-white">
+      {/* Toast */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            initial={{ opacity: 0, y: 12, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 8, scale: 0.99 }}
+            className="fixed bottom-6 right-6 z-[90] panel px-4 py-3 flex items-center gap-2.5 text-xs font-semibold shadow-2xl shadow-black/60"
+          >
+            <CheckCircle2 className="w-4 h-4 text-[#39D98A]" />
+            <span>{toast}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <motion.div variants={rise} className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-extrabold text-white flex items-center gap-2.5">
-            <ShieldCheck className="w-5 h-5 text-purple-400" />
-            Security Shield & Anti-Nuke Control (Wicks & SecurityBot)
+          <h2 className="flex items-center gap-2.5 text-lg font-extrabold">
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#7C5CFF]/25 bg-[#7C5CFF]/10 text-[#7C5CFF]">
+              <ShieldCheck className="h-4 w-4" />
+            </span>
+            Security Shield & Anti-Nuke Control
           </h2>
-          <p className="text-xs text-zinc-400 mt-1">
-            Enterprise defense against unauthorized bot invites, mass-deletions, raids, and rogue admin actions.
+          <p className="mt-1.5 font-body text-xs text-slate-500">
+            Enterprise defense for Crystal Realm — unauthorized bot invites, mass deletions, raids, and rogue admin actions.
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <span className="text-xs font-mono px-3 py-1.5 rounded-xl bg-purple-500/10 border border-purple-500/30 text-purple-400 font-bold">
-            SHIELD ACTIVE
-          </span>
-        </div>
-      </div>
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-[#39D98A]/25 bg-[#39D98A]/10 px-2.5 py-1 text-[10px] font-bold text-[#39D98A]">
+          <span className="h-1.5 w-1.5 rounded-full bg-[#39D98A] animate-pulse-dot" />
+          SHIELD ACTIVE
+        </span>
+      </motion.div>
 
-      {/* Main Settings Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        
-        {/* Anti-Nuke & Mass Action Protection */}
-        <div className="dark-panel p-6 space-y-5">
-          <div className="flex items-center justify-between border-b border-[#1e2333] pb-3">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-rose-950/60 border border-rose-500/30 text-rose-400">
-                <ShieldAlert className="w-5 h-5" />
-              </div>
+      {/* Main settings grid */}
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+        {/* Anti-Nuke & mass action protection */}
+        <motion.section variants={rise} className="panel panel-hover p-5">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#FF5C7A]/25 bg-[#FF5C7A]/10 text-[#FF5C7A]">
+                <ShieldAlert className="h-4 w-4" />
+              </span>
               <div>
                 <h3 className="text-sm font-extrabold text-white">Anti-Nuke Protection</h3>
-                <p className="text-[11px] text-zinc-400">Automatically ban administrators who attempt mass destruction.</p>
+                <p className="mt-1 text-xs text-slate-500">
+                  Automatically bans admins who attempt mass destruction.
+                </p>
               </div>
             </div>
-            <button
-              onClick={() => setAntiNuke(!antiNuke)}
-              className={`w-11 h-6 rounded-full p-1 transition-colors flex items-center ${
-                antiNuke ? "bg-purple-600" : "bg-[#1e2333]"
-              }`}
-            >
-              <div className={`w-4 h-4 rounded-full bg-white transition-transform ${antiNuke ? "translate-x-5" : "translate-x-0"}`} />
-            </button>
+            <Toggle enabled={antiNuke} onChange={setAntiNuke} />
           </div>
 
-          <div className="space-y-4 text-xs font-medium">
-            <div className="flex items-center justify-between p-3 rounded-xl bg-[#0b0d14] border border-[#1e2333]">
-              <label htmlFor="mass-ban-limit" className="text-zinc-300">Mass Ban Threshold (per 10 sec):</label>
+          <div className="mt-4 space-y-2.5 text-xs font-medium">
+            <div className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.05] bg-white/[0.02] p-3">
+              <label htmlFor="mass-ban-limit" className="text-slate-300">
+                Mass ban threshold <span className="text-slate-600">(per 10 sec)</span>
+              </label>
               <input
                 id="mass-ban-limit"
                 name="massBanLimit"
                 type="number"
+                min="1"
                 value={massBanLimit}
                 onChange={(e) => setMassBanLimit(Number(e.target.value))}
-                className="w-16 bg-[#121520] border border-[#1e2333] rounded-lg px-2.5 py-1 text-white font-mono text-center focus:outline-none focus:border-purple-500"
+                className={numberCls}
               />
             </div>
 
-            <div className="flex items-center justify-between p-3 rounded-xl bg-[#0b0d14] border border-[#1e2333]">
-              <label htmlFor="mass-role-limit" className="text-zinc-300">Mass Role Delete Limit:</label>
+            <div className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.05] bg-white/[0.02] p-3">
+              <label htmlFor="mass-role-limit" className="text-slate-300">
+                Mass role delete limit
+              </label>
               <input
                 id="mass-role-limit"
                 name="massRoleDeleteLimit"
                 type="number"
+                min="1"
                 value={massRoleDeleteLimit}
                 onChange={(e) => setMassRoleDeleteLimit(Number(e.target.value))}
-                className="w-16 bg-[#121520] border border-[#1e2333] rounded-lg px-2.5 py-1 text-white font-mono text-center focus:outline-none focus:border-purple-500"
+                className={numberCls}
               />
             </div>
 
-            <div className="flex items-center justify-between p-3 rounded-xl bg-[#0b0d14] border border-[#1e2333]">
-              <span className="text-zinc-300 font-medium">Block Unauthorized Bot Additions</span>
-              <button
-                onClick={() => setAntiBotJoin(!antiBotJoin)}
-                className={`w-9 h-5 rounded-full p-0.5 transition-colors flex items-center ${
-                  antiBotJoin ? "bg-emerald-600" : "bg-[#1e2333]"
-                }`}
-              >
-                <div className={`w-4 h-4 rounded-full bg-white transition-transform ${antiBotJoin ? "translate-x-4" : "translate-x-0"}`} />
-              </button>
+            <div className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.05] bg-white/[0.02] p-3">
+              <span className="flex items-center gap-2 text-slate-300">
+                <Bot className="h-3.5 w-3.5 shrink-0 text-[#FF5C7A]" />
+                Block unauthorized bot additions
+              </span>
+              <Toggle enabled={antiBotJoin} onChange={setAntiBotJoin} />
             </div>
           </div>
-        </div>
 
-        {/* Verification & Anti-Raid Gate */}
-        <div className="dark-panel p-6 space-y-5">
-          <div className="flex items-center justify-between border-b border-[#1e2333] pb-3">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-cyan-950/60 border border-cyan-500/30 text-cyan-400">
-                <Key className="w-5 h-5" />
-              </div>
+          <div className="mt-3 flex items-start gap-2.5 rounded-xl border border-[#FFB547]/20 bg-[#FFB547]/[0.06] p-3 text-[11px] leading-relaxed text-[#FFB547]/90">
+            <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#FFB547]" />
+            <span>
+              Violations quarantine the offender instantly and alert the @Admin Council in #mod-logs.
+            </span>
+          </div>
+        </motion.section>
+
+        {/* Captcha verification gate */}
+        <motion.section variants={rise} className="panel panel-hover p-5">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#5B8CFF]/25 bg-[#5B8CFF]/10 text-[#5B8CFF]">
+                <Key className="h-4 w-4" />
+              </span>
               <div>
                 <h3 className="text-sm font-extrabold text-white">Captcha Verification Gate</h3>
-                <p className="text-[11px] text-zinc-400">Require web/button captcha before unlocking channels.</p>
+                <p className="mt-1 text-xs text-slate-500">
+                  Require a web or button captcha before unlocking channels.
+                </p>
               </div>
             </div>
-            <button
-              onClick={() => setCaptchaGate(!captchaGate)}
-              className={`w-11 h-6 rounded-full p-1 transition-colors flex items-center ${
-                captchaGate ? "bg-purple-600" : "bg-[#1e2333]"
-              }`}
-            >
-              <div className={`w-4 h-4 rounded-full bg-white transition-transform ${captchaGate ? "translate-x-5" : "translate-x-0"}`} />
-            </button>
+            <Toggle enabled={captchaGate} onChange={setCaptchaGate} />
           </div>
 
-          <div className="space-y-4 text-xs font-medium">
-            <div className="flex items-center justify-between p-3 rounded-xl bg-[#0b0d14] border border-[#1e2333]">
-              <label htmlFor="min-account-age" className="text-zinc-300">Minimum Account Age (Days):</label>
+          <div className="mt-4 space-y-2.5 text-xs font-medium">
+            <div className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.05] bg-white/[0.02] p-3">
+              <label htmlFor="min-account-age" className="flex items-center gap-2 text-slate-300">
+                <Clock className="h-3.5 w-3.5 shrink-0 text-[#5B8CFF]" />
+                Minimum account age (days)
+              </label>
               <input
                 id="min-account-age"
                 name="minAccountAge"
                 type="number"
+                min="0"
                 value={minAccountAge}
                 onChange={(e) => setMinAccountAge(Number(e.target.value))}
-                className="w-16 bg-[#121520] border border-[#1e2333] rounded-lg px-2.5 py-1 text-white font-mono text-center focus:outline-none focus:border-purple-500"
+                className={numberCls}
               />
             </div>
 
-            <div className="flex items-center justify-between p-3 rounded-xl bg-[#0b0d14] border border-[#1e2333]">
-              <label htmlFor="quarantine-role" className="text-zinc-300">Quarantine Role Name:</label>
+            <div className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.05] bg-white/[0.02] p-3">
+              <label htmlFor="quarantine-role" className="flex items-center gap-2 text-slate-300">
+                <UserX className="h-3.5 w-3.5 shrink-0 text-[#5B8CFF]" />
+                Quarantine role name
+              </label>
               <input
                 id="quarantine-role"
                 name="quarantineRole"
                 type="text"
                 value={quarantineRole}
                 onChange={(e) => setQuarantineRole(e.target.value)}
-                className="w-32 bg-[#121520] border border-[#1e2333] rounded-lg px-2.5 py-1 text-purple-400 font-mono text-xs focus:outline-none focus:border-purple-500"
+                className="w-32 bg-white/[0.03] border border-white/[0.08] rounded-lg px-2.5 py-1 font-mono text-xs text-[#7C5CFF] focus:outline-none focus:border-[#7C5CFF]/50 transition-colors"
               />
             </div>
           </div>
-        </div>
 
+          <p className="mt-3 text-[10px] text-slate-600">
+            New joiners stay locked until they pass the gate in #support-desk.
+          </p>
+        </motion.section>
       </div>
 
-      {/* Action Footer */}
-      <div className="pt-4 border-t border-[#1e2333] flex justify-end">
-        <motion.button
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-          className="px-6 py-2.5 rounded-xl gradient-active-btn text-white font-bold text-xs shadow-lg"
+      {/* Action footer */}
+      <motion.div variants={rise} className="flex justify-end border-t border-white/[0.06] pt-4">
+        <button
+          type="button"
+          onClick={() => showToast("Security settings saved — Crystal Realm is protected")}
+          className={btnPrimary}
         >
+          <Save className="h-3.5 w-3.5" />
           Save Security Settings
-        </motion.button>
-      </div>
-    </div>
+        </button>
+      </motion.div>
+    </motion.div>
   );
 }

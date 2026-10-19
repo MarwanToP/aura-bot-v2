@@ -1,7 +1,7 @@
 // ================================================================
 //  Event: interactionCreate — High-Performance Command Router
 // ================================================================
-import { InteractionType, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
+import { InteractionType, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } from 'discord.js';
 import { buildEmbed }      from '../../shared/utils/embedBuilder.js';
 import config              from '../../shared/config/config.js';
 import logger              from '../../shared/utils/logger.js';
@@ -20,7 +20,7 @@ export default {
         return handleSlash(client, interaction);
       }
       if (interaction.isButton())                return handleButton(client, interaction);
-      if (interaction.isStringSelectMenu() || interaction.isUserSelectMenu()) return handleSelect(client, interaction);
+      if (interaction.isAnySelectMenu())           return handleSelect(client, interaction);
       if (interaction.type === InteractionType.ModalSubmit) return handleModal(client, interaction);
       if (interaction.isContextMenuCommand()) {
         const lang = await resolveLanguageFast(client, interaction.user.id, interaction.guildId);
@@ -38,7 +38,7 @@ export default {
       if (!interaction.isRepliable()) return;
       const fallback = {
         embeds: [buildEmbed({ type: 'error', description: '❌ Something went wrong while handling this interaction.' })],
-        ephemeral: true
+        flags: MessageFlags.Ephemeral
       };
 
       if (interaction.replied || interaction.deferred) await interaction.followUp(fallback).catch(() => {});
@@ -53,13 +53,13 @@ async function handleSlash(client, interaction) {
   if (!command) {
     return interaction.reply({
       embeds: [buildEmbed({ type: 'error', description: '❌ This command is not loaded on the bot. Re-deploy slash commands and try again.' })],
-      ephemeral: true
+      flags: MessageFlags.Ephemeral
     }).catch(() => {});
   }
 
   // Auto-defer if command requests deferral or takes time
   if (command.defer) {
-    await interaction.deferReply({ ephemeral: !!command.ephemeral }).catch(() => {});
+    await interaction.deferReply({ flags: command.ephemeral ? MessageFlags.Ephemeral : undefined }).catch(() => {});
   }
 
   const coolKey = `cd:${interaction.user.id}:${interaction.commandName}`;
@@ -79,7 +79,7 @@ async function handleSlash(client, interaction) {
   if (isRestricted) {
     return sendResponse({
       embeds: [buildEmbed({ type: 'error', description: '❌ This command is restricted in this channel or has been disabled globally by administrators.' })],
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
   }
 
@@ -87,13 +87,13 @@ async function handleSlash(client, interaction) {
     const secs = (remaining / 1000).toFixed(1);
     return sendResponse({ 
       embeds: [buildEmbed({ type: 'warning', description: client.i18n.t('common.onCooldown', { time: `${secs}s` }, lang) })], 
-      ephemeral: true 
+      flags: MessageFlags.Ephemeral 
     });
   }
 
   // Guild scope verification
   if (command.guildOnly && !interaction.guildId) {
-    return sendResponse({ embeds: [buildEmbed({ type: 'error', description: '❌ This command is restricted to servers.' })], ephemeral: true });
+    return sendResponse({ embeds: [buildEmbed({ type: 'error', description: '❌ This command is restricted to servers.' })], flags: MessageFlags.Ephemeral });
   }
 
   // Command Settings (enabled/role restrictions)
@@ -104,7 +104,7 @@ async function handleSlash(client, interaction) {
     if (!cmdSettings.enabled) {
       return sendResponse({
         embeds: [buildEmbed({ type: 'error', description: '❌ This command has been disabled by administrators.' })],
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
     if (Array.isArray(cmdSettings.allowedRoles) && cmdSettings.allowedRoles.length > 0) {
@@ -113,7 +113,7 @@ async function handleSlash(client, interaction) {
       if (!hasAllowed) {
         return sendResponse({
           embeds: [buildEmbed({ type: 'error', description: '❌ You do not have the required role to use this command.' })],
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       }
     }
@@ -129,7 +129,7 @@ async function handleSlash(client, interaction) {
     const message = perm.kind === 'bot'
       ? '❌ I am missing required permissions to run this command in this channel.'
       : client.i18n.t('common.noPermission', {}, lang);
-    return sendResponse({ embeds: [buildEmbed({ type: 'error', description: message })], ephemeral: true });
+    return sendResponse({ embeds: [buildEmbed({ type: 'error', description: message })], flags: MessageFlags.Ephemeral });
   }
 
   // Premium Tier Verification (Optimized with Timeout fallback)
@@ -149,7 +149,7 @@ async function handleSlash(client, interaction) {
       return sendResponse({ 
         embeds: [buildEmbed({ type: 'premium', description: `⭐ Requires **Premium Tier ${command.premiumTier}**.\n\nBoost your server with Aura's elite features!`, footer: 'Support aura development.' })], 
         components: [row],
-        ephemeral: true 
+        flags: MessageFlags.Ephemeral 
       });
     }
   }
@@ -158,11 +158,11 @@ async function handleSlash(client, interaction) {
   try {
     await command.execute(client, interaction, lang);
     if (command.cooldown > 0 && client.redis?.status === 'ready') {
-      await client.redis.setex(coolKey, Math.ceil(command.cooldown / 1000), 'active').catch(() => {});
+      await client.redis.setex(coolKey, command.cooldown || 3, 'active').catch(() => {});
     }
   } catch (err) {
     logger.error(`[/${interaction.commandName}]`, err);
-    const errorReply = { embeds: [buildEmbed({ type: 'error', description: '❌ An internal error occurred while processing this command.' })], ephemeral: true };
+    const errorReply = { embeds: [buildEmbed({ type: 'error', description: '❌ An internal error occurred while processing this command.' })], flags: MessageFlags.Ephemeral };
     await sendResponse(errorReply);
   }
 }
@@ -227,21 +227,24 @@ async function checkRestrictionFast(client, interaction) {
 }
 
 // ── Component Handlers (with Registry Caching) ──────────────────
+const COMPONENT_REGISTRY = {
+  ticket:   '../../../../packages/systems/tickets/ticketSystem.js',
+  csat:     '../../../../packages/systems/tickets/ticketSystem.js',
+  giveaway: '../../../../packages/systems/giveaway/giveawaySystem.js',
+  poll:     '../../../../packages/systems/polls/pollSystem.js',
+  apply:    '../../../../packages/systems/applications/applicationSystem.js',
+  economy:  '../../../../packages/systems/economy/economySystem.js',
+  ai:       '../commands/ai/aiCommands.js',
+  games:    '../commands/games/gameCommands.js',
+  staff:    '../commands/management/staff.js',
+  suggest:  '../commands/utility/suggest.js',
+  verify_button: '../commands/utility/verify.js',
+};
+
 async function getHandler(prefix) {
   if (handlerRegistry.has(prefix)) return handlerRegistry.get(prefix);
 
-  const paths = {
-    ticket:   '../../shared/systems/tickets/ticketSystem.js',
-    giveaway: '../../shared/systems/giveaway/giveawaySystem.js',
-    poll:     '../../shared/systems/polls/pollSystem.js',
-    apply:    '../../shared/systems/applications/applicationSystem.js',
-    economy:  '../../shared/systems/economy/economySystem.js',
-    ai:       '../cogs/ai/aiCommands.js',
-    games:    '../cogs/games/gameCommands.js',
-    staff:    '../cogs/management/staff.js',
-  };
-
-  const path = paths[prefix];
+  const path = COMPONENT_REGISTRY[prefix];
   if (!path) return null;
 
   try {
@@ -254,29 +257,50 @@ async function getHandler(prefix) {
   }
 }
 
+/**
+ * Tolerant component dispatch. Resolves the registry module for the customId
+ * prefix and invokes the requested handler with the rest of the customId.
+ * Unknown prefixes and modules without the needed handler are logged (never
+ * silently dropped) and otherwise ignored — no user-facing reply.
+ */
+async function dispatchComponent(client, interaction, prefix, rest, handlerName) {
+  const customId = interaction.customId;
+  const handler = await getHandler(prefix);
+
+  if (!handler) {
+    const known = Object.prototype.hasOwnProperty.call(COMPONENT_REGISTRY, prefix);
+    client.logger?.warn?.(known
+      ? `[Components] Failed to load module for prefix '${prefix}' (customId: '${customId}')`
+      : `[Components] Unknown customId prefix '${prefix}' (customId: '${customId}')`);
+    return;
+  }
+  if (typeof handler[handlerName] !== 'function') {
+    client.logger?.warn?.(`[Components] Module for '${prefix}' has no ${handlerName} (customId: '${customId}')`);
+    return;
+  }
+  await handler[handlerName](client, interaction, rest.join(':'));
+}
+
 async function handleButton(client, interaction) {
   const [prefix, ...rest] = interaction.customId.split(':');
   
   // 🎙️ Handle TempVoice Interface
   if (prefix === 'tv') {
-    const { handleTempVoiceInteraction } = await import('../../shared/systems/voice/voiceSystem.js');
+    const { handleTempVoiceInteraction } = await import('../../../../packages/systems/voice/voiceSystem.js');
     return handleTempVoiceInteraction(client, interaction);
   }
 
-  const handler = await getHandler(prefix);
-  if (handler?.handleButton) await handler.handleButton(client, interaction, rest.join(':'));
+  await dispatchComponent(client, interaction, prefix, rest, 'handleButton');
 }
 
 async function handleModal(client, interaction) {
   const [prefix, ...rest] = interaction.customId.split(':');
-  const handler = await getHandler(prefix);
-  if (handler?.handleModal) await handler.handleModal(client, interaction, rest.join(':'));
+  await dispatchComponent(client, interaction, prefix, rest, 'handleModal');
 }
 
 async function handleSelect(client, interaction) {
   const [prefix, ...rest] = interaction.customId.split(':');
-  const handler = await getHandler(prefix);
-  if (handler?.handleSelectMenu) await handler.handleSelectMenu(client, interaction, rest.join(':'));
+  await dispatchComponent(client, interaction, prefix, rest, 'handleSelectMenu');
 }
 
 // ── Shared Handlers ───────────────────────────────────────────

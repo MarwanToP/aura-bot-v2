@@ -1,0 +1,10 @@
+{
+  "name": "@aura/utils",
+  "version": "2.0.0",
+  "type": "module",
+  "dependencies": {
+    "@aura/config": "*",
+    "@aura/logger": "*",
+    "discord.js": "^14.15.3"
+  }
+}

@@ -4,7 +4,7 @@
 
 import { SlashCommandBuilder, PermissionFlagsBits } from 'discord.js';
 import { buildEmbed } from '../../utils/embedBuilder.js';
-import config         from '../../config/config.js';
+import config         from '../../config/index.js';
 
 // ─── /customcmd ──────────────────────────────────────────────
 export const customcmd = {
@@ -186,15 +186,19 @@ export async function handleCustomCommand(client, message) {
       .replace(/{guild}/g,  message.guild.name)
       .replace(/{count}/g,  message.guild.memberCount);
 
-    // AI-powered response
-    if (cmd.useAI && client.ai.isAvailable()) {
+    // AI-powered response (falls back to the template response if AI is unavailable/fails)
+    if (cmd.useAI && client.ai?.isAvailable?.()) {
       try {
-        const result = await client.ai.generateCommandResponse(message.content, `Custom command: ${cmd.name}. Template: ${cmd.response}`);
-        response = result.content;
-      } catch {}
+        const result = await client.ai.chat({
+          messages: [{ role: 'user', content: message.content }],
+          system:  `You are a Discord bot replying to the custom command "!${cmd.name}". Reply with a single short message that fulfills the command's intent. Style/template to follow: "${cmd.response}"`,
+          maxTokens: 300,
+        });
+        if (result?.content) response = result.content.trim();
+      } catch { /* keep the template response */ }
     }
 
-    await message.channel.send(response);
+    await message.channel.send(response.slice(0, 2000));
 
     // Increment usage
     const { CustomCommand } = client.db.models;

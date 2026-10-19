@@ -1,13 +1,19 @@
 import { Redis } from 'ioredis';
 import { env } from '../../config/src/env.js';
 
-export const redis = new Redis(env.REDIS_URL, {
+const options = {
   maxRetriesPerRequest: 3,
   enableReadyCheck: false,
-});
+  lazyConnect: true,
+};
 
-export const pubsubSubscriber = new Redis(env.REDIS_URL);
-export const pubsubPublisher = new Redis(env.REDIS_URL);
+export const redis = new Redis(env.REDIS_URL, options);
+export const pubsubSubscriber = new Redis(env.REDIS_URL, options);
+export const pubsubPublisher = new Redis(env.REDIS_URL, options);
+
+redis.on('error', (err) => console.warn('[Redis Queue]', err.message));
+pubsubSubscriber.on('error', (err) => console.warn('[Redis PubSub Sub]', err.message));
+pubsubPublisher.on('error', (err) => console.warn('[Redis PubSub Pub]', err.message));
 
 const QUEUE_KEY = 'aura:ai:jobs';
 export const ACTION_CHANNEL = 'aura:moderation:actions';

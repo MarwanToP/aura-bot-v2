@@ -227,8 +227,9 @@ async function checkSingleAlert(client, guildId, alert, alertsKey, allAlerts) {
     if (!feed?.items?.length) return;
 
     const latest = feed.items[0];
-    if (latest.guid === alert.lastPostId) return;
-    newPost = { title: latest.title, url: latest.link, description: latest.contentSnippet?.slice(0, 300) };
+    const latestId = latest.guid || latest.link;
+    if (latestId === alert.lastPostId) return;
+    newPost = { id: latestId, title: latest.title, url: latest.link, description: latest.contentSnippet?.slice(0, 300) };
   }
 
   if (alert.platform === 'reddit') {
@@ -236,7 +237,7 @@ async function checkSingleAlert(client, guildId, alert, alertsKey, allAlerts) {
     const res  = await axios.get(url, { headers: { 'User-Agent': process.env.REDDIT_USER_AGENT || 'AuraBot/2.0' } }).catch(() => null);
     const post = res?.data?.data?.children?.[0]?.data;
     if (!post || post.id === alert.lastPostId) return;
-    newPost = { title: post.title, url: `https://reddit.com${post.permalink}`, thumbnail: post.thumbnail !== 'self' ? post.thumbnail : null };
+    newPost = { id: post.id, title: post.title, url: `https://reddit.com${post.permalink}`, thumbnail: post.thumbnail !== 'self' ? post.thumbnail : null };
   }
 
   if (alert.platform === 'youtube' && process.env.YOUTUBE_API_KEY) {
@@ -246,6 +247,7 @@ async function checkSingleAlert(client, guildId, alert, alertsKey, allAlerts) {
     const item = res?.data?.items?.[0];
     if (!item || item.id.videoId === alert.lastPostId) return;
     newPost = {
+      id:        item.id.videoId,
       title:     item.snippet.title,
       url:       `https://youtu.be/${item.id.videoId}`,
       thumbnail: item.snippet.thumbnails?.high?.url,
@@ -267,7 +269,7 @@ async function checkSingleAlert(client, guildId, alert, alertsKey, allAlerts) {
     if (!stream) return; // Not live
     if (stream.id === alert.lastPostId) return; // Already alerted
 
-    newPost = { title: `${alert.identifier} is LIVE: ${stream.title}`, url: `https://twitch.tv/${alert.identifier}`, thumbnail: stream.thumbnail_url?.replace('{width}', '320').replace('{height}', '180') };
+    newPost = { id: stream.id, title: `${alert.identifier} is LIVE: ${stream.title}`, url: `https://twitch.tv/${alert.identifier}`, thumbnail: stream.thumbnail_url?.replace('{width}', '320').replace('{height}', '180') };
   }
 
   if (!newPost) return;

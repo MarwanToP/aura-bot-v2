@@ -1,6 +1,6 @@
 import { Collection } from 'discord.js';
-import { loadCommands } from '../../../bot/core/commandHandler.js';
-import database from '../../database/index.js';
+import { loadCommands } from '../../../apps/bot/src/core/commandHandler.js';
+import database from '../../../packages/database/index.js';
 import { readdirSync, statSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
@@ -19,24 +19,54 @@ try {
   dbConnected = true;
   console.log('✅ Connected to Postgres database for live model testing.');
 } catch (dbErr) {
-  console.log('⚠️ Database connection unreachable (offline/test mode). Installing DB model stubs...');
-  
+  const createStubRow = (extra = {}) => ({
+    id: 1,
+    caseId: 1,
+    type: 'warn',
+    userId: '900000000000000003',
+    moderatorId: '900000000000000003',
+    reason: 'test reason',
+    active: true,
+    balance: 1000,
+    bank: 0,
+    price: 100,
+    stock: -1,
+    name: 'Sword',
+    emoji: '⚔️',
+    description: 'A sharp sword',
+    createdAt: new Date(),
+    update: async () => {},
+    save: async () => {},
+    destroy: async () => 1,
+    increment: async () => {},
+    toJSON: function() { return this; },
+    ...extra,
+  });
+
   const stubModel = {
-    findOne: async () => null,
-    findAll: async () => [],
-    findAndCountAll: async () => ({ count: 0, rows: [] }),
-    findOrCreate: async () => [{ update: async () => {} }, true],
+    findOne: async () => createStubRow(),
+    findByPk: async () => createStubRow(),
+    findAll: async () => [createStubRow()],
+    findAndCountAll: async () => ({ count: 1, rows: [createStubRow()] }),
+    findOrCreate: async () => [createStubRow(), true],
     count: async () => 0,
-    create: async (data) => ({ ...data, id: 1, update: async () => {} }),
+    create: async (data) => createStubRow(data),
     update: async () => [1],
     destroy: async () => 1,
+    upsert: async () => [createStubRow(), true],
   };
 
-  if (database.models) {
-    for (const key of Object.keys(database.models)) {
-      database.models[key] = { ...stubModel, name: key };
-    }
-  }
+  database.query = async () => [];
+  database.authenticate = async () => {};
+  database.sync = async () => {};
+  database.transaction = async (fn) => {
+    const t = { commit: async () => {}, rollback: async () => {} };
+    return typeof fn === 'function' ? fn(t) : t;
+  };
+
+  database.models = new Proxy({}, {
+    get: (_target, prop) => ({ ...stubModel, name: prop }),
+  });
 }
 
 // 2. Audit Duplicates
@@ -70,8 +100,8 @@ async function scanFiles(dir) {
   }
 }
 
-await scanFiles(join(rootDir, 'bot/cogs'));
-await scanFiles(join(rootDir, 'shared/systems'));
+await scanFiles(join(rootDir, 'apps/bot/src/commands'));
+await scanFiles(join(rootDir, 'packages/systems'));
 
 console.log('\n--- 🔍 DUPLICATE COMMAND AUDIT ---');
 for (const [name, sources] of commandSourceMap.entries()) {
@@ -191,6 +221,9 @@ const mockGuild = {
   },
   members: {
     cache: new Collection(),
+    ban: async () => {},
+    unban: async () => {},
+    kick: async () => {},
     me: {
       permissions: { has: () => true },
       roles: { highest: { position: 99 } },
@@ -207,6 +240,9 @@ const mockGuild = {
       joinedTimestamp: Date.now() - 5000000,
       presence: { status: 'online', activities: [] },
       voice: { channel: mockChannel },
+      timeout: async () => {},
+      kick: async () => {},
+      ban: async () => {},
     }),
   },
   emojis: { cache: new Collection() },

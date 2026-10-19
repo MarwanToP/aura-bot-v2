@@ -1,5 +1,7 @@
-import { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } from 'discord.js';
-import { prisma } from '../../../../../packages/database/src/client.js';
+import { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder, MessageFlags } from 'discord.js';
+import { buildModEmbed } from '../../../../../packages/utils/embedBuilder.js';
+import { createCase, sendModLog } from '../../../../../packages/utils/moderation.js';
+import ms from 'ms';
 
 export default {
   data: new SlashCommandBuilder()
@@ -18,7 +20,7 @@ export default {
         .setName('timeout')
         .setDescription('Temporarily mute/timeout a user.')
         .addUserOption((opt) => opt.setName('target').setDescription('The user to timeout').setRequired(true))
-        .addIntegerOption((opt) => opt.setName('minutes').setDescription('Duration in minutes').setRequired(true))
+        .addIntegerOption((opt) => opt.setName('minutes').setDescription('Duration in minutes').setRequired(true).setMinValue(1).setMaxValue(40320))
         .addStringOption((opt) => opt.setName('reason').setDescription('Reason for timeout').setRequired(true))
     )
     .addSubcommand((sub) =>
@@ -29,45 +31,45 @@ export default {
         .addStringOption((opt) => opt.setName('reason').setDescription('Reason for ban').setRequired(true))
     ),
   permissions: [PermissionFlagsBits.ModerateMembers],
-  async execute(interaction) {
+  async execute(client, interaction) {
+    if (!interaction && client?.options?.getSubcommand) {
+      interaction = client;
+      client = null;
+    }
+
+    // Acknowledge within Discord's 3-second deadline: the member fetch and case
+    // creation below can be slow. Errors stay ephemeral (defer + editReply);
+    // success confirmations keep their public visibility via followUp.
+    try {
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+    } catch {
+      return; // interaction expired before it could be acknowledged
+    }
+
     const subcommand = interaction.options.getSubcommand();
     const targetUser = interaction.options.getUser('target');
     const reason = interaction.options.getString('reason');
     const member = await interaction.guild.members.fetch(targetUser.id).catch(() => null);
 
-    if (!member && subcommand !== 'ban') {
-      return interaction.reply({ content: '❌ Target member not found in this server.', ephemeral: true });
+    if (subcommand === 'ban' && interaction.member && !interaction.member.permissions.has(PermissionFlagsBits.BanMembers)) {
+      return interaction.editReply({ content: '❌ You need `Ban Members` permission for this subcommand.', flags: MessageFlags.Ephemeral });
     }
 
-    // Save action to Database
-    try {
-      await prisma.user.upsert({
-        where: { id: targetUser.id },
-        update: { username: targetUser.username },
-        create: { id: targetUser.id, username: targetUser.username },
-      });
-
-      await prisma.guild.upsert({
-        where: { id: interaction.guildId },
-        update: {},
-        create: { id: interaction.guildId },
-      });
-
-      await prisma.moderationLog.create({
-        data: {
-          guildId: interaction.guildId,
-          userId: targetUser.id,
-          moderatorId: interaction.user.id,
-          action: subcommand,
-          reason,
-        },
-      });
-    } catch (err) {
-      console.error('Database logging error:', err.message);
+    if (!member && subcommand !== 'ban') {
+      return interaction.editReply({ content: '❌ Target member not found in this server.', flags: MessageFlags.Ephemeral });
     }
 
     if (subcommand === 'warn') {
-      return interaction.reply({
+      const modCase = await createCase(client, {
+        guildId: interaction.guildId,
+        userId: targetUser.id,
+        moderatorId: interaction.user.id,
+        type: 'warn',
+        reason,
+      });
+      await sendModLog(client, interaction.guildId, buildModEmbed({ action: 'warn', user: targetUser, moderator: interaction.user, reason, caseId: modCase?.caseId }));
+
+      return interaction.followUp({
         embeds: [
           new EmbedBuilder()
             .setColor('#f59e0b')
@@ -79,9 +81,20 @@ export default {
 
     if (subcommand === 'timeout') {
       const minutes = interaction.options.getInteger('minutes');
-      await member.timeout(minutes * 60 * 1000, reason);
+      const duration = minutes * 60 * 1000;
+      await member.timeout(duration, reason);
 
-      return interaction.reply({
+      const modCase = await createCase(client, {
+        guildId: interaction.guildId,
+        userId: targetUser.id,
+        moderatorId: interaction.user.id,
+        type: 'timeout',
+        reason,
+        duration,
+      });
+      await sendModLog(client, interaction.guildId, buildModEmbed({ action: 'timeout', user: targetUser, moderator: interaction.user, reason, caseId: modCase?.caseId, duration: ms(duration, { long: true }) }));
+
+      return interaction.followUp({
         embeds: [
           new EmbedBuilder()
             .setColor('#ef4444')
@@ -94,7 +107,16 @@ export default {
     if (subcommand === 'ban') {
       await interaction.guild.members.ban(targetUser.id, { reason });
 
-      return interaction.reply({
+      const modCase = await createCase(client, {
+        guildId: interaction.guildId,
+        userId: targetUser.id,
+        moderatorId: interaction.user.id,
+        type: 'ban',
+        reason,
+      });
+      await sendModLog(client, interaction.guildId, buildModEmbed({ action: 'ban', user: targetUser, moderator: interaction.user, reason, caseId: modCase?.caseId }));
+
+      return interaction.followUp({
         embeds: [
           new EmbedBuilder()
             .setColor('#b91c1c')

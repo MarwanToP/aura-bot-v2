@@ -1,7 +1,7 @@
 // Live test of the AI service through the bot's actual code path
 import 'dotenv/config';
-import logger from '../../utils/logger.js';
-import aiService from '../../systems/ai/aiService.js';
+import logger from '../../../packages/utils/logger.js';
+import aiService from '../../../packages/systems/ai/aiService.js';
 
 logger.info = (...a) => console.log(...a);
 logger.warn = (...a) => console.warn(...a);

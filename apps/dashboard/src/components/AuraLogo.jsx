@@ -1,86 +1,97 @@
 import React from "react";
 
-export default function AuraLogo({ size = "md", className = "" }) {
+export default function AuraLogo({ size = "md", className = "", showRing = true }) {
   const dimensions = {
+    xs: "w-6 h-6",
     sm: "w-8 h-8",
     md: "w-10 h-10",
     lg: "w-14 h-14",
     xl: "w-20 h-20",
-    banner: "w-32 h-32",
+    banner: "w-28 h-28",
   }[size] || "w-10 h-10";
 
   return (
     <div className={`relative flex items-center justify-center shrink-0 ${dimensions} ${className}`}>
-      {/* Outer Neon Glow Ring */}
-      <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-purple-600 via-fuchsia-500 to-indigo-400 opacity-60 blur-md animate-pulse" />
-      
-      {/* Ring container with SVG crystal icon */}
-      <div className="relative w-full h-full rounded-full bg-[#0d091e] border border-purple-500/40 p-1.5 shadow-[0_0_25px_rgba(168,85,247,0.4)] flex items-center justify-center overflow-hidden">
+      {/* Soft Ambient Glow */}
+      <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-[#7C5CFF] to-[#5B8CFF] opacity-30 blur-md pointer-events-none" />
+
+      {/* Container Orb / Ring */}
+      <div className={`relative w-full h-full rounded-full flex items-center justify-center ${
+        showRing ? 'bg-[#0E111A] border border-[#7C5CFF]/30 shadow-[0_0_15px_rgba(124,92,255,0.25)]' : ''
+      }`}>
         <svg
           viewBox="0 0 200 200"
-          className="w-full h-full drop-shadow-[0_0_12px_rgba(192,132,252,0.8)]"
+          className="w-[85%] h-[85%]"
           fill="none"
           xmlns="http://www.w3.org/2000/svg"
         >
           <defs>
-            <linearGradient id="crystalGradLeft" x1="0%" y1="100%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="#4c1d95" />
-              <stop offset="50%" stopColor="#7c3aed" />
-              <stop offset="100%" stopColor="#c084fc" />
+            {/* Primary Aura Gradient: Soft Violet to Cool Blue */}
+            <linearGradient id="auraGlyphGrad" x1="50%" y1="0%" x2="50%" y2="100%">
+              <stop offset="0%" stopColor="#9B82FF" />
+              <stop offset="45%" stopColor="#7C5CFF" />
+              <stop offset="100%" stopColor="#5B8CFF" />
             </linearGradient>
-            <linearGradient id="crystalGradRight" x1="100%" y1="100%" x2="0%" y2="0%">
-              <stop offset="0%" stopColor="#312e81" />
-              <stop offset="50%" stopColor="#6366f1" />
-              <stop offset="100%" stopColor="#a5b4fc" />
+
+            {/* Glowing Star Gradient */}
+            <linearGradient id="auraStarGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#FFFFFF" />
+              <stop offset="50%" stopColor="#C4B5FD" />
+              <stop offset="100%" stopColor="#93C5FD" />
             </linearGradient>
-            <linearGradient id="crystalGradCenter" x1="50%" y1="0%" x2="50%" y2="100%">
-              <stop offset="0%" stopColor="#f472b6" />
-              <stop offset="100%" stopColor="#c084fc" />
+
+            {/* Subtle Top Specular Sheen */}
+            <linearGradient id="auraSheenGrad" x1="50%" y1="0%" x2="50%" y2="60%">
+              <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.6" />
+              <stop offset="100%" stopColor="#FFFFFF" stopOpacity="0" />
             </linearGradient>
-            <filter id="neonGlow">
-              <feGaussianBlur stdDeviation="3" result="coloredBlur" />
+
+            <filter id="softAuraGlow" x="-20%" y="-20%" width="140%" height="140%">
+              <feGaussianBlur stdDeviation="2.5" result="glow" />
               <feMerge>
-                <feMergeNode in="coloredBlur" />
+                <feMergeNode in="glow" />
                 <feMergeNode in="SourceGraphic" />
               </feMerge>
             </filter>
           </defs>
 
-          {/* Outer Ring Circle */}
-          <circle
-            cx="100"
-            cy="100"
-            r="88"
-            stroke="url(#crystalGradLeft)"
-            strokeWidth="3"
-            strokeDasharray="6 3"
-            opacity="0.6"
+          {/* The Geometric 'A' Body */}
+          <path
+            d="M 100 24 
+               L 164 168 
+               L 144 154 
+               L 126 166 
+               L 108 122 
+               L 92 122 
+               L 74 166 
+               L 56 154 
+               L 36 168 
+               Z"
+            fill="url(#auraGlyphGrad)"
+            filter="url(#softAuraGlow)"
           />
 
-          {/* 3D Crystal A Geometry */}
-          {/* Left Leg */}
-          <polygon
-            points="100,25 35,160 70,160 100,85"
-            fill="url(#crystalGradLeft)"
-            filter="url(#neonGlow)"
+          {/* Top Sheen Accent */}
+          <path
+            d="M 100 24 
+               L 128 88 
+               L 100 82 
+               L 72 88 
+               Z"
+            fill="url(#auraSheenGrad)"
+            opacity="0.8"
           />
-          {/* Right Leg */}
-          <polygon
-            points="100,25 165,160 130,160 100,85"
-            fill="url(#crystalGradRight)"
-            filter="url(#neonGlow)"
-          />
-          {/* Crossbar Diamond facet */}
-          <polygon
-            points="100,80 122,125 100,140 78,125"
-            fill="url(#crystalGradCenter)"
-            opacity="0.9"
-          />
-          {/* Glowing Center Core */}
-          <polygon
-            points="100,95 110,120 100,128 90,120"
-            fill="#ffffff"
-            opacity="0.9"
+
+          {/* Central Radiating 4-Point Sparkle Star (✦) */}
+          <path
+            d="M 100 80 
+               Q 100 102 113 102 
+               Q 100 102 100 124 
+               Q 100 102 87 102 
+               Q 100 102 100 80 
+               Z"
+            fill="url(#auraStarGrad)"
+            filter="drop-shadow(0px 0px 4px rgba(255, 255, 255, 0.9))"
           />
         </svg>
       </div>

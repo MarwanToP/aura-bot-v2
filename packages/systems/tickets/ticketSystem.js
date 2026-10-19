@@ -3,11 +3,11 @@
 // ================================================================
 import { trackActivity } from '../staff/staffSystem.js';
 import { buildEmbed } from '../../utils/embedBuilder.js';
-import config         from '../../config/config.js';
+import config from '../../config/index.js';
 import logger         from '../../utils/logger.js';
 import discordTranscripts from 'discord-html-transcripts';
 import { 
-  ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, ChannelType, PermissionFlagsBits 
+  ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, ChannelType, PermissionFlagsBits, MessageFlags 
 } from 'discord.js';
 
 /**
@@ -486,6 +486,12 @@ export async function recordCSATResponse(client, { ticketId, guildId, userId, ra
       where: ticketId ? { ticketId } : { guildId, userId }
     });
 
+    // One-time guard: CSAT prompts stay clickable forever, so ignore repeat
+    // clicks instead of piling up duplicate rows.
+    if (ticket?.satisfaction) {
+      return { success: true, alreadyRated: true, rating: ticket.satisfaction, ticket };
+    }
+
     const targetGuildId = guildId || ticket?.guildId;
     const targetUserId = userId || ticket?.userId;
 
@@ -644,87 +650,116 @@ export async function closeTicket(client, ticketId, guildId, closedBy) {
  * Button Interaction Router
  */
 export async function handleButton(client, interaction, args) {
-  const [action, ...parts] = args.split(':');
-  const ticketId = parts[0];
-  const extra = parts.slice(1).join(':');
-  const lang = await client.i18n.resolveLanguage(client, interaction.user.id, interaction.guildId);
-
-  if (action === 'claim') {
-    const result = await claimTicket(client, ticketId, interaction.guildId, interaction.user);
-    if (result.error) {
-      return interaction.reply({ embeds: [buildEmbed({ type: 'error', description: `❌ ${result.error}` })], ephemeral: true });
-    }
-    return interaction.reply({ embeds: [buildEmbed({ type: 'success', description: `✅ Ticket **${ticketId}** claimed successfully.` })], ephemeral: true });
-  }
-
-  if (action === 'escalate') {
-    const result = await escalateTicket(client, ticketId, interaction.guildId, interaction.user, 'Escalation via button interaction');
-    if (result.error) {
-      return interaction.reply({ embeds: [buildEmbed({ type: 'error', description: `❌ ${result.error}` })], ephemeral: true });
-    }
-    return interaction.reply({ embeds: [buildEmbed({ type: 'success', description: `✅ Escalated ticket to Tier ${result.newTier} (${result.newPriority} Priority).` })], ephemeral: true });
-  }
-
-  // Handle dynamic buttons from the Web-configured Ticket Panel
-  if (action === 'open') {
-    const categoryName = parts.join(':') || 'Support';
-    
-    const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId(`ticket:setlang:dummy:${categoryName}|ar`).setLabel('🇸🇦 Arabic / عربى').setStyle(ButtonStyle.Primary),
-      new ButtonBuilder().setCustomId(`ticket:setlang:dummy:${categoryName}|en`).setLabel('🇬🇧 English').setStyle(ButtonStyle.Secondary),
-    );
-
-    return interaction.reply({
-      embeds: [buildEmbed({ 
-        type: 'info', 
-        title: 'Select Language | اختر لغتك', 
-        description: `Please select the language for your **Ticket**.\nيرجى اختيار لغة تذكرة.` 
-      })],
-      components: [row],
-      ephemeral: true
-    });
-  }
-
-  if (action === 'close') {
-    const result = await closeTicket(client, ticketId, interaction.guildId, interaction.user);
-    return interaction.reply({ embeds: [buildEmbed({ type: result.error ? 'error' : 'success', description: result.error || client.i18n.t('tickets.closed', { id: ticketId }, lang) })], ephemeral: true });
-  }
-
-  if (action === 'delete') {
-    await interaction.channel?.delete('[Aura] Ticket deleted').catch(() => {});
-    return;
-  }
-
-  if (action === 'survey') {
-    const row = new ActionRowBuilder().addComponents([1,2,3,4,5].map(n => new ButtonBuilder().setCustomId(`csat:${ticketId}:${n}`).setLabel(`${n} ⭐`).setStyle(ButtonStyle.Secondary)));
-    return interaction.reply({ embeds: [buildEmbed({ type: 'primary', description: client.i18n.t('tickets.survey', {}, lang) })], components: [row], ephemeral: true });
-  }
-
-  if (action === 'rate' || action === 'rating') {
-    const ratingVal = parseInt(extra || ticketId);
-    const targetId = extra ? ticketId : parts[0];
-    await recordCSATResponse(client, {
-      ticketId: targetId,
-      guildId: interaction.guildId,
-      userId: interaction.user.id,
-      rating: ratingVal
-    });
-    return interaction.reply({ embeds: [buildEmbed({ type: 'success', description: `Thank you for your **${ratingVal}⭐** rating!` })], ephemeral: true });
-  }
-
-  // Language Selection
-  if (action === 'setlang') {
-    const langPayload = parts.slice(1).join(':');
-    const [category, language] = langPayload.split('|'); // e.g., "Technical|ar"
+  try {
+    // Ack the click before any DB/API work (language resolution, ticket ops) —
+    // those can exceed Discord's 3s interaction deadline. deferUpdate keeps the
+    // parent message intact; every path below replies as an ephemeral followUp.
     await interaction.deferUpdate();
-    const result = await createTicket(client, interaction.guild, interaction.user, { category });
-    
-    if (result.error) return interaction.followUp({ embeds: [buildEmbed({ type: 'error', description: result.error })], ephemeral: true });
-    
-    return interaction.followUp({ 
-      embeds: [buildEmbed({ type: 'success', description: language === 'ar' ? `✅ تم إنشاء التذكرة: <#${result.channel.id}>` : `✅ Ticket created: <#${result.channel.id}>` })], 
-      ephemeral: true 
-    });
+
+    // CSAT rating buttons are dispatched as `csat:<ticketId>:<rating>`; the
+    // component router strips the `csat:` prefix, so args arrives here as
+    // `<ticketId>:<rating>`. Handled before the ticket action split below.
+    const csatMatch = /^([^:]+-\d+):([1-5])$/.exec(args);
+    if (csatMatch) {
+      const result = await recordCSATResponse(client, {
+        ticketId: csatMatch[1],
+        guildId: interaction.guildId,
+        userId: interaction.user.id,
+        rating: parseInt(csatMatch[2], 10),
+      });
+      if (result.error) {
+        return interaction.followUp({ embeds: [buildEmbed({ type: 'error', description: `❌ ${result.error}` })], flags: MessageFlags.Ephemeral });
+      }
+      const description = result.alreadyRated
+        ? `ℹ️ You have already rated ticket **${csatMatch[1]}** (${result.rating}⭐).`
+        : `Thank you for your **${result.rating}⭐** rating!`;
+      return interaction.followUp({ embeds: [buildEmbed({ type: 'success', description })], flags: MessageFlags.Ephemeral });
+    }
+
+    const [action, ...parts] = args.split(':');
+    const ticketId = parts[0];
+    const extra = parts.slice(1).join(':');
+    const lang = await client.i18n.resolveLanguage(client, interaction.user.id, interaction.guildId);
+
+    if (action === 'claim') {
+      const result = await claimTicket(client, ticketId, interaction.guildId, interaction.user);
+      if (result.error) {
+        return interaction.followUp({ embeds: [buildEmbed({ type: 'error', description: `❌ ${result.error}` })], flags: MessageFlags.Ephemeral });
+      }
+      return interaction.followUp({ embeds: [buildEmbed({ type: 'success', description: `✅ Ticket **${ticketId}** claimed successfully.` })], flags: MessageFlags.Ephemeral });
+    }
+
+    if (action === 'escalate') {
+      const result = await escalateTicket(client, ticketId, interaction.guildId, interaction.user, 'Escalation via button interaction');
+      if (result.error) {
+        return interaction.followUp({ embeds: [buildEmbed({ type: 'error', description: `❌ ${result.error}` })], flags: MessageFlags.Ephemeral });
+      }
+      return interaction.followUp({ embeds: [buildEmbed({ type: 'success', description: `✅ Escalated ticket to Tier ${result.newTier} (${result.newPriority} Priority).` })], flags: MessageFlags.Ephemeral });
+    }
+
+    // Handle dynamic buttons from the Web-configured Ticket Panel
+    if (action === 'open') {
+      const categoryName = parts.join(':') || 'Support';
+      
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId(`ticket:setlang:dummy:${categoryName}|ar`).setLabel('🇸🇦 Arabic / عربى').setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId(`ticket:setlang:dummy:${categoryName}|en`).setLabel('🇬🇧 English').setStyle(ButtonStyle.Secondary),
+      );
+
+      return interaction.followUp({
+        embeds: [buildEmbed({ 
+          type: 'info', 
+          title: 'Select Language | اختر لغتك', 
+          description: `Please select the language for your **Ticket**.\nيرجى اختيار لغة تذكرة.` 
+        })],
+        components: [row],
+        flags: MessageFlags.Ephemeral
+      });
+    }
+
+    if (action === 'close') {
+      const result = await closeTicket(client, ticketId, interaction.guildId, interaction.user);
+      return interaction.followUp({ embeds: [buildEmbed({ type: result.error ? 'error' : 'success', description: result.error || client.i18n.t('tickets.closed', { id: ticketId }, lang) })], flags: MessageFlags.Ephemeral });
+    }
+
+    if (action === 'delete') {
+      await interaction.channel?.delete('[Aura] Ticket deleted').catch(() => {});
+      return;
+    }
+
+    if (action === 'survey') {
+      const row = new ActionRowBuilder().addComponents([1,2,3,4,5].map(n => new ButtonBuilder().setCustomId(`csat:${ticketId}:${n}`).setLabel(`${n} ⭐`).setStyle(ButtonStyle.Secondary)));
+      return interaction.followUp({ embeds: [buildEmbed({ type: 'primary', description: client.i18n.t('tickets.survey', {}, lang) })], components: [row], flags: MessageFlags.Ephemeral });
+    }
+
+    if (action === 'rate' || action === 'rating') {
+      const ratingVal = parseInt(extra || ticketId);
+      const targetId = extra ? ticketId : parts[0];
+      await recordCSATResponse(client, {
+        ticketId: targetId,
+        guildId: interaction.guildId,
+        userId: interaction.user.id,
+        rating: ratingVal
+      });
+      return interaction.followUp({ embeds: [buildEmbed({ type: 'success', description: `Thank you for your **${ratingVal}⭐** rating!` })], flags: MessageFlags.Ephemeral });
+    }
+
+    // Language Selection
+    if (action === 'setlang') {
+      const langPayload = parts.slice(1).join(':');
+      const [category, language] = langPayload.split('|'); // e.g., "Technical|ar"
+      const result = await createTicket(client, interaction.guild, interaction.user, { category });
+      
+      if (result.error) return interaction.followUp({ embeds: [buildEmbed({ type: 'error', description: result.error })], flags: MessageFlags.Ephemeral });
+      
+      return interaction.followUp({ 
+        embeds: [buildEmbed({ type: 'success', description: language === 'ar' ? `✅ تم إنشاء التذكرة: <#${result.channel.id}>` : `✅ Ticket created: <#${result.channel.id}>` })], 
+        flags: MessageFlags.Ephemeral 
+      });
+    }
+  } catch (err) {
+    logger.error('[Tickets] Button handler failed:', err);
+    throw err; // let the interaction router emit its ephemeral fallback, as before
   }
 }
 

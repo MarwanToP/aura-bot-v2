@@ -2,7 +2,7 @@ import 'dotenv/config';
 import axios from 'axios';
 import nodemailer from 'nodemailer';
 import logger from '../../utils/logger.js';
-import redis from '../../database/redis.js';
+import redis from '../../redis/index.js';
 import database from '../../database/index.js';
 
 class MonitorService {

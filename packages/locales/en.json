@@ -95,5 +95,15 @@
   "welcome": { "defaultMessage":"Welcome to **{{guild}}**, {{user}}! 🎉 You are member **#{{count}}**.", "farewell":"**{{user}}** left the server." },
   "settings": { "updated":"✅ **{{key}}** updated.", "language": { "changed":"Language set to **English**." } },
   "ai": { "limitReached":"⚠️ Daily AI limit ({{limit}}) reached. Resets at midnight.", "notConfigured":"❌ AI is not configured." },
-  "birthday": { "happy":"🎂 Happy Birthday, **{{user}}**! 🎉{{age}}" }
+  "birthday": { "happy":"🎂 Happy Birthday, **{{user}}**! 🎉{{age}}" },
+  "remind": {
+    "set": { "success":"⏰ Reminder set for {{time}} — I'll remind you: **{{content}}**" },
+    "list": { "title":"⏰ Your Pending Reminders", "empty":"📭 You have no pending reminders in this server.", "footer":"Manage them with /remind cancel" },
+    "cancel": { "success":"✅ Reminder #{{id}} cancelled.", "notFound":"❌ No pending reminder with that ID — check /remind list." },
+    "errors": {
+      "invalidDuration":"❌ Invalid duration. Use formats like `10m`, `2h` or `3d` (minimum 1 minute, maximum 365 days).",
+      "tooMany":"❌ You already have {{max}} pending reminders — cancel some with /remind cancel first.",
+      "generic":"❌ Something went wrong while processing your reminder. Please try again."
+    }
+  }
 }

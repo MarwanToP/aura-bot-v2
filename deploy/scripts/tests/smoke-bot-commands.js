@@ -1,5 +1,5 @@
 import { Collection } from 'discord.js';
-import { loadCommands } from '../../../bot/core/commandHandler.js';
+import { loadCommands } from '../../../apps/bot/src/core/commandHandler.js';
 
 const logger = {
   info: (...args) => console.log(...args),

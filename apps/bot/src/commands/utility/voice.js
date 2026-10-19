@@ -1,7 +1,7 @@
 // ================================================================
 //  AURA BOT v2.0 — TempVoice Management (Phase 2)
 // ================================================================
-import { SlashCommandBuilder, PermissionFlagsBits, ChannelType } from 'discord.js';
+import { SlashCommandBuilder, PermissionFlagsBits, ChannelType, MessageFlags } from 'discord.js';
 import { buildEmbed } from '../../../shared/utils/embedBuilder.js';
 import logger from '../../../shared/utils/logger.js';
 import { getVoiceConnection } from '@discordjs/voice';
@@ -34,7 +34,7 @@ export const voice = {
     .addSubcommand(s => s
       .setName('name')
       .setDescription('Rename your room')
-      .addStringOption(o => o.setName('name').setDescription('New name').setRequired(true))
+      .addStringOption(o => o.setName('name').setDescription('New name').setRequired(true).setMaxLength(100))
     )
     .addSubcommand(s => s
       .setName('limit')
@@ -60,7 +60,7 @@ export const voice = {
   cooldown: 5000,
 
   async execute(client, interaction) {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     const sub = interaction.options.getSubcommand();
     const { GuildSettings, TempChannel } = client.db.models;
 

@@ -1,7 +1,15 @@
 import { Redis } from 'ioredis';
 import { env } from '../../../../packages/config/src/env.js';
 
-const redis = new Redis(env.REDIS_URL || 'redis://localhost:6379');
+const redis = new Redis(env.REDIS_URL || 'redis://localhost:6379', {
+  lazyConnect: true,
+  maxRetriesPerRequest: 3,
+});
+
+redis.on('error', (err) => {
+  console.warn('[AI Queue Redis]', err.message);
+});
+
 const QUEUE_KEY = 'aura:ai:jobs';
 
 /**
@@ -23,9 +31,14 @@ export async function enqueueAIJob(jobType, payload) {
  * Pops and returns the next job from the queue (blocking pop).
  */
 export async function dequeueAIJob(timeoutSeconds = 5) {
-  const result = await redis.blpop(QUEUE_KEY, timeoutSeconds);
-  if (!result) return null;
+  try {
+    const result = await redis.blpop(QUEUE_KEY, timeoutSeconds);
+    if (!result) return null;
 
-  const [_, jobData] = result;
-  return JSON.parse(jobData);
+    const [_, jobData] = result;
+    return JSON.parse(jobData);
+  } catch (err) {
+    console.warn('[AI Queue Dequeue Error]', err.message);
+    return null;
+  }
 }

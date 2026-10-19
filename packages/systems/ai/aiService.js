@@ -3,8 +3,7 @@
 //  Providers: Google Gemini + Cloudflare Workers AI (+ OpenAI image)
 // ================================================================
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import OpenAI from 'openai';
-import config    from '../../config/config.js';
+import config    from '../../config/index.js';
 import logger    from '../../utils/logger.js';
 
 class AIService {
@@ -374,15 +373,20 @@ class AIService {
     return this.prompt(text, system ? { system } : {});
   }
 
-  _getOpenAI() {
+  async _getOpenAI() {
     if (this.openai) return this.openai;
     if (!process.env.OPENAI_API_KEY) return null;
-    this.openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-    return this.openai;
+    try {
+      const { default: OpenAI } = await import('openai');
+      this.openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+      return this.openai;
+    } catch {
+      return null;
+    }
   }
 
   async generateImage(prompt, { size = '1024x1024', style = 'vivid' } = {}) {
-    const ai = this._getOpenAI();
+    const ai = await this._getOpenAI();
     if (!ai) {
       throw new Error('Image generation requires OPENAI_API_KEY.');
     }

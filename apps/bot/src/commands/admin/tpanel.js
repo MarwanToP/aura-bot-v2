@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
+import { SlashCommandBuilder, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } from 'discord.js';
 import { buildEmbed } from '../../../shared/utils/embedBuilder.js';
 
 export const tpanel = {
@@ -23,7 +23,8 @@ export const tpanel = {
       new ButtonBuilder().setCustomId('tpanel_delete').setLabel('Delete Category').setStyle(ButtonStyle.Danger).setEmoji('🗑️')
     );
 
-    const msg = await interaction.reply({ embeds: [embed], components: [row], fetchReply: true });
+    const response = await interaction.reply({ embeds: [embed], components: [row], withResponse: true });
+    const msg = response?.resource?.message;
 
     if (!msg || typeof msg.createMessageComponentCollector !== 'function') return;
 
@@ -49,7 +50,7 @@ export const tpanel = {
           title: '🎫 Ticket Configurator',
           description: `**${actionLabel}** is not wired to persistent storage yet.\nUse \`/settings\` to configure ticket system values for now.`,
         })],
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     });
 

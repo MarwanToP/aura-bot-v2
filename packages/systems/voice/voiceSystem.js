@@ -7,7 +7,8 @@ import {
   ActionRowBuilder, 
   ButtonBuilder, 
   ButtonStyle,
-  EmbedBuilder
+  EmbedBuilder,
+  MessageFlags
 } from 'discord.js';
 import logger from '../../utils/logger.js';
 
@@ -350,52 +351,62 @@ export async function handleTempVoiceInteraction(client, interaction) {
   const { customId, member, channel, guild } = interaction;
   if (!customId.startsWith('tv:')) return;
 
-  const { TempChannel } = client.db.models;
-  const temp = await TempChannel.findOne({ where: { channelId: channel.id } });
+  try {
+    // Ack before the DB lookup — the findOne below can exceed Discord's 3s
+    // interaction deadline. Every response path is an ephemeral message.
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
-  if (!temp) return interaction.reply({ content: '❌ هذا الروم ليس روماً مؤقتاً.', ephemeral: true });
+    const { TempChannel } = client.db.models;
+    const temp = await TempChannel.findOne({ where: { channelId: channel.id } });
 
-  // Ownership Check
-  if (temp.ownerId !== member.id && customId !== 'tv:claim') {
-    return interaction.reply({ content: '❌ أنت لست مالك هذا الروم.', ephemeral: true });
-  }
+    if (!temp) return interaction.editReply({ content: '❌ هذا الروم ليس روماً مؤقتاً.' });
 
-  const act = customId.split(':')[1];
-  
-  switch (act) {
-    case 'privacy':
-      const isLocked = channel.permissionOverwrites.cache?.get?.(guild.id)?.deny?.has?.(PermissionFlagsBits.Connect);
-      await channel.permissionOverwrites.edit(guild.id, { Connect: isLocked ? null : false });
-      return interaction.reply({ content: isLocked ? '✅ تم فتح الروم للجميع.' : '🔒 تم قفل الروم.', ephemeral: true });
+    // Ownership Check
+    if (temp.ownerId !== member.id && customId !== 'tv:claim') {
+      return interaction.editReply({ content: '❌ أنت لست مالك هذا الروم.' });
+    }
+
+    const act = customId.split(':')[1];
     
-    case 'limit':
-      return interaction.reply({ content: '🛠️ يرجى استخدام أمر `/voice limit` لتحديد العدد حالياً.', ephemeral: true });
-    
-    case 'rename':
-      return interaction.reply({ content: '🛠️ يرجى استخدام أمر `/voice name` لتغيير اسم الروم.', ephemeral: true });
-
-    case 'cancel':
-      await interaction.reply({ content: '🗑️ يتم الآن حذف الروم...', ephemeral: true });
-      if (debounceTimers.has(channel.id)) {
-        clearTimeout(debounceTimers.get(channel.id));
-        debounceTimers.delete(channel.id);
+    switch (act) {
+      case 'privacy': {
+        const isLocked = channel.permissionOverwrites.cache?.get?.(guild.id)?.deny?.has?.(PermissionFlagsBits.Connect);
+        await channel.permissionOverwrites.edit(guild.id, { Connect: isLocked ? null : false });
+        return interaction.editReply({ content: isLocked ? '✅ تم فتح الروم للجميع.' : '🔒 تم قفل الروم.' });
       }
-      renameHistory.delete(channel.id);
-      await temp.destroy();
-      await channel.delete().catch(() => {});
-      break;
+      
+      case 'limit':
+        return interaction.editReply({ content: '🛠️ يرجى استخدام أمر `/voice limit` لتحديد العدد حالياً.' });
+      
+      case 'rename':
+        return interaction.editReply({ content: '🛠️ يرجى استخدام أمر `/voice name` لتغيير اسم الروم.' });
 
-    case 'claim':
-      if (channel.members?.has?.(temp.ownerId) && temp.ownerId !== member.id) {
-        return interaction.reply({ content: '❌ المالك الأصلي لا يزال موجوداً في الروم.', ephemeral: true });
-      }
-      if (temp.ownerId === member.id) {
-        return interaction.reply({ content: '👑 أنت المالك الفعلي لهذا الروم.', ephemeral: true });
-      }
-      await temp.update({ ownerId: member.id });
-      return interaction.reply({ content: '👑 تم استلام ملكية الروم بنجاح.', ephemeral: true });
+      case 'cancel':
+        await interaction.editReply({ content: '🗑️ يتم الآن حذف الروم...' });
+        if (debounceTimers.has(channel.id)) {
+          clearTimeout(debounceTimers.get(channel.id));
+          debounceTimers.delete(channel.id);
+        }
+        renameHistory.delete(channel.id);
+        await temp.destroy();
+        await channel.delete().catch(() => {});
+        break;
 
-    default:
-      return interaction.reply({ content: '🛠️ تم استقبال طلبك، جاري تفعيل هذا الاختيار قريباً.', ephemeral: true });
+      case 'claim':
+        if (channel.members?.has?.(temp.ownerId) && temp.ownerId !== member.id) {
+          return interaction.editReply({ content: '❌ المالك الأصلي لا يزال موجوداً في الروم.' });
+        }
+        if (temp.ownerId === member.id) {
+          return interaction.editReply({ content: '👑 أنت المالك الفعلي لهذا الروم.' });
+        }
+        await temp.update({ ownerId: member.id });
+        return interaction.editReply({ content: '👑 تم استلام ملكية الروم بنجاح.' });
+
+      default:
+        return interaction.editReply({ content: '🛠️ تم استقبال طلبك، جاري تفعيل هذا الاختيار قريباً.' });
+    }
+  } catch (err) {
+    logger.error('[TempVoice] Button handler failed:', err);
+    throw err; // let the interaction router emit its ephemeral fallback, as before
   }
 }

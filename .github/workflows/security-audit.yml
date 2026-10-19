@@ -22,7 +22,7 @@ jobs:
           node-version: '20'
 
       - name: Audit Dependencies
-        run: npm audit --audit-level=high || true
+        run: npm audit --audit-level=high
 
       - name: Git Secrets Verification
         run: |

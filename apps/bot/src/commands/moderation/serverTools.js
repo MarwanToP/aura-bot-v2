@@ -3,7 +3,7 @@
 //  Administrative role management and channel slowmode control.
 //  Pattern matches modCommands.js & utilityCommands.js exactly.
 // ================================================================
-import { SlashCommandBuilder, PermissionFlagsBits } from 'discord.js';
+import { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } from 'discord.js';
 import { buildEmbed } from '../../../shared/utils/embedBuilder.js';
 
 // ─── /role ───────────────────────────────────────────────────────
@@ -51,7 +51,7 @@ export const role = {
   cooldown:  3000,
 
   async execute(client, interaction) {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     const sub    = interaction.options.getSubcommand();
     const lang   = await client.i18n.resolveLanguage(client, interaction.user.id, interaction.guildId);
     const botMe  = interaction.guild.members.me || interaction.guild.members.cache.get(client.user?.id) || { roles: { highest: { position: 0 } } };
@@ -216,7 +216,7 @@ export const slowmode = {
   cooldown:  4000,
 
   async execute(client, interaction) {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     const sub = interaction.options.getSubcommand();
 
     if (!interaction.channel?.isTextBased?.() || interaction.channel?.isDMBased?.()) {

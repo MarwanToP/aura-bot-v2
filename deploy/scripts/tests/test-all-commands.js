@@ -7,7 +7,14 @@
 //  Exit:   0 = all passed, 1 = failures found
 // ================================================================
 import { Collection } from 'discord.js';
-import { loadCommands } from '../../../bot/core/commandHandler.js';
+import { Op, fn, col, literal } from 'sequelize';
+import { Transform } from 'node:stream';
+import { createRequire } from 'node:module';
+import prism from 'prism-media';
+import { logger as sharedLogger } from '../../../packages/logger/index.js';
+import { loadCommands } from '../../../apps/bot/src/core/commandHandler.js';
+
+const require = createRequire(import.meta.url);
 
 const args = process.argv.slice(2);
 const onlyIdx = args.indexOf('--only');
@@ -19,8 +26,100 @@ const CHANNEL_ID = '900000000000000002';
 const USER_ID = '900000000000000003';
 const ROLE_ID = '900000000000000004';
 
-// ── Silent logger ───────────────────────────────────────────────
-const silentLogger = { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} };
+// ── Console preservation (used by load + capture fallbacks) ─────
+const origConsole = { warn: console.warn, log: console.log, error: console.error };
+
+// ── Error / warning capture ─────────────────────────────────────
+// Commands routinely catch their own exceptions and only log them (logger.error /
+// console.error), so a path could log a real internal error and this harness would
+// still report "0 failed". Any such log emitted while a path executes is attributed
+// to that path and reported in a dedicated section; it counts as a failure unless
+// the exact message is whitelisted below.
+//
+// ERROR_WHITELIST is intentionally minimal — every entry hides a real error from the
+// exit code, so only add one with a concrete, tracked fix.
+const ERROR_WHITELIST = [
+  // Empty by design. The former mod.js Prisma entry was removed after mod.js was
+  // migrated to the shared case system (createCase/sendModLog) — all 142 paths now
+  // run with zero logged errors. Real database failures must never be whitelisted.
+];
+
+const loggedErrors = new Map(); // `${command}|${path}` -> { name, sub, message, count, whitelisted, reason }
+let currentPath = null; // the path currently handed to execute()
+
+function matchWhitelist(message) {
+  return ERROR_WHITELIST.find((w) => (w.match instanceof RegExp ? w.match.test(message) : message.includes(w.match)));
+}
+
+function formatLogArgs(logArgs) {
+  return logArgs
+    .map((a) => {
+      if (a instanceof Error) return a.message;
+      if (typeof a === 'string') return a;
+      if (a === null || a === undefined || typeof a !== 'object') return String(a);
+      try { return JSON.stringify(a); } catch { return String(a); }
+    })
+    .join(' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 300);
+}
+
+function captureError(source, logArgs, fallback) {
+  const message = formatLogArgs(logArgs);
+  if (!message) return;
+  // Node's own warning printer routes through console.error; those prints are captured
+  // via process.on('warning') and must not be attributed to whichever path happens to
+  // be running when the async print lands. Keep them visible on stderr as before.
+  if (message.startsWith(`(node:${process.pid})`)) { fallback(...logArgs); return; }
+  if (!currentPath) { fallback(...logArgs); return; } // outside a command path — keep original visibility
+  const key = `${currentPath.name}|${currentPath.sub}`;
+  const existing = loggedErrors.get(key);
+  if (existing) { existing.count++; return; }
+  const whitelisted = matchWhitelist(message);
+  loggedErrors.set(key, {
+    name: currentPath.name,
+    sub: currentPath.sub,
+    message: `[${source}] ${message}`,
+    count: 1,
+    whitelisted: Boolean(whitelisted),
+    reason: whitelisted?.reason,
+  });
+}
+
+// Deprecation / process warnings — reported, never fatal.
+// process.on('warning') is the canonical listener, but Node dispatches it on nextTick
+// and this harness runs a microtask-heavy loop that can reach process.exit() before the
+// queue drains — so warnings are also recorded synchronously at emitWarning() call time.
+const processWarnings = [];
+const seenWarningKeys = new Set();
+function recordWarning(w) {
+  const key = `${w?.code || ''}|${w?.message || ''}`;
+  if (seenWarningKeys.has(key)) return;
+  seenWarningKeys.add(key);
+  processWarnings.push(w);
+}
+process.on('warning', recordWarning);
+const origEmitWarning = process.emitWarning.bind(process);
+process.emitWarning = (warning, ...rest) => {
+  try {
+    const opts = rest[0];
+    const type = typeof opts === 'string' ? opts : (opts && typeof opts === 'object' ? opts.type : undefined);
+    recordWarning({
+      name: warning instanceof Error ? warning.name : (type || 'Warning'),
+      code: opts && typeof opts === 'object' ? opts.code : (typeof rest[1] === 'string' ? rest[1] : undefined),
+      message: warning instanceof Error ? warning.message : String(warning),
+    });
+  } catch { /* capture must never break the run */ }
+  return origEmitWarning(warning, ...rest);
+};
+
+// ── Logger stub ─────────────────────────────────────────────────
+// Info/warn/debug stay silent; errors are captured and attributed to the running path.
+const silentLogger = {
+  info: () => {}, warn: () => {}, debug: () => {},
+  error: (...logArgs) => captureError('client.logger', logArgs, origConsole.error),
+};
 
 // ── Generic DB row factory ──────────────────────────────────────
 function makeRow(extra = {}) {
@@ -77,6 +176,7 @@ function makeModel(name) {
     sum: async () => 0,
     max: async () => 1,
     update: async () => [1],
+    increment: async () => [1],
     destroy: async () => 1,
     upsert: async () => [makeRow(), true],
     bulkCreate: async (rows) => rows.map((r) => makeRow(r)),
@@ -200,6 +300,22 @@ function makeMockMember(client, id = USER_ID) {
   return member;
 }
 
+// Minimal stub for `guild.voiceAdapterCreator` (present on every real discord.js guild).
+// @discordjs/voice requires the adapter returned by it to expose `sendPayload` (join
+// handshake) and `destroy` (connection teardown) — no gateway/websocket is involved.
+function makeVoiceAdapterCreator() {
+  return function voiceAdapterCreator() {
+    const adapter = {
+      sendPayload: () => true, // truthy = payload accepted, connection stays in "signalling"
+      destroy: () => {},
+      on: () => adapter,
+      once: () => adapter,
+      subscribe: () => ({ on: () => {}, destroy: () => {} }),
+    };
+    return adapter;
+  };
+}
+
 function makeMockGuild(client) {
   const guild = {
     id: GUILD_ID, name: 'Test Guild', ownerId: USER_ID, memberCount: 100,
@@ -208,6 +324,7 @@ function makeMockGuild(client) {
     iconURL: () => null, bannerURL: () => null,
     fetch: async () => guild,
     fetchOwner: async () => ({ id: USER_ID }),
+    voiceAdapterCreator: makeVoiceAdapterCreator(),
   };
 
   const botMember = makeMockMember(client, 'bot-id');
@@ -329,6 +446,7 @@ function makeInteraction(client, cmdJson, subPath /* {group, sub, options} */) {
   const interaction = {
     id: SNOWFLAKE,
     commandName: cmdJson.name,
+    client, // real interactions always expose the client — systems read interaction.client.db
     guild, guildId: GUILD_ID, channel, channelId: CHANNEL_ID,
     member, user,
     createdTimestamp: Date.now(),
@@ -336,6 +454,7 @@ function makeInteraction(client, cmdJson, subPath /* {group, sub, options} */) {
     isChatInputCommand: () => true,
     isRepliable: () => true,
     deferReply: async (opts) => { interaction.deferred = true; if (opts?.fetchReply) { const m = makeMockMessage(); m.createdTimestamp = Date.now() + 50; return m; } },
+    showModal: (modal) => record('showModal')(modal),
     reply: (p) => { interaction.replied = true; return record('reply')(p); },
     editReply: (p) => record('editReply')(p),
     followUp: (p) => record('followUp')(p),
@@ -384,11 +503,23 @@ function extractPaths(cmdJson) {
 }
 
 // ── Runner ──────────────────────────────────────────────────────
+// The `/voice ai` path builds a prism-media Opus decoder. No native Opus backend
+// (@discordjs/opus, node-opus, opusscript) is installed in the test environment, so
+// substitute a pass-through decoder — the mock receiver never delivers audio packets,
+// decoding fidelity is irrelevant here.
+class StubOpusDecoder extends Transform {
+  _transform(_chunk, _encoding, callback) { callback(); }
+}
+const hasOpusBackend = ['@discordjs/opus', 'node-opus', 'opusscript']
+  .some((mod) => { try { require.resolve(mod); return true; } catch { return false; } });
+if (!hasOpusBackend) prism.opus.Decoder = StubOpusDecoder;
+
 const client = {
   commands: new Collection(),
   cooldowns: new Collection(),
   logger: silentLogger,
-  db: { models },
+  // Mirror the real client.db (the Sequelize instance): models + aggregate helpers.
+  db: { models, fn, col, literal, Op },
   redis: redisStub,
   i18n: i18nStub,
   ai: aiStub,
@@ -401,11 +532,17 @@ const client = {
   voiceAiSessions: new Map(),
 };
 
-// Silence console noise from systems during load/execute
-const origWarn = console.warn; const origLog = console.log; const origErr = console.error;
+// Silence console noise from systems during load
 console.warn = () => {}; console.error = () => {};
 await loadCommands(client);
-console.warn = origWarn; console.error = origErr;
+console.warn = origConsole.warn; console.error = origConsole.error;
+
+// Capture everything commands log while paths execute. The shared winston logger and
+// console.error are the two sinks commands use for swallowed errors, and client.logger
+// is instrumented via `silentLogger` above.
+const origLoggerError = sharedLogger.error.bind(sharedLogger);
+sharedLogger.error = (...logArgs) => captureError('logger', logArgs, origLoggerError);
+console.error = (...logArgs) => captureError('console.error', logArgs, origConsole.error);
 
 const results = { pass: 0, fail: 0, noreply: 0 };
 const failures = [];
@@ -422,6 +559,7 @@ for (const [name, cmd] of [...client.commands.entries()].sort((a, b) => a[0].loc
   for (const path of extractPaths(json)) {
     const label = path.group ? `${path.group} ${path.sub}` : (path.sub || '(root)');
     const { interaction, replies } = makeInteraction(client, json, path);
+    currentPath = { name, sub: label };
     try {
       await withTimeout(Promise.resolve(cmd.execute(client, interaction, 'en')), TIMEOUT_MS);
       if (replies.length === 0 && !interaction.deferred) {
@@ -433,6 +571,8 @@ for (const [name, cmd] of [...client.commands.entries()].sort((a, b) => a[0].loc
     } catch (err) {
       results.fail++;
       failures.push({ name, sub: label, error: (err?.stack?.split('\n').slice(0, 3).join(' | ') || String(err)).slice(0, 300) });
+    } finally {
+      currentPath = null;
     }
   }
 }
@@ -444,6 +584,10 @@ console.log(`  Commands loaded:      ${client.commands.size}`);
 console.log(`  Paths passed:         ${results.pass}`);
 console.log(`  Paths without reply:  ${results.noreply}`);
 console.log(`  Paths FAILED:         ${results.fail}`);
+const loggedErrorList = [...loggedErrors.values()];
+const fatalLoggedErrors = loggedErrorList.filter((e) => !e.whitelisted);
+const whitelistedCount = loggedErrorList.length - fatalLoggedErrors.length;
+console.log(`  Paths with logged errors: ${loggedErrorList.length}${whitelistedCount ? ` (whitelisted: ${whitelistedCount})` : ''}`);
 
 if (noreplies.length) {
   console.log('\n⚠️  NO-REPLY paths (command resolved but never replied):');
@@ -453,12 +597,33 @@ if (failures.length) {
   console.log('\n❌ FAILURES:');
   for (const f of failures) console.log(`  [${f.name}] ${f.sub}\n    → ${f.error}`);
 }
+if (loggedErrorList.length) {
+  console.log('\n⚠️  PATHS WITH LOGGED ERRORS (swallowed by command code — fatal unless whitelisted):');
+  for (const e of loggedErrorList) {
+    console.log(`  [${e.name}] ${e.sub}${e.whitelisted ? '  (whitelisted)' : ''}\n    → ${e.message}${e.count > 1 ? `  (${e.count}x)` : ''}`);
+    if (e.whitelisted) console.log(`    ℹ️  ${e.reason}`);
+  }
+}
+
+const deprecations = [...new Map(
+  processWarnings
+    .filter((w) => w?.name === 'DeprecationWarning')
+    .map((w) => [`${w.code || ''}|${w.message}`, w]),
+).values()];
+if (deprecations.length) {
+  console.log('\n⚠️  DEPRECATION WARNINGS (non-fatal):');
+  for (const w of deprecations) console.log(`  ${w.name}${w.code ? ` [${w.code}]` : ''}: ${w.message}`);
+}
 
 console.log('\n' + '═'.repeat(66));
-if (results.fail === 0) {
+if (results.fail === 0 && fatalLoggedErrors.length === 0) {
   console.log('  ✅ ALL COMMAND PATHS EXECUTED WITHOUT THROWING.');
+  if (whitelistedCount) console.log(`  ℹ️  ${whitelistedCount} whitelisted logged-error path(s) — see section above.`);
   process.exit(0);
 } else {
-  console.log(`  ❌ ${results.fail} path(s) threw errors — fix required.`);
+  const parts = [];
+  if (results.fail) parts.push(`${results.fail} path(s) threw errors`);
+  if (fatalLoggedErrors.length) parts.push(`${fatalLoggedErrors.length} path(s) logged errors`);
+  console.log(`  ❌ ${parts.join(' + ')} — fix required.`);
   process.exit(1);
 }

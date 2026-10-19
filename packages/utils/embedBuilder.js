@@ -2,7 +2,7 @@
 //  Embed Builder Utility
 // ================================================================
 import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
-import config           from '../config/config.js';
+import config from '../config/index.js';
 
 export function buildEmbed({
   type = 'primary', title, description, fields = [], footer,

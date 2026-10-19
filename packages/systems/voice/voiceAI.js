@@ -3,7 +3,6 @@
 // ================================================================
 import { joinVoiceChannel, EndBehaviorType } from '@discordjs/voice';
 import prism from 'prism-media';
-import OpenAI from 'openai';
 import logger from '../../utils/logger.js';
 import fs from 'fs';
 import path from 'path';
@@ -12,11 +11,17 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 let openai = null;
 
-function getOpenAI() {
+async function getOpenAI() {
   if (openai) return openai;
   if (!process.env.OPENAI_API_KEY) return null;
-  openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-  return openai;
+  try {
+    const { default: OpenAI } = await import('openai');
+    openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    return openai;
+  } catch (err) {
+    logger.warn('[AVA] OpenAI package not available for Whisper transcription.');
+    return null;
+  }
 }
 
 /**
@@ -106,7 +111,7 @@ import * as economy from '../economy/economySystem.js';
  * Convert raw PCM buffer to Whisper transcription (with WAV Header)
  */
 async function transcribeAudio(buffer) {
-  const ai = getOpenAI();
+  const ai = await getOpenAI();
   if (!ai) return null;
 
   const tempFile = path.join(__dirname, `temp_voice_${Date.now()}.wav`);
@@ -160,7 +165,7 @@ async function parseIntent(client, text) {
     Example: { "action": "ticket_open", "params": { "reason": "billing help" } }
   `;
 
-  const result = await client.ai.generateResponse(prompt, 'system');
+  const result = await client.ai.generateResponse(prompt, 'You are the Aura Voice Assistant intent parser. Respond with ONLY valid JSON and no markdown.');
   try {
     return JSON.parse(result.content);
   } catch {
@@ -178,10 +183,11 @@ async function executeIntent(client, member, channel, intent) {
   let statusMsg = '';
 
   switch (intent.action) {
-    case 'ticket_open':
+    case 'ticket_open': {
       const tRes = await createTicket(client, guild, member.user, { category: intent.params.reason || 'Voice Request' });
       statusMsg = tRes.error ? `❌ ${tRes.error}` : `🎫 Ticket opened: <#${tRes.channel.id}>`;
       break;
+    }
 
     case 'balance':
       await economy.aura.execute(client, { user: member.user, guildId: guild.id, deferReply: () => {}, editReply: (obj) => channel.send(obj) });
