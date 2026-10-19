@@ -27,8 +27,11 @@ jobs:
       - name: Environment Schema Verification
         run: node -e "console.log('Testing Zod schema setup...');"
 
+      - name: Lint
+        run: npm run lint
+
       - name: Check Syntax & Command Integrities
-        run: npm run lint:syntax
+        run: npm run lint:syntax && npm run audit:commands
 
       - name: Security Vulnerability Scan
         run: npm run security:audit

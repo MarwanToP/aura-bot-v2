@@ -49,6 +49,12 @@ export default [
         WebSocket: 'readonly',
         performance: 'readonly',
         module: 'readonly',
+        FormData: 'readonly',
+        FileReader: 'readonly',
+        Blob: 'readonly',
+        Image: 'readonly',
+        IntersectionObserver: 'readonly',
+        ResizeObserver: 'readonly',
       },
     },
     rules: {
