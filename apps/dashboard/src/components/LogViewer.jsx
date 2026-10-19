@@ -59,6 +59,9 @@ function useCountUp(target, { duration = 1100 } = {}) {
 
 /* ────────────────────────────── helpers ────────────────────────────── */
 
+/* Rows rendered per page in the audit trail. */
+const PAGE_SIZE = 10;
+
 function timeAgo(minutes) {
   if (minutes < 60) return `${Math.max(1, Math.round(minutes))}m ago`;
   const h = minutes / 60;
@@ -204,6 +207,25 @@ export default function LogViewer({ guildId }) {
     return true;
   });
 
+  /* ── pagination ──
+     The pager state has always existed, but the rows were never sliced by it.
+     Derive the page window from the filtered rows, and clamp the current page
+     so the view can never be blank or point past the last page. */
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const currentPage = Math.min(Math.max(page, 1), totalPages);
+  const pageStart = (currentPage - 1) * PAGE_SIZE;
+  const pageRows = filtered.slice(pageStart, pageStart + PAGE_SIZE);
+
+  /* A filter change starts over on the first page. */
+  useEffect(() => {
+    setPage(1);
+  }, [search, typeFilter]);
+
+  /* The rows changed (reload, or a narrower result set) — keep the page in range. */
+  useEffect(() => {
+    setPage((p) => Math.min(Math.max(p, 1), totalPages));
+  }, [totalPages]);
+
   const stats = {
     totalCases: cases.length,
     activeWarnings: cases.filter((c) => c.type === "warn" && c.active).length,
@@ -324,13 +346,13 @@ export default function LogViewer({ guildId }) {
             </div>
 
             <div className="px-2 pb-2">
-              {filtered.map((c, i) => {
+              {pageRows.map((c, i) => {
                 const cfg = TYPE_CONFIG[c.type] || TYPE_CONFIG.warn;
                 const Icon = cfg.icon;
                 const level = LEVELS[TYPE_LEVEL[c.type] || "info"];
                 return (
                   <React.Fragment key={c.caseId}>
-                    {i > 0 && <div className="hairline" />}
+                    {pageStart + i > 0 && <div className="hairline" />}
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-2 py-2.5 transition-colors hover:bg-white/[0.03]">
                       <span className="w-[4.5rem] shrink-0 font-mono text-[10px] text-slate-500">
                         {timeAgo(c.minutesAgo)}
@@ -374,17 +396,17 @@ export default function LogViewer({ guildId }) {
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => setPage(Math.max(1, page - 1))}
-              disabled={page === 1}
-              title={page === 1 ? "Already on the first page" : undefined}
+              onClick={() => setPage(Math.max(1, currentPage - 1))}
+              disabled={currentPage === 1}
+              title={currentPage === 1 ? "Already on the first page" : undefined}
               className="btn-icon h-8 w-8 rounded-xl disabled:opacity-40 disabled:pointer-events-none"
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
-            <span className="font-mono text-xs text-slate-400">Page {page}</span>
+            <span className="font-mono text-xs text-slate-400">Page {currentPage}</span>
             <button
               type="button"
-              onClick={() => setPage(page + 1)}
+              onClick={() => setPage(currentPage + 1)}
               title="Next page"
               className="btn-icon h-8 w-8 rounded-xl"
             >

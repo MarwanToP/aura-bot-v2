@@ -29,6 +29,7 @@ export const timedmsg = {
     ),
 
   userPermissions: [PermissionFlagsBits.ManageGuild],
+  botPermissions:  [PermissionFlagsBits.SendMessages],
   guildOnly:       true,
   cooldown:        3000,
 
@@ -86,6 +87,7 @@ export const tempchannel = {
     ),
 
   userPermissions: [PermissionFlagsBits.ManageChannels],
+  botPermissions:  [PermissionFlagsBits.ManageChannels],
   guildOnly:       true,
   cooldown:        10000,
 

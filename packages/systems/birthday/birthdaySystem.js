@@ -2,7 +2,7 @@
 //  AURA BOT v2.0 — Birthday System
 // ================================================================
 
-import { SlashCommandBuilder } from 'discord.js';
+import { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } from 'discord.js';
 import { buildEmbed }          from '../../utils/embedBuilder.js';
 import config                  from '../../config/index.js';
 import logger                  from '../../utils/logger.js';
@@ -41,11 +41,12 @@ export const birthday = {
       .addBooleanOption(o => o.setName('enabled').setDescription('Enable/disable'))
     ),
 
+  botPermissions: [PermissionFlagsBits.SendMessages],
   guildOnly: true,
   cooldown:  3000,
 
   async execute(client, interaction) {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     const sub  = interaction.options.getSubcommand();
     const lang = await client.i18n.resolveLanguage(client, interaction.user.id, interaction.guildId);
     const { Birthday, GuildSettings } = client.db.models;
@@ -146,79 +147,146 @@ export const birthday = {
 };
 
 // ─── Background Birthday Checker (called from backgroundTasks) ──
+
+/**
+ * Wall-clock parts of `date` in the given IANA timezone.
+ * Falls back to UTC when the timezone is missing or unknown to the runtime.
+ */
+export function zonedNow(timezone, date = new Date()) {
+  const tz = typeof timezone === 'string' && timezone.trim() ? timezone.trim() : 'UTC';
+  try {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: tz,
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', hour12: false,
+    }).formatToParts(date);
+    const out = {};
+    for (const p of parts) out[p.type] = p.value;
+    let hour = Number(out.hour);
+    if (hour === 24) hour = 0; // some ICU builds report midnight as "24"
+    return {
+      year:  Number(out.year),
+      month: Number(out.month),
+      day:   Number(out.day),
+      hour,
+      minute: Number(out.minute),
+    };
+  } catch {
+    return {
+      year:  date.getUTCFullYear(),
+      month: date.getUTCMonth() + 1,
+      day:   date.getUTCDate(),
+      hour:  date.getUTCHours(),
+      minute: date.getUTCMinutes(),
+    };
+  }
+}
+
+/**
+ * The cron fires every 15 minutes; a guild only announces while its LOCAL
+ * hour equals `config.birthday.checkHour` — the announcement day is the
+ * guild's local day too, so a UTC+14 guild is not a day behind.
+ */
 export async function checkBirthdays(client) {
   try {
     const { Birthday, GuildSettings } = client.db.models;
-    const now   = new Date();
-    const today = { day: now.getDate(), month: now.getMonth() + 1 };
+    const checkHour = Number.isInteger(config.birthday?.checkHour) ? config.birthday.checkHour : 9;
 
-    const birthdays = await Birthday.findAll({ where: { day: today.day, month: today.month } });
-    if (!birthdays.length) return;
+    const settingsRows = await GuildSettings.findAll({ where: { birthdayEnabled: true } });
+    if (!settingsRows.length) return;
 
-    for (const bday of birthdays) {
-      try {
-        const settings = await GuildSettings.findOne({ where: { guildId: bday.guildId } });
-        if (!settings?.birthdayEnabled || !settings?.birthdayChannelId) continue;
+    // Group the guilds by their local date → one birthday query per date.
+    const byLocalDate = new Map();
 
-        // Only announce once per day
-        const announcedKey = `bday:announced:${bday.guildId}:${bday.userId}:${now.toDateString()}`;
-        if (await client.redis.get(announcedKey)) continue;
+    for (const settings of settingsRows) {
+      if (!settings?.birthdayChannelId) continue;
+      if (!client.guilds?.cache?.has(settings.guildId)) continue;
 
-        const guild   = client.guilds.cache.get(bday.guildId);
-        if (!guild) continue;
+      const local = zonedNow(settings.timezone);
+      if (local.hour !== checkHour) continue;
 
-        const member  = await guild.members.fetch(bday.userId).catch(() => null);
-        if (!member)  continue;
+      const key = `${local.year}-${local.month}-${local.day}`;
+      if (!byLocalDate.has(key)) {
+        byLocalDate.set(key, { day: local.day, month: local.month, year: local.year, guildIds: new Set() });
+      }
+      byLocalDate.get(key).guildIds.add(settings.guildId);
+    }
 
-        const channel = await client.channels.fetch(settings.birthdayChannelId).catch(() => null);
-        if (!channel?.isTextBased()) continue;
+    if (!byLocalDate.size) return;
 
-        // Build message
-        let age       = null;
-        if (bday.year) age = now.getFullYear() - bday.year;
+    for (const { day, month, year, guildIds } of byLocalDate.values()) {
+      const birthdays = await Birthday.findAll({ where: { day, month } });
+      if (!birthdays.length) continue;
 
-        let message = (settings.birthdayMessage || config.birthday.defaultMessage)
-          .replace('{user}', `<@${member.id}>`)
-          .replace('{age}',  age ? `${age}` : '');
+      for (const bday of birthdays) {
+        if (!guildIds.has(bday.guildId)) continue;
+        try {
+          const settings = await GuildSettings.findOne({ where: { guildId: bday.guildId } });
+          if (!settings?.birthdayEnabled || !settings?.birthdayChannelId) continue;
 
-        // Optional: AI-generate personalized message
-        if (client.ai.isAvailable() && Math.random() < 0.3) {
-          try {
-            const lang = settings.language || 'en';
-            const aiMsg = await client.ai.generateWelcomeMessage(member.user.username, guild.name, lang);
-            if (aiMsg) message = `🎂 ${aiMsg}`;
-          } catch {}
-        }
+          // Only announce once per day (per guild-local day)
+          const announcedKey = `bday:announced:${bday.guildId}:${bday.userId}:${year}-${month}-${day}`;
+          if (await client.redis.get(announcedKey)) continue;
 
-        await channel.send({
-          content: `<@${member.id}>`,
-          embeds:  [buildEmbed({
-            type:        'premium',
-            title:       `🎂 Happy Birthday, ${member.user.username}! 🎉`,
-            description: message + (age ? `\nTurning **${age}** today! 🎈` : ''),
-            thumbnail:   member.user.displayAvatarURL({ size: 256 }),
-            timestamp:   true,
-          })],
-        });
+          const guild   = client.guilds.cache.get(bday.guildId);
+          if (!guild) continue;
 
-        // Award birthday role
-        if (settings.birthdayRoleId) {
-          const role = guild.roles.cache.get(settings.birthdayRoleId);
-          if (role) {
-            await member.roles.add(role, '[Aura] Birthday').catch(() => {});
-            // Remove after 24 hours
-            setTimeout(async () => {
-              await member.roles.remove(role, '[Aura] Birthday ended').catch(() => {});
-            }, 86400000);
+          const member  = await guild.members.fetch(bday.userId).catch(() => null);
+          if (!member)  continue;
+
+          const channel = await client.channels.fetch(settings.birthdayChannelId).catch(() => null);
+          if (!channel?.isTextBased()) continue;
+
+          // Build message — the age is counted in the guild's local year
+          let age       = null;
+          if (bday.year) age = year - bday.year;
+
+          let message = (settings.birthdayMessage || config.birthday.defaultMessage)
+            .replace('{user}', `<@${member.id}>`)
+            .replace('{age}',  age ? `${age}` : '');
+
+          // Optional: AI-generate personalized message
+          if (client.ai.isAvailable() && Math.random() < 0.3) {
+            try {
+              const lang = settings.language || 'en';
+              const aiMsg = await client.ai.generateWelcomeMessage(member.user.username, guild.name, lang);
+              if (aiMsg) message = `🎂 ${aiMsg}`;
+            } catch {}
           }
+
+          await channel.send({
+            content: `<@${member.id}>`,
+            embeds:  [buildEmbed({
+              type:        'premium',
+              title:       `🎂 Happy Birthday, ${member.user.username}! 🎉`,
+              description: message + (age ? `\nTurning **${age}** today! 🎈` : ''),
+              thumbnail:   member.user.displayAvatarURL({ size: 256 }),
+              timestamp:   true,
+            })],
+          });
+
+          // Award birthday role
+          if (settings.birthdayRoleId) {
+            const role = guild.roles.cache.get(settings.birthdayRoleId);
+            if (role) {
+              await member.roles.add(role, '[Aura] Birthday').catch(() => {});
+              // Remove after 24 hours — unref()ed so the pending 24h handle never
+              // keeps the event loop alive (it would also double-fire next to
+              // the cron jobs).
+              const roleTimer = setTimeout(async () => {
+                await member.roles.remove(role, '[Aura] Birthday ended').catch(() => {});
+              }, 86400000);
+              roleTimer.unref?.();
+            }
+          }
+
+          // Mark as announced
+          await client.redis.setex(announcedKey, 86400, '1');
+          logger.info(`[Birthday] Announced for ${member.user.tag} in ${guild.name}`);
+
+        } catch (err) {
+          logger.warn('[Birthday] Error for entry:', err.message);
         }
-
-        // Mark as announced
-        await client.redis.setex(announcedKey, 86400, '1');
-        logger.info(`[Birthday] Announced for ${member.user.tag} in ${guild.name}`);
-
-      } catch (err) {
-        logger.warn('[Birthday] Error for entry:', err.message);
       }
     }
   } catch (err) {

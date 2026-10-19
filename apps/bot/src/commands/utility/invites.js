@@ -24,6 +24,7 @@ export const invitesCommand = {
       .addIntegerOption(o => o.setName('amount').setDescription('Bonus invite count').setRequired(true).setMinValue(1).setMaxValue(10000))
     ),
 
+  botPermissions: [PermissionFlagsBits.ManageGuild],
   guildOnly: true,
   cooldown: 3000,
 

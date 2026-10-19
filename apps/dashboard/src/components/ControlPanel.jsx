@@ -145,7 +145,7 @@ export default function ControlPanel() {
                     </div>
                     <p className="mt-0.5 truncate text-[11px] text-slate-400">{log.detail}</p>
                   </div>
-                  <span className={`chip ${meta.chip} shrink-0`}>{meta.label}</span>
+                  <span className={`chip ${meta.chip} hidden shrink-0 sm:inline-flex`}>{meta.label}</span>
                   <span className="shrink-0 whitespace-nowrap font-mono text-[10px] text-slate-600">
                     {log.time}
                   </span>

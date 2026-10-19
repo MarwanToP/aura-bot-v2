@@ -24,17 +24,27 @@ for (const target of targets) {
 }
 
 const checked = [];
+const skippedJsx = [];
 for (const file of files) {
   try {
     execFileSync(process.execPath, ['--check', file], { stdio: 'pipe' });
     checked.push(relative(root, file));
   } catch (err) {
-    if (file.includes('dashboard') || file.includes('app')) {
-      // Ignore JSX files in Next.js frontend
+    // Next.js app-router files legitimately contain JSX inside .js files.
+    // ONLY those are skipped - every other syntax error is fatal.
+    // (A previous version matched on the substring "app", which silently
+    //  skipped every file under apps/ - including the whole Discord bot.)
+    const stderr = String(err?.stderr || '');
+    if (stderr.includes("Unexpected token '<'") || stderr.includes('Unexpected token `<`')) {
+      skippedJsx.push(relative(root, file));
       continue;
     }
+    console.error(`Syntax error in ${relative(root, file)}:\n${stderr.trim()}`);
     throw err;
   }
 }
 
 console.log(`Syntax check passed for ${checked.length} JavaScript files.`);
+if (skippedJsx.length > 0) {
+  console.log(`Skipped ${skippedJsx.length} JSX file(s): ${skippedJsx.join(', ')}`);
+}

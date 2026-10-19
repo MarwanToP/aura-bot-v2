@@ -99,6 +99,7 @@ export const note = {
         .setMaxLength(1000)
     ),
   userPermissions: [PermissionFlagsBits.ModerateMembers],
+  botPermissions:  [PermissionFlagsBits.ModerateMembers],
   guildOnly: true,
   cooldown:  2000,
 
@@ -159,6 +160,7 @@ export const caseCmd = {
         .addIntegerOption(o => o.setName('id').setDescription('Case ID').setRequired(true).setMinValue(1))
     ),
   userPermissions: [PermissionFlagsBits.ModerateMembers],
+  botPermissions:  [PermissionFlagsBits.ModerateMembers],
   guildOnly: true,
   cooldown:  2000,
 

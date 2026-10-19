@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Wrench,
@@ -95,16 +95,152 @@ const INITIAL_SELF_ROLES = [
   { id: 3, name: "Giveaways", emoji: "🎁", color: "#FFB547", members: 1876 },
 ];
 
+/* ────────────────────────────── helpers ────────────────────────────── */
+
+/* Reaction-role menu types as stored by the bot. */
+const REACTION_ROLE_TYPES = {
+  toggle: "Toggle",
+  add_only: "Add only",
+  remove_only: "Remove only",
+  unique: "Unique",
+};
+
+/* Icon tile tone per command category — purely decorative. */
+const CATEGORY_TONES = {
+  Moderation: "red",
+  Utility: "blue",
+  AI: "violet",
+  Leveling: "cyan",
+  Economy: "green",
+  Security: "amber",
+  General: "blue",
+  Management: "violet",
+  Fun: "pink",
+};
+
+const categoryTone = (category) => CATEGORY_TONES[category] || "blue";
+
 /* ══════════════════════════════════ main ══════════════════════════════ */
 
-export default function UtilityHub() {
+export default function UtilityHub({ guildId }) {
   const [selectedColor, setSelectedColor] = useState("#5865F2");
   const [selfRoles] = useState(INITIAL_SELF_ROLES);
   const [toast, setToast] = useState(null);
 
+  /* real data */
+  const [live, setLive] = useState(false);
+  const [commandsLive, setCommandsLive] = useState(false);
+  const [reactionRoles, setReactionRoles] = useState([]);
+  const [guildRoles, setGuildRoles] = useState([]);
+  const [commands, setCommands] = useState([]);
+
   const showToast = (msg) => {
     setToast(msg);
     setTimeout(() => setToast(null), 3200);
+  };
+
+  /* request guards — only the latest load may write state */
+  const roleSeq = useRef(0);
+  const guildRoleSeq = useRef(0);
+  const commandSeq = useRef(0);
+
+  /* ────────────────────────────── real data ────────────────────────────── */
+
+  const loadReactionRoles = useCallback(async () => {
+    const requestId = ++roleSeq.current;
+    if (!guildId) {
+      setLive(false);
+      setReactionRoles([]);
+      return;
+    }
+    try {
+      const res = await fetch(`/api/guilds/${guildId}/reaction-roles`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      if (requestId !== roleSeq.current) return; // stale response from a previous guild
+      setReactionRoles(
+        (Array.isArray(data?.reactionRoles) ? data.reactionRoles : []).filter((r) => r && r.id != null)
+      );
+      setLive(true);
+    } catch (err) {
+      if (requestId !== roleSeq.current) return; // stale failure — ignore
+      // Keep the humanized fallback quietly (live stays false → demo markup).
+      console.warn("[UtilityHub] Failed to load reaction roles — showing demo data:", err);
+    }
+  }, [guildId]);
+
+  useEffect(() => {
+    loadReactionRoles();
+    return () => {
+      roleSeq.current += 1;
+    };
+  }, [loadReactionRoles]);
+
+  /* Display-only: resolve role ids to names/colors from the live guild role list. */
+  const loadGuildRoles = useCallback(async () => {
+    const requestId = ++guildRoleSeq.current;
+    if (!guildId) {
+      setGuildRoles([]);
+      return;
+    }
+    try {
+      const res = await fetch(`/api/guilds/${guildId}/roles`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      if (requestId !== guildRoleSeq.current) return;
+      setGuildRoles((Array.isArray(data?.roles) ? data.roles : []).filter((r) => r && r.id != null));
+    } catch (err) {
+      if (requestId !== guildRoleSeq.current) return;
+      console.warn("[UtilityHub] Failed to load guild roles — showing raw role ids:", err);
+      setGuildRoles([]);
+    }
+  }, [guildId]);
+
+  useEffect(() => {
+    loadGuildRoles();
+    return () => {
+      guildRoleSeq.current += 1;
+    };
+  }, [loadGuildRoles]);
+
+  /* The command catalog is a bare JSON array of { name, description, category }. */
+  const loadCommands = useCallback(async () => {
+    const requestId = ++commandSeq.current;
+    if (!guildId) {
+      setCommandsLive(false);
+      setCommands([]);
+      return;
+    }
+    try {
+      const res = await fetch("/api/commands");
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      if (requestId !== commandSeq.current) return;
+      if (!Array.isArray(data)) throw new Error("Malformed command catalog");
+      setCommands(data.filter((cmd) => cmd && cmd.name));
+      setCommandsLive(true);
+    } catch (err) {
+      if (requestId !== commandSeq.current) return;
+      console.warn("[UtilityHub] Failed to load command catalog — showing demo data:", err);
+    }
+  }, [guildId]);
+
+  useEffect(() => {
+    loadCommands();
+    return () => {
+      commandSeq.current += 1;
+    };
+  }, [loadCommands]);
+
+  /* ────────────────────────────── derived values ────────────────────────────── */
+
+  /* Real mode = a guild is selected. It gates the honest copy and the disabled
+     self-role sync control (there is no write route for reaction roles). */
+  const isReal = Boolean(guildId);
+
+  const findRole = (roleId) => {
+    if (!roleId) return null;
+    return guildRoles.find((r) => String(r.id) === String(roleId)) || null;
   };
 
   return (
@@ -133,7 +269,8 @@ export default function UtilityHub() {
           <div className="min-w-0">
             <h2 className="card-title text-[15px]">Utility, Colors &amp; Self Roles</h2>
             <p className="card-sub mt-0.5">
-              Server utility tools, color roles, and self-assignable role menus for Crystal Realm.
+              Server utility tools, color roles, and self-assignable role menus for{" "}
+              {isReal ? "this server" : "Crystal Realm"}.
             </p>
           </div>
         </div>
@@ -141,6 +278,12 @@ export default function UtilityHub() {
           type="button"
           whileTap={{ scale: 0.97 }}
           onClick={() => showToast("Utility settings saved — self-role menus synced")}
+          disabled={isReal}
+          title={
+            isReal
+              ? "Reaction roles are managed with the bot's /reaction-role setup — nothing is saved from here"
+              : undefined
+          }
           className="btn-primary"
         >
           <Save className="h-4 w-4" /> Save
@@ -155,34 +298,75 @@ export default function UtilityHub() {
               <Wrench className="h-4 w-4" />
             </span>
             <div className="min-w-0">
-              <h3 className="card-title">Utility Commands</h3>
-              <p className="card-sub mt-0.5">Member-facing info commands, ready in every channel</p>
+              <h3 className="card-title">
+                {commandsLive ? "Bot Command Catalog" : "Utility Commands"}
+              </h3>
+              <p className="card-sub mt-0.5">
+                {commandsLive
+                  ? "Every command the bot exposes — ready in every channel"
+                  : "Member-facing info commands, ready in every channel"}
+              </p>
             </div>
           </div>
-          <span className="chip chip-cyan">{UTILITY_COMMANDS.length} commands</span>
+          <span className="chip chip-cyan">
+            {commandsLive ? commands.length : UTILITY_COMMANDS.length} commands
+          </span>
         </div>
 
         <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {UTILITY_COMMANDS.map((cmd) => {
-            const Icon = cmd.icon;
-            return (
-              <div key={cmd.name} className="glass-card glass-card-hover p-4">
-                <div className="flex items-start gap-3">
-                  <span className={`icon-tile icon-tile-${cmd.tone} h-9 w-9 rounded-[12px]`}>
-                    <Icon className="h-4 w-4" />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <span className="block font-mono text-xs font-bold text-white">{cmd.name}</span>
-                    <p className="mt-1 text-[11px] leading-relaxed text-slate-400">{cmd.desc}</p>
+          {commandsLive ? (
+            commands.length === 0 ? (
+              <div className="empty-state sm:col-span-2 xl:col-span-3">
+                <span className="empty-state-icon">
+                  <Wrench className="h-4 w-4" />
+                </span>
+                <span className="empty-state-title">No commands available</span>
+                <span>The bot did not report any commands for this server.</span>
+              </div>
+            ) : (
+              commands.map((cmd) => (
+                <div key={cmd.name} className="glass-card glass-card-hover p-4">
+                  <div className="flex items-start gap-3">
+                    <span
+                      className={`icon-tile icon-tile-${categoryTone(cmd.category)} h-9 w-9 rounded-[12px]`}
+                    >
+                      <Wrench className="h-4 w-4" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <span className="block font-mono text-xs font-bold text-white">{cmd.name}</span>
+                      <p className="mt-1 text-[11px] leading-relaxed text-slate-400">
+                        {cmd.description || "No description provided."}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-3 flex flex-wrap items-center gap-1.5">
+                    <span className="chip chip-cyan">{cmd.category || "Uncategorized"}</span>
                   </div>
                 </div>
-                <div className="mt-3 flex flex-wrap items-center gap-1.5">
-                  <span className="chip chip-green">Active</span>
-                  <span className="chip tabular-nums">{cmd.uses}</span>
+              ))
+            )
+          ) : (
+            UTILITY_COMMANDS.map((cmd) => {
+              const Icon = cmd.icon;
+              return (
+                <div key={cmd.name} className="glass-card glass-card-hover p-4">
+                  <div className="flex items-start gap-3">
+                    <span className={`icon-tile icon-tile-${cmd.tone} h-9 w-9 rounded-[12px]`}>
+                      <Icon className="h-4 w-4" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <span className="block font-mono text-xs font-bold text-white">{cmd.name}</span>
+                      <p className="mt-1 text-[11px] leading-relaxed text-slate-400">{cmd.desc}</p>
+                    </div>
+                  </div>
+                  <div className="mt-3 flex flex-wrap items-center gap-1.5">
+                    <span className="chip chip-green">Active</span>
+                    <span className="chip tabular-nums">{cmd.uses}</span>
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })
+          )}
         </div>
       </motion.section>
 
@@ -223,9 +407,14 @@ export default function UtilityHub() {
               className="h-3.5 w-3.5 shrink-0 rounded-full border border-white/[0.12]"
               style={{ backgroundColor: selectedColor }}
             />
-            <span className="text-[11px] text-slate-500">Selected</span>
+            <span className="text-[11px] text-slate-500">{isReal ? "Preview" : "Selected"}</span>
             <span className="text-[11px] font-mono font-bold text-slate-300">{selectedColor}</span>
           </div>
+          {isReal ? (
+            <p className="mt-2 text-[10px] text-slate-600">
+              Preview only — colour roles are applied by the bot, not saved from this panel.
+            </p>
+          ) : null}
         </motion.section>
 
         {/* Self Roles */}
@@ -236,26 +425,70 @@ export default function UtilityHub() {
             </span>
             <div className="min-w-0">
               <h3 className="card-title">Self-Assignable Roles</h3>
-              <p className="card-sub mt-0.5">Reaction-role menus in #general</p>
+              <p className="card-sub mt-0.5">
+                {live
+                  ? "Reaction-role menus configured on this server"
+                  : "Reaction-role menus in #general"}
+              </p>
             </div>
           </div>
 
           <div className="mt-4 space-y-1.5">
-            {selfRoles.map((role) => (
-              <div key={role.id} className="list-row gap-3 px-3 py-2.5">
-                <span className="text-lg leading-none">{role.emoji}</span>
-                <div className="min-w-0 flex-1">
-                  <span className="block truncate text-xs font-bold text-white">{role.name}</span>
-                  <span className="mt-0.5 block text-[10px] text-slate-500">
-                    {role.members.toLocaleString("en-US")} members
+            {live ? (
+              reactionRoles.length === 0 ? (
+                <div className="empty-state">
+                  <span className="empty-state-icon">
+                    <Tag className="h-4 w-4" />
                   </span>
+                  <span className="empty-state-title">No reaction role menus</span>
+                  <span>Create one with the bot&apos;s /reaction-role command.</span>
                 </div>
-                <span
-                  className="h-3 w-3 shrink-0 rounded-full"
-                  style={{ backgroundColor: role.color }}
-                />
-              </div>
-            ))}
+              ) : (
+                reactionRoles.map((role) => {
+                  const roleId = role.roleId ? String(role.roleId) : "";
+                  const resolved = findRole(roleId);
+                  const name = resolved?.name || (roleId ? `Role ${roleId}` : "Unknown role");
+                  const typeLabel = REACTION_ROLE_TYPES[role.type] ||
+                    (role.type ? String(role.type) : "unknown type");
+                  return (
+                    <div
+                      key={role.id != null ? role.id : `${roleId}-${role.channelId}`}
+                      className="list-row gap-3 px-3 py-2.5"
+                    >
+                      <span className="text-lg leading-none">{role.emoji || "•"}</span>
+                      <div className="min-w-0 flex-1">
+                        <span className="block truncate text-xs font-bold text-white">{name}</span>
+                        <span className="mt-0.5 block text-[10px] text-slate-500">
+                          {typeLabel} · channel {role.channelId ? String(role.channelId) : "—"}
+                        </span>
+                      </div>
+                      {resolved?.color ? (
+                        <span
+                          className="h-3 w-3 shrink-0 rounded-full"
+                          style={{ backgroundColor: resolved.color }}
+                        />
+                      ) : null}
+                    </div>
+                  );
+                })
+              )
+            ) : (
+              selfRoles.map((role) => (
+                <div key={role.id} className="list-row gap-3 px-3 py-2.5">
+                  <span className="text-lg leading-none">{role.emoji}</span>
+                  <div className="min-w-0 flex-1">
+                    <span className="block truncate text-xs font-bold text-white">{role.name}</span>
+                    <span className="mt-0.5 block text-[10px] text-slate-500">
+                      {role.members.toLocaleString("en-US")} members
+                    </span>
+                  </div>
+                  <span
+                    className="h-3 w-3 shrink-0 rounded-full"
+                    style={{ backgroundColor: role.color }}
+                  />
+                </div>
+              ))
+            )}
           </div>
         </motion.section>
       </div>

@@ -4,7 +4,6 @@
 // ================================================================
 import { SlashCommandBuilder, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } from 'discord.js';
 import { buildEmbed } from '../../../shared/utils/embedBuilder.js';
-import { Op } from 'sequelize';
 
 const STATUS_COLORS = {
   pending:     0xFFBB33,
@@ -71,6 +70,7 @@ export const suggest = {
       )
     ),
 
+  botPermissions: [PermissionFlagsBits.SendMessages],
   guildOnly: true,
   cooldown: 5000,
 
@@ -255,7 +255,12 @@ export async function handleButton(client, interaction, data) {
   await interaction.deferUpdate().catch(() => {});
 
   const { Suggestion, GuildSettings } = client.db?.models || {};
-  const row = await Suggestion?.findOne?.({ where: { id } }).catch(() => null);
+  const guildId = interaction.guildId;
+  if (!Suggestion || !guildId) return;
+
+  // The row is looked up by (id, guildId): a bare id is not a safe key, and a
+  // vote must never move the counter of another server's suggestion.
+  const row = await Suggestion.findOne({ where: { id, guildId } }).catch(() => null);
   if (!row) return;
 
   const uid = interaction.user.id;
@@ -276,11 +281,14 @@ export async function handleButton(client, interaction, data) {
 
   const field = action === 'upvote' ? 'upvotes' : 'downvotes';
   try {
-    await row.update({ [field]: (row[field] ?? 0) + 1 });
+    // Atomic, guild-scoped increment. A read-modify-write (row.update with
+    // row[field] + 1) loses every vote that lands while another one is in
+    // flight; the database does the addition in a single UPDATE.
+    await Suggestion.increment(field, { by: 1, where: { id, guildId } });
   } catch {}
 
   // Refresh button labels with the new counts (best-effort; counts already persisted).
-  const refreshed = await Suggestion?.findOne?.({ where: { id } }).catch(() => null) || row;
+  const refreshed = await Suggestion.findOne({ where: { id, guildId } }).catch(() => null) || row;
   const up = refreshed?.upvotes ?? row.upvotes;
   const down = refreshed?.downvotes ?? row.downvotes;
 
@@ -293,7 +301,7 @@ export async function handleButton(client, interaction, data) {
 
   // Best-effort: edit original suggestion message to display the new counts where a channel is stored.
   try {
-    const settings = await GuildSettings?.findOne?.({ where: { guildId: row.guildId } }).catch(() => null);
+    const settings = await GuildSettings?.findOne?.({ where: { guildId } }).catch(() => null);
     const channel = settings?.suggestionsChannelId
       ? interaction.guild?.channels?.cache?.get(settings.suggestionsChannelId)
       : null;

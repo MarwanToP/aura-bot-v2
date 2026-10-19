@@ -7,11 +7,14 @@
 //  Secrets are never printed; only ids, names and counts.
 // ================================================================
 import 'dotenv/config';
-import { readdirSync, statSync } from 'fs';
-import { join, dirname } from 'path';
-import { fileURLToPath, pathToFileURL } from 'url';
+import { Collection } from 'discord.js';
+import { dirname } from 'path';
+import { fileURLToPath } from 'url';
+// Use the SAME loader the bot uses at runtime, so "defined in code" is
+// exactly what `npm run deploy` would publish (a local copy of the loader
+// can drift and report phantom missing/stale commands).
+import { loadCommands } from '../../../apps/bot/src/core/commandHandler.js';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
 const API = 'https://discord.com/api/v10';
 const token = process.env.DISCORD_TOKEN;
 const clientId = process.env.DISCORD_CLIENT_ID;
@@ -23,37 +26,25 @@ if (!token || !clientId) {
 
 // ---------- collect the commands this repo would register ----------
 const local = new Map();
-const seenNames = new Set();
 
-async function loadCommands(dir, allowOverwrite = true) {
-  for (const entry of readdirSync(dir)) {
-    const full = join(dir, entry);
-    if (statSync(full).isDirectory()) {
-      await loadCommands(full, allowOverwrite);
-      continue;
-    }
-    if (!entry.endsWith('.js')) continue;
+async function collectLocalCommands() {
+  const client = {
+    commands: new Collection(),
+    logger: {
+      info: () => {},
+      warn: (msg) => console.log(`  ⚠ ${msg}`),
+      error: (msg) => console.log(`  ❌ ${msg}`),
+    },
+  };
+  const audit = await loadCommands(client);
+  for (const [name, command] of client.commands) {
     try {
-      const mod = await import(pathToFileURL(full).href);
-      const perFile = new Set();
-      const register = (exportObj) => {
-        if (!exportObj || typeof exportObj !== 'object') return;
-        if (exportObj.register === false) return;
-        const data = exportObj.data;
-        if (!data || typeof data.toJSON !== 'function') return;
-        const json = data.toJSON();
-        if (!json?.name) return;
-        if (perFile.has(json.name)) return;
-        perFile.add(json.name);
-        if (!allowOverwrite && local.has(json.name)) return;
-        local.set(json.name, { json, source: full.replace(/\\/g, '/') });
-      };
-      register(mod.default);
-      for (const [k, v] of Object.entries(mod)) if (k !== 'default') register(v);
+      local.set(name, { json: command.data.toJSON() });
     } catch (err) {
-      console.log(`  ⚠ Could not import ${entry}: ${err.message}`);
+      console.log(`  ⚠ Invalid command payload for /${name}: ${err.message}`);
     }
   }
+  return audit;
 }
 
 async function api(pathname) {
@@ -87,9 +78,11 @@ function report(label, registeredNames) {
 }
 
 (async () => {
-  await loadCommands(join(__dirname, '../../../apps/bot/src/commands'), true);
-  await loadCommands(join(__dirname, '../../../packages/systems'), false);
+  const audit = await collectLocalCommands();
   console.log(`Commands defined in code: ${local.size}`);
+  if (audit.importFailures > 0) {
+    console.log(`⚠️  ${audit.importFailures} file(s) failed to import — their commands are missing at runtime too.`);
+  }
 
   const me = await api('/users/@me');
   console.log(`Bot: ${me.username}#${me.discriminator} (id ${me.id})`);

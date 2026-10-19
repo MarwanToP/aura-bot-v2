@@ -255,7 +255,7 @@ function KpiTile({ m, index }) {
   const Icon = m.icon;
 
   return (
-    <motion.div variants={rise} className="kpi-tile group flex flex-col gap-3.5">
+    <motion.div variants={rise} className="kpi-tile group relative flex flex-col gap-3">
       <div className="flex items-center gap-3">
         <span className={`icon-tile icon-tile-${m.tile}`}>
           <Icon className="h-5 w-5" />
@@ -263,31 +263,31 @@ function KpiTile({ m, index }) {
         <span className="kpi-label truncate">{m.label}</span>
       </div>
 
-      <div className="flex items-end justify-between gap-3">
-        <div className="min-w-0">
-          <div className="kpi-value tabular-nums">
-            {display}
-            {m.suffix}
-          </div>
-
-          <div className="mt-2 flex flex-col items-start gap-0.5">
-            {m.change && !m.neutral && (
-              <span className="delta-up">
-                <ArrowUpRight className="h-3 w-3 shrink-0" />
-                {m.change}
-              </span>
-            )}
-            {m.change && m.neutral && <span className="delta-flat">{m.change}</span>}
-            {m.note && <span className="text-[10px] font-medium text-slate-500">{m.note}</span>}
-          </div>
+      <div className="min-w-0">
+        <div className="kpi-value tabular-nums">
+          {display}
+          {m.suffix}
         </div>
 
-        {m.spark && (
-          <div className="w-[76px] h-[38px] shrink-0 pb-0.5">
-            <Sparkline data={m.spark} color={m.color} id={m.label.toLowerCase()} />
-          </div>
-        )}
+        <div className="mt-2 flex flex-col items-start gap-0.5">
+          {m.change && !m.neutral && (
+            <span className="delta-up">
+              <ArrowUpRight className="h-3 w-3 shrink-0" />
+              {m.change}
+            </span>
+          )}
+          {m.change && m.neutral && <span className="delta-flat">{m.change}</span>}
+          {m.note && (
+            <span className="whitespace-nowrap text-[10px] font-medium text-slate-500">{m.note}</span>
+          )}
+        </div>
       </div>
+
+      {m.spark && (
+        <div className="pointer-events-none absolute bottom-3.5 right-4 h-[34px] w-[74px]">
+          <Sparkline data={m.spark} color={m.color} id={m.label.toLowerCase()} />
+        </div>
+      )}
     </motion.div>
   );
 }
@@ -305,7 +305,7 @@ function PulseTile({ p }) {
         <Icon className="h-4 w-4" />
       </span>
       <div className="min-w-0 flex-1">
-        <div className="micro-label truncate">{p.label}</div>
+        <div className="kpi-label truncate">{p.label}</div>
         <div
           className={`mt-1 flex items-center gap-1 text-sm font-extrabold tabular-nums ${
             p.good ? "text-[#34D399]" : "text-[#F87171]"
@@ -643,9 +643,9 @@ function HealthCard() {
         <p className="card-sub mt-1">Live score across your core modules</p>
       </div>
 
-      <div className="relative mt-2 flex flex-1 flex-col items-center gap-4 sm:flex-row sm:items-center sm:gap-3">
+      <div className="relative mt-2 flex flex-1 flex-col items-center gap-3">
         {/* Donut */}
-        <div className="relative h-[116px] w-[116px] shrink-0">
+        <div className="relative h-[124px] w-[124px] shrink-0">
           <svg viewBox="0 0 124 124" className="h-full w-full -rotate-90">
             <circle
               cx="62"
@@ -684,7 +684,7 @@ function HealthCard() {
         </div>
 
         {/* Legend */}
-        <div className="w-full min-w-0 flex-1 space-y-1">
+        <div className="w-full min-w-0 flex-1 space-y-0.5">
           {HEALTH_ROWS.map((row, i) => (
             <motion.div
               key={row.label}
@@ -700,7 +700,7 @@ function HealthCard() {
                 />
                 <span className="truncate text-xs text-slate-300">{row.label}</span>
               </span>
-              <span className="text-xs font-bold text-white tabular-nums">{row.value}%</span>
+              <span className="shrink-0 text-xs font-bold text-white tabular-nums">{row.value}%</span>
             </motion.div>
           ))}
         </div>
@@ -714,7 +714,7 @@ function HealthCard() {
 function RecentEventsCard({ onNavigate }) {
   return (
     <div className="panel panel-hover relative flex h-full flex-col p-5">
-      <div className="mb-3 flex items-center justify-between gap-2">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <h3 className="card-title flex items-center gap-2">
           Recent Events
           <span className="h-1.5 w-1.5 animate-pulse-dot rounded-full bg-[#34D399]" />
@@ -765,7 +765,7 @@ function RecentEventsCard({ onNavigate }) {
 function RailActivityCard({ onNavigate }) {
   return (
     <div className="panel panel-hover relative flex h-full flex-col p-4">
-      <div className="mb-2.5 flex items-center justify-between gap-2">
+      <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
         <h3 className="card-title text-[13px]">Recent Activity</h3>
         <button
           onClick={() => onNavigate && onNavigate("logs")}
@@ -1027,14 +1027,14 @@ function BotProfileCard({ metrics }) {
               Aura Bot
               <BadgeCheck className="h-4 w-4 shrink-0 text-[#4C7DFF]" />
             </h3>
-            <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10.5px] text-slate-400">
-              <span className="inline-flex items-center gap-1">
-                <Users className="h-3 w-3 text-slate-500" />
-                {formatMetricValue(members)} members
+            <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-[10.5px] text-slate-400">
+              <span className="inline-flex min-w-0 items-center gap-1">
+                <Users className="h-3 w-3 shrink-0 text-slate-500" />
+                <span className="truncate">{formatMetricValue(members)} members</span>
               </span>
-              <span className="inline-flex items-center gap-1">
-                <Server className="h-3 w-3 text-slate-500" />
-                {formatMetricValue(servers)} servers
+              <span className="inline-flex min-w-0 items-center gap-1">
+                <Server className="h-3 w-3 shrink-0 text-slate-500" />
+                <span className="truncate">{formatMetricValue(servers)} servers</span>
               </span>
             </div>
           </div>
@@ -1044,12 +1044,12 @@ function BotProfileCard({ metrics }) {
           More than just a bot. Powerful tools, moderation, and more — all in one.
         </p>
 
-        <div className="mt-4 flex items-center gap-2">
+        <div className="mt-4 flex flex-wrap items-center gap-2">
           <a
             href={AURA_INVITE_URL}
             target="_blank"
             rel="noopener noreferrer"
-            className="btn-primary flex-1 rounded-xl"
+            className="btn-primary min-w-0 flex-1 truncate rounded-xl"
             title="Add Aura Bot to your server"
           >
             Invite Bot
@@ -1060,7 +1060,7 @@ function BotProfileCard({ metrics }) {
             rel="noopener noreferrer"
             aria-label="Open the Aura Bot invite in a new tab"
             title="Open the Aura Bot invite in a new tab"
-            className="btn-icon h-10 w-10 rounded-xl"
+            className="btn-icon hidden h-10 w-10 rounded-xl sm:inline-flex"
           >
             <ExternalLink className="h-4 w-4" />
           </a>
@@ -1108,7 +1108,7 @@ function QuickActionsCard({ onNavigate, onAction }) {
               >
                 <Icon className="h-3.5 w-3.5" />
               </span>
-              <span className="truncate">{a.label}</span>
+              <span className="min-w-0 truncate">{a.label}</span>
             </motion.button>
           );
         })}
@@ -1238,7 +1238,7 @@ export default function OverviewCanvas({ onNavigate }) {
                   : "Here’s what’s happening with your server today — you’re viewing demo data."}
               </p>
             </div>
-            <span className="chip chip-green">
+            <span className="chip chip-green whitespace-normal leading-tight">
               <span className="status-dot status-dot-online animate-pulse-dot h-1.5 w-1.5" />
               All servers · Last 7 days
             </span>

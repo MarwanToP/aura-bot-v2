@@ -121,7 +121,7 @@ export const warn = {
     .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
     .addUserOption(o => o.setName('user').setDescription('Member').setRequired(true))
     .addStringOption(o => o.setName('reason').setDescription('Reason').setRequired(true).setMaxLength(512)),
-  userPermissions: [PermissionFlagsBits.ModerateMembers], guildOnly: true, cooldown: 2000,
+  userPermissions: [PermissionFlagsBits.ModerateMembers], botPermissions: [PermissionFlagsBits.ModerateMembers], guildOnly: true, cooldown: 2000,
   async execute(client, interaction) {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     const lang   = await client.i18n.resolveLanguage(client, interaction.user.id, interaction.guildId);
@@ -204,7 +204,7 @@ export const history = {
     .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
     .addUserOption(o => o.setName('user').setDescription('User to check').setRequired(true))
     .addIntegerOption(o => o.setName('page').setDescription('Page').setMinValue(1)),
-  userPermissions: [PermissionFlagsBits.ModerateMembers], guildOnly: true, cooldown: 3000,
+  userPermissions: [PermissionFlagsBits.ModerateMembers], botPermissions: [PermissionFlagsBits.ModerateMembers], guildOnly: true, cooldown: 3000,
   async execute(client, interaction) {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     const lang   = await client.i18n.resolveLanguage(client, interaction.user.id, interaction.guildId);
@@ -226,7 +226,7 @@ export const warnings = {
     .setName('warnings').setDescription('View active warnings')
     .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
     .addUserOption(o => o.setName('user').setDescription('User').setRequired(true)),
-  userPermissions: [PermissionFlagsBits.ModerateMembers], guildOnly: true, cooldown: 3000,
+  userPermissions: [PermissionFlagsBits.ModerateMembers], botPermissions: [PermissionFlagsBits.ModerateMembers], guildOnly: true, cooldown: 3000,
   async execute(client, interaction) {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     const target = interaction.options.getUser('user');

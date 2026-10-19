@@ -1,5 +1,5 @@
 // ================================================================
-//  AURA BOT v2.0 — Polls System (with AI option generation)
+//  AURA BOT v2.0 — Polls System
 // ================================================================
 
 import {
@@ -10,6 +10,36 @@ import { buildEmbed } from '../../utils/embedBuilder.js';
 import logger         from '../../utils/logger.js';
 
 const POLL_EMOJIS = ['1️⃣','2️⃣','3️⃣','4️⃣','5️⃣','6️⃣','7️⃣','8️⃣','9️⃣','🔟'];
+
+/**
+ * Build the final results view of a poll.
+ *
+ * Shared by the `/poll results` + `/poll end` subcommands and by the
+ * `poll:end` button so both paths render exactly the same embed.
+ *
+ * @returns {{ totalVotes: number, embed: import('discord.js').EmbedBuilder }}
+ */
+function buildResultsView(pollData) {
+  const counts     = Array.isArray(pollData?.counts) ? pollData.counts : [];
+  const totalVotes = counts.reduce((a, b) => a + b, 0);
+  const results    = (pollData?.options || []).map((opt, i) => {
+    const count = counts[i] || 0;
+    const pct   = totalVotes > 0 ? Math.round((count / totalVotes) * 100) : 0;
+    const bar   = '█'.repeat(Math.round(pct / 5)) + '░'.repeat(20 - Math.round(pct / 5));
+    return `${POLL_EMOJIS[i] || '▫️'} **${opt}**\n${bar} ${pct}% (${count} votes)`;
+  });
+
+  return {
+    totalVotes,
+    embed: buildEmbed({
+      type:        'success',
+      title:       `📊 Poll Results — ${pollData?.question}`,
+      description: results.join('\n\n'),
+      footer:      `${totalVotes} total votes`,
+      timestamp:   true,
+    }),
+  };
+}
 
 export const poll = {
   data: new SlashCommandBuilder()
@@ -38,6 +68,7 @@ export const poll = {
       .addStringOption(o => o.setName('message_id').setDescription('Poll message ID').setRequired(true))
     ),
 
+  botPermissions: [PermissionFlagsBits.SendMessages],
   guildOnly: true,
   cooldown:  5000,
 
@@ -45,30 +76,11 @@ export const poll = {
     await interaction.deferReply();
     const sub = interaction.options.getSubcommand();
 
-    if (sub === 'create' || sub === 'ai') {
-      let question, options;
-
-      if (sub === 'create') {
-        question = interaction.options.getString('question');
-        options  = [1,2,3,4,5]
-          .map(i => interaction.options.getString(`option${i}`))
-          .filter(Boolean);
-      } else {
-        // AI-generated options
-        const topic  = interaction.options.getString('topic');
-        const count  = interaction.options.getInteger('options') || 4;
-        question     = topic;
-
-        if (!client.ai.isAvailable()) {
-          return interaction.editReply({ embeds: [buildEmbed({ type: 'error', description: '❌ AI not configured for option generation.' })] });
-        }
-
-        const generated = await client.ai.generatePollOptions(topic, count);
-        if (!generated?.length) {
-          return interaction.editReply({ embeds: [buildEmbed({ type: 'error', description: '❌ Could not generate poll options.' })] });
-        }
-        options = generated;
-      }
+    if (sub === 'create') {
+      const question = interaction.options.getString('question');
+      const options  = [1,2,3,4,5]
+        .map(i => interaction.options.getString(`option${i}`))
+        .filter(Boolean);
 
       if (options.length < 2) {
         return interaction.editReply({ embeds: [buildEmbed({ type: 'error', description: '❌ At least 2 options required.' })] });
@@ -139,32 +151,17 @@ export const poll = {
         return interaction.editReply({ embeds: [buildEmbed({ type: 'error', description: '❌ Poll not found or expired.' })] });
       }
 
-      const counts     = Array.isArray(pollData.counts) ? pollData.counts : [];
-      const totalVotes = counts.reduce((a, b) => a + b, 0);
-      const results    = (pollData.options || []).map((opt, i) => {
-        const count   = counts[i] || 0;
-        const pct     = totalVotes > 0 ? Math.round((count / totalVotes) * 100) : 0;
-        const bar     = '█'.repeat(Math.round(pct / 5)) + '░'.repeat(20 - Math.round(pct / 5));
-        return `${POLL_EMOJIS[i] || '▫️'} **${opt}**\n${bar} ${pct}% (${count} votes)`;
-      });
-
       if (sub === 'end' && !interaction.member.permissions.has(PermissionFlagsBits.ManageMessages)) {
         return interaction.editReply({ embeds: [buildEmbed({ type: 'error', description: '❌ You need `Manage Messages` permission to end polls.' })] });
       }
+
+      const { embed } = buildResultsView(pollData);
 
       if (sub === 'end') {
         await client.redis.del(`poll:${msgId}`);
       }
 
-      return interaction.editReply({
-        embeds: [buildEmbed({
-          type:        'success',
-          title:       `📊 Poll Results — ${pollData.question}`,
-          description: results.join('\n\n'),
-          footer:      `${totalVotes} total votes`,
-          timestamp:   true,
-        })],
-      });
+      return interaction.editReply({ embeds: [embed] });
     }
   },
 };
@@ -177,6 +174,36 @@ export async function handleButton(client, interaction, args) {
 
   try {
     const [action, ...rest] = args.split(':');
+
+    if (action === 'end') {
+      // Ack the click FIRST — closing the poll touches Redis and the message,
+      // both of which can exceed Discord's 3s interaction deadline. Without an
+      // ack the button ends in "This interaction failed".
+      await interaction.deferUpdate();
+
+      const msgId    = interaction.message.id;
+      const pollData = await client.redis.getJSON(`poll:${msgId}`);
+
+      if (!pollData) {
+        return interaction.followUp({ embeds: [buildEmbed({ type: 'error', description: '❌ Poll expired or was already closed.' })], flags: MessageFlags.Ephemeral });
+      }
+
+      if (!interaction.member?.permissions?.has(PermissionFlagsBits.ManageMessages)) {
+        return interaction.followUp({ embeds: [buildEmbed({ type: 'error', description: '❌ You need `Manage Messages` permission to end polls.' })], flags: MessageFlags.Ephemeral });
+      }
+
+      const { totalVotes, embed } = buildResultsView(pollData);
+
+      // Close the poll: drop the stored poll and turn the message into the
+      // final results (the vote buttons disappear with it).
+      await client.redis.del(`poll:${msgId}`);
+      await interaction.editReply({ embeds: [embed], components: [] });
+
+      return interaction.followUp({
+        embeds: [buildEmbed({ type: 'success', description: `🛑 Poll closed — **${totalVotes}** total vote(s) recorded.` })],
+        flags: MessageFlags.Ephemeral,
+      });
+    }
 
     if (action === 'vote') {
       // Ack the click before any Redis round-trip — store reads/writes below can

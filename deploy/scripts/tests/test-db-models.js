@@ -291,6 +291,17 @@ async function main() {
     }
   }
 
+  // Informational only: columns that exist in the live table but are not declared
+  // in the model. These do not break commands, but the model will never read or
+  // write them — usually a half-applied migration.
+  const withExtras = results.filter(r => r.extra.length);
+  if (withExtras.length) {
+    console.log('\n  EXTRA COLUMNS IN DB (not declared in the model — informational):');
+    for (const r of withExtras) {
+      console.log(`    ${r.model} (${r.table}): ${r.extra.join(', ')}`);
+    }
+  }
+
   printDetails(results);
 
   console.log('');

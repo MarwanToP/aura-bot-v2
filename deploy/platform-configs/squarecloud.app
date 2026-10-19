@@ -1,4 +1,4 @@
-MAIN=main.js
+MAIN=apps/bot/src/index.js
 MEMORY=512
 VERSION=recommended
 DISPLAY_NAME=Aura Bot v2

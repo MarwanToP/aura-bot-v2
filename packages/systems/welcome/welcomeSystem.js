@@ -1,9 +1,49 @@
 // ================================================================
 //  Welcome System v2 — Canvas Cards + AI Messages
 // ================================================================
-import { createCanvas, loadImage } from '@napi-rs/canvas';
 import { AttachmentBuilder }       from 'discord.js';
 import logger                      from '../../utils/logger.js';
+
+// ── Canvas is an OPTIONAL native dependency ─────────────────────
+//  `@napi-rs/canvas` ships platform-specific binaries. On an image
+//  without a matching prebuild (musl/alpine, wrong arch) a STATIC
+//  import would kill the whole bot during module evaluation — and this
+//  file is imported by apps/bot/src/index.js, so the bot would never
+//  boot. The module is therefore loaded lazily and failures degrade to
+//  "no welcome card" instead of "no bot".
+const CANVAS_MODULE_ID = '@napi-rs/canvas';
+const CANVAS_DISABLE_ENV = 'AURA_DISABLE_CANVAS';
+const TRUTHY_VALUES = new Set(['1', 'true', 'yes', 'on']);
+let canvasPromise = null;
+let canvasNoticeLogged = false;
+
+async function loadCanvasModule() {
+  if (canvasPromise) return canvasPromise;
+  canvasPromise = (async () => {
+    const raw = String(process.env[CANVAS_DISABLE_ENV] || '').trim().toLowerCase();
+    if (TRUTHY_VALUES.has(raw)) {
+      if (!canvasNoticeLogged) {
+        canvasNoticeLogged = true;
+        logger.info(`[Welcome] ${CANVAS_DISABLE_ENV} is set — welcome cards are disabled.`);
+      }
+      return null;
+    }
+    try {
+      const mod = await import(CANVAS_MODULE_ID);
+      if (typeof mod?.createCanvas !== 'function' || typeof mod?.loadImage !== 'function') {
+        throw new Error('canvas module does not expose createCanvas/loadImage');
+      }
+      return mod;
+    } catch (err) {
+      if (!canvasNoticeLogged) {
+        canvasNoticeLogged = true;
+        logger.warn(`[Welcome] Canvas unavailable (${err.message}) — welcome cards are disabled.`);
+      }
+      return null;
+    }
+  })();
+  return canvasPromise;
+}
 
 export async function handleMemberJoin(client, member) {
   try {
@@ -63,7 +103,9 @@ export async function handleMemberLeave(client, member) {
 
 async function generateCard(member, memberCount) {
   try {
-    const canvas = createCanvas(1100, 400);
+    const native = await loadCanvasModule();
+    if (!native) return null;
+    const canvas = native.createCanvas(1100, 400);
     const ctx    = canvas.getContext('2d');
 
     // Background
@@ -77,7 +119,7 @@ async function generateCard(member, memberCount) {
 
     // Avatar
     const avatarUrl = member.user.displayAvatarURL({ size: 256, extension: 'png' });
-    const avatar    = await loadImage(avatarUrl).catch(() => null);
+    const avatar    = await native.loadImage(avatarUrl).catch(() => null);
     const cx = 200, cy = 200, r = 100;
     if (avatar) {
       const ring = ctx.createRadialGradient(cx, cy, r-5, cx, cy, r+12);

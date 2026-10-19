@@ -29,6 +29,7 @@ export default {
         .setRequired(false)
     ),
 
+  botPermissions: [PermissionFlagsBits.ManageChannels, PermissionFlagsBits.ManageRoles],
   guildOnly: true,
   cooldown: 5000,
 

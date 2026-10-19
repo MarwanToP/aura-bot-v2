@@ -51,7 +51,11 @@ const client = {
   user:   { id: 'bot-id', tag: 'Aura#0000', displayAvatarURL: () => '' },
 };
 
-await loadCommands(client);
+// The loader returns its audit: a file that could not be imported contributes
+// NO commands, so the audit must surface those failures instead of quietly
+// reporting a smaller command set as healthy.
+const loadAudit = await loadCommands(client);
+const importFailures = loadAudit?.importFailureDetails ?? [];
 
 // Restore warn
 console.warn = originalWarn;
@@ -143,12 +147,17 @@ if (warnings.length) {
     for (const m of msgs) console.log(`  [${cmd}] ${m}`);
   }
 }
+if (importFailures.length) {
+  console.log(`\n❌ IMPORT FAILURES (${importFailures.length}) — these command files are NOT loaded:\n`);
+  for (const f of importFailures) console.log(`  [${f.file}]\n    → ${f.error}`);
+}
 
 console.log(`\n${'═'.repeat(64)}`);
-if (issues.length === 0) {
+if (issues.length === 0 && importFailures.length === 0) {
   console.log(`  ✅ Structural audit PASSED — no blocking errors.`);
   process.exit(0);
 } else {
-  console.log(`  ❌ ${issues.length} error(s) must be fixed.`);
+  if (issues.length) console.log(`  ❌ ${issues.length} error(s) must be fixed.`);
+  if (importFailures.length) console.log(`  ❌ ${importFailures.length} command file(s) failed to import — their commands are missing.`);
   process.exit(1);
 }

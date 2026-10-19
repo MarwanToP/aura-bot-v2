@@ -125,9 +125,20 @@ export default function Sidebar({
 }) {
   const handleTabSelect = onSelectTab || setActiveTab;
   const { isAuthenticated } = useAuth();
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsedPref, setCollapsed] = useState(false);
   const [serverDropdownOpen, setServerDropdownOpen] = useState(false);
   const [ping, setPing] = useState(null);
+  // Below the md breakpoint the 272px rail squeezes the content column to
+  // ~50px, so narrow viewports always use the icon-only rail.
+  const [narrow, setNarrow] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 767px)");
+    const sync = () => setNarrow(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
+  const collapsed = collapsedPref || narrow;
 
   const statusOk = isAuthenticated && ping != null;
 
@@ -138,8 +149,13 @@ export default function Sidebar({
       ? guilds.map((g) => ({
           id: g.id,
           name: g.name,
+          // Discord returns the icon as a bare hash; build the CDN URL from it.
+          // Already-absolute values are passed through untouched so a relative
+          // src can never reach the DOM (it breaks SSR preload headers).
           icon: g.icon
-            ? `https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png?size=64`
+            ? String(g.icon).startsWith("http")
+              ? g.icon
+              : `https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png?size=64`
             : null,
           emoji: g.icon ? null : (g.name?.[0] || "#").toUpperCase(),
           members:
@@ -167,6 +183,32 @@ export default function Sidebar({
       cancelled = true;
     };
   }, [isAuthenticated]);
+
+  // Premium status for the selected server. Unknown until the API answers, so
+  // the promo card never claims a plan that isn't actually active.
+  const [premium, setPremium] = useState(null);
+
+  useEffect(() => {
+    if (!isAuthenticated || !activeGuildId) {
+      setPremium(null);
+      return;
+    }
+    let cancelled = false;
+    fetch(`/api/guilds/${activeGuildId}/premium`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!cancelled && data) {
+          setPremium({ active: data.active === true, tier: Number(data.tier) || 0 });
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated, activeGuildId]);
+
+  const premiumKnown = premium !== null;
+  const premiumActive = premium?.active === true;
 
   return (
     <aside
@@ -221,7 +263,7 @@ export default function Sidebar({
           onClick={() => setCollapsed(false)}
           title="Expand sidebar"
           aria-label="Expand sidebar"
-          className="btn-icon mx-auto mb-3 h-8 w-8 rounded-full border border-white/[0.08] bg-white/[0.035]"
+          className="btn-icon mx-auto mb-3 h-8 w-8 max-md:hidden rounded-full border border-white/[0.08] bg-white/[0.035]"
         >
           <ChevronRight className="h-3.5 w-3.5" />
         </button>
@@ -380,10 +422,17 @@ export default function Sidebar({
       {/* ── 4. Status + premium promo ────────────────────────── */}
       <div className="mt-3 space-y-3 border-t border-white/[0.07] pt-3">
         {collapsed ? (
-          <div className="flex justify-center" title={statusOk ? "All systems operational" : "Status unavailable"}>
+          <div
+            className="flex justify-center"
+            title={statusOk ? "All systems operational" : isAuthenticated ? "Checking connection…" : "Demo mode"}
+          >
             <span
-              className={`animate-pulse-dot h-2.5 w-2.5 rounded-full ${
-                statusOk ? "bg-[#34D399]" : "bg-slate-600"
+              className={`h-2.5 w-2.5 rounded-full ${
+                statusOk
+                  ? "animate-pulse-dot bg-[#34D399]"
+                  : isAuthenticated
+                    ? "animate-pulse-dot bg-slate-600"
+                    : "bg-slate-700"
               }`}
             />
           </div>
@@ -391,11 +440,15 @@ export default function Sidebar({
           <div className="flex items-center justify-between px-2.5 py-1.5 text-[11px]">
             <span className="flex items-center gap-2 font-medium text-slate-400">
               <span
-                className={`animate-pulse-dot h-1.5 w-1.5 rounded-full ${
-                  statusOk ? "bg-[#34D399]" : "bg-slate-600"
+                className={`h-1.5 w-1.5 rounded-full ${
+                  statusOk
+                    ? "animate-pulse-dot bg-[#34D399]"
+                    : isAuthenticated
+                      ? "animate-pulse-dot bg-slate-600"
+                      : "bg-slate-700"
                 }`}
               />
-              {statusOk ? "All systems operational" : "Status unavailable"}
+              {statusOk ? "All systems operational" : isAuthenticated ? "Checking connection…" : "Demo mode"}
             </span>
             <span className="font-mono text-slate-600">
               {statusOk ? `${ping}ms` : "—"}
@@ -414,11 +467,28 @@ export default function Sidebar({
                 <Crown className="h-4 w-4" />
               </span>
               <span
-                className="chip chip-green mt-0.5"
-                title="Open the Premium tab to review your plan"
+                className={`chip mt-0.5 ${premiumActive ? "chip-green" : premiumKnown ? "chip-amber" : ""}`}
+                title={
+                  premiumActive
+                    ? "Premium is active for this server"
+                    : premiumKnown
+                      ? "This server is on the free tier"
+                      : "Open the Premium tab to review your plan"
+                }
               >
-                <span className="status-dot status-dot-online animate-pulse-dot h-1.5 w-1.5" />
-                Active
+                {premiumActive ? (
+                  <>
+                    <span className="status-dot status-dot-online animate-pulse-dot h-1.5 w-1.5" />
+                    Active
+                  </>
+                ) : premiumKnown ? (
+                  <>
+                    <span className="status-dot status-dot-idle h-1.5 w-1.5" />
+                    Free tier
+                  </>
+                ) : (
+                  "View plans"
+                )}
               </span>
             </div>
             <h4 className="card-title relative mt-2.5 text-[13px]">Premium Plan</h4>
@@ -429,7 +499,7 @@ export default function Sidebar({
               onClick={() => handleTabSelect && handleTabSelect("premium")}
               className="btn-glass relative mt-3 w-full border-[#4C7DFF]/40 text-[11px] text-[#A9C2FF] transition-colors hover:border-[#4C7DFF]/70 hover:text-white"
             >
-              Manage Plan
+              {premiumActive ? "Manage Plan" : "View Plans"}
             </button>
           </div>
         ) : (

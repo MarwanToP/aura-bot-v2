@@ -270,7 +270,9 @@ export default function MembersPanel({ guildId }) {
 
   const visible = filtered.slice(0, 100);
 
-  /* KPI numbers — straight from the loaded roster, never invented. */
+  /* KPI numbers — straight from the loaded roster, never invented.
+     While the roster is still loading the derived tiles show a dash, not a zero. */
+  const rosterReady = !loading && !error;
   const botCount = useMemo(() => members.filter((m) => m.bot).length, [members]);
   const avgRoles = useMemo(() => {
     if (!members.length) return null;
@@ -333,21 +335,21 @@ export default function MembersPanel({ guildId }) {
               icon={Users}
               tone="cyan"
               label="Roster Loaded"
-              value={members.length.toLocaleString("en-US")}
+              value={rosterReady ? members.length.toLocaleString("en-US") : "—"}
               hint="Members pulled from Discord"
             />
             <KpiTile
               icon={Bot}
               tone="violet"
               label="Bot Members"
-              value={botCount.toLocaleString("en-US")}
+              value={rosterReady ? botCount.toLocaleString("en-US") : "—"}
               hint="Within the loaded roster"
             />
             <KpiTile
               icon={Shield}
               tone="amber"
               label="Avg. Roles"
-              value={avgRoles ?? "—"}
+              value={rosterReady ? (avgRoles ?? "—") : "—"}
               hint="Within the loaded roster"
             />
           </motion.div>

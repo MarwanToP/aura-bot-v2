@@ -1,93 +1,60 @@
 // ================================================================
-//  Deploy Slash Commands — node scripts/deploy-commands.js
-//  Add --guild <ID> for instant guild deploy
+//  Deploy Slash Commands — node deploy/scripts/deployment/deploy-commands.js
+//
+//  Uses the SAME loader as the running bot
+//  (apps/bot/src/core/commandHandler.js) so a command that cannot be
+//  imported at runtime is never published to Discord. Discord's PUT
+//  REPLACES the whole command set, so a partially imported tree would
+//  silently DELETE the commands of the broken file.
+//
+//  Flags:
+//    --guild <ID>   instant guild-scoped deploy (falls back to DISCORD_GUILD_ID)
+//    --all-guilds   deploy to every joined guild, then globally
+//    --dry-run      audit only, no Discord API request
+//    --force        publish even if a file failed to import (dangerous)
 // ================================================================
 import 'dotenv/config';
-import { REST, Routes }           from 'discord.js';
-import { readdirSync, statSync }  from 'fs';
-import { join, dirname }          from 'path';
-import { fileURLToPath, pathToFileURL } from 'url';
+import { Collection } from 'discord.js';
+import { dirname, join } from 'path';
+import { fileURLToPath } from 'url';
+import { loadCommands } from '../../../apps/bot/src/core/commandHandler.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const commands  = new Map();
 const args      = process.argv.slice(2);
 const guildIdx  = args.indexOf('--guild');
 const dryRun    = args.includes('--dry-run');
+const force     = args.includes('--force');
 const guildArg  = guildIdx !== -1 ? args[guildIdx + 1] : null;
 const guildId   = guildIdx !== -1
   ? ((guildArg && !guildArg.startsWith('--')) ? guildArg : (process.env.DISCORD_GUILD_ID || null))
   : null;
-const audit = {
-  filesScanned: 0,
-  modulesLoaded: 0,
-  validExports: 0,
-  invalidExports: 0,
-  duplicateAliasesSkipped: 0,
-  duplicatesSkipped: 0,
-  duplicatesOverwritten: 0,
-  importFailures: 0,
+
+const logger = {
+  info: (msg) => console.log(msg),
+  warn: (msg) => console.warn(msg),
+  error: (msg) => console.error(msg),
 };
 
-function registerCommand(commandExport, allowOverwrite, sourceLabel, moduleSeenNames) {
-  if (!commandExport || typeof commandExport !== 'object') return;
-  if (commandExport.register === false) return;
-  const command = commandExport.data;
-  if (!command || typeof command.toJSON !== 'function') return;
+async function collectCommands() {
+  // Minimal client stub: the loader only needs `commands` (a Collection) and
+  // `logger`. The real client is not required to enumerate commands.
+  const client = { commands: new Collection(), logger };
+  const audit = await loadCommands(client);
 
-  let json;
-  try {
-    json = command.toJSON();
-  } catch (err) {
-    audit.invalidExports += 1;
-    console.warn(`  ⚠ Invalid command data in ${sourceLabel}: ${err.message}`);
-    return;
-  }
-
-  if (!json?.name) {
-    audit.invalidExports += 1;
-    console.warn(`  ⚠ Missing command name in ${sourceLabel}`);
-    return;
-  }
-
-  if (moduleSeenNames.has(json.name)) {
-    audit.duplicateAliasesSkipped += 1;
-    return;
-  }
-  moduleSeenNames.add(json.name);
-
-  if (!allowOverwrite && commands.has(json.name)) {
-    audit.duplicatesSkipped += 1;
-    console.warn(`  ⚠ Duplicate command skipped: /${json.name} from ${sourceLabel}`);
-    return;
-  }
-  if (allowOverwrite && commands.has(json.name)) {
-    audit.duplicatesOverwritten += 1;
-    console.warn(`  ⚠ Duplicate command overwritten: /${json.name} by ${sourceLabel}`);
-  }
-  commands.set(json.name, json);
-  audit.validExports += 1;
-}
-
-async function loadCommands(dir, allowOverwrite = true) {
-  for (const entry of readdirSync(dir)) {
-    const full  = join(dir, entry);
-    const isDir = statSync(full).isDirectory();
-    if (isDir) { await loadCommands(full, allowOverwrite); continue; }
-    if (!entry.endsWith('.js')) continue;
-    audit.filesScanned += 1;
+  const payloads = [];
+  let invalidExports = 0;
+  for (const [name, command] of client.commands) {
     try {
-      const mod = await import(pathToFileURL(full).href);
-      audit.modulesLoaded += 1;
-      const moduleSeenNames = new Set();
-      if (mod.default) registerCommand(mod.default, allowOverwrite, `${full}#default`, moduleSeenNames);
-      for (const [k, v] of Object.entries(mod)) {
-        if (k !== 'default') registerCommand(v, allowOverwrite, `${full}#${k}`, moduleSeenNames);
-      }
+      const json = command.data.toJSON();
+      if (!json?.name) throw new Error('missing name');
+      payloads.push(json);
     } catch (err) {
-      audit.importFailures += 1;
-      console.warn(`  ⚠ Skipping ${entry}: ${err.message}`);
+      invalidExports += 1;
+      console.warn(`  ⚠ Invalid command payload for /${name}: ${err.message}`);
     }
   }
+
+  return { payloads, audit, invalidExports };
 }
 
 async function putWithRateLimitRetry(url, body) {
@@ -127,13 +94,24 @@ async function deploy() {
     throw new Error('Guild deploy requested but no guild ID was provided. Pass --guild <ID> or set DISCORD_GUILD_ID.');
   }
 
-  await loadCommands(join(__dirname, '../../../apps/bot/src/commands'), true);
-  await loadCommands(join(__dirname, '../../../packages/systems'), false);
-  const dedup = [...commands.values()];
+  const { payloads, audit, invalidExports } = await collectCommands();
 
-  console.log(`\n📋 Command Audit | files=${audit.filesScanned} modules=${audit.modulesLoaded} validExports=${audit.validExports} invalidExports=${audit.invalidExports} duplicateAliasesSkipped=${audit.duplicateAliasesSkipped} duplicatesSkipped=${audit.duplicatesSkipped} duplicatesOverwritten=${audit.duplicatesOverwritten} importFailures=${audit.importFailures}`);
-  console.log(`\n🚀 ${dryRun ? 'Dry-run for' : 'Deploying'} ${dedup.length} commands...`);
-  dedup.forEach(c => console.log(`   /${c.name}`));
+  console.log(`\n📋 Command Audit | files=${audit.filesScanned} modules=${audit.modulesLoaded} validExports=${audit.registered} invalidExports=${invalidExports} duplicateAliasesSkipped=${audit.duplicateAliasesSkipped} duplicatesSkipped=${audit.duplicatesSkipped} duplicatesOverwritten=${audit.duplicatesOverwritten} importFailures=${audit.importFailures}`);
+
+  if (audit.importFailures > 0) {
+    console.error(`\n❌ ${audit.importFailures} file(s) failed to import — their commands would be MISSING after this deploy:`);
+    for (const detail of audit.importFailureDetails || []) {
+      console.error(`   • ${detail.file}: ${detail.error}`);
+    }
+    if (!force) {
+      console.error('\n🛑 Aborting. Fix the import errors, or re-run with --force to publish anyway (this will remove the broken commands from Discord).');
+      process.exit(1);
+    }
+    console.warn('⚠️ --force given: publishing despite import failures.');
+  }
+
+  console.log(`\n🚀 ${dryRun ? 'Dry-run for' : 'Deploying'} ${payloads.length} commands...`);
+  payloads.forEach(c => console.log(`   /${c.name}`));
 
   if (dryRun) {
     console.log('\n✅ Dry-run complete (no Discord API request made).');
@@ -145,7 +123,7 @@ async function deploy() {
   try {
     if (guildId) {
       console.log(`\n⏳ Registering commands to guild ${guildId}...`);
-      const res = await putWithRateLimitRetry(`https://discord.com/api/v10/applications/${clientId}/guilds/${guildId}/commands`, dedup);
+      const res = await putWithRateLimitRetry(`https://discord.com/api/v10/applications/${clientId}/guilds/${guildId}/commands`, payloads);
       console.log(`✅ Deployed ${res.length} commands to guild ${guildId} (instant)`);
     } else if (args.includes('--all-guilds')) {
       console.log('\n🌐 Fetching bot guilds for instant multi-guild deployment...');
@@ -153,28 +131,28 @@ async function deploy() {
         headers: { Authorization: `Bot ${process.env.DISCORD_TOKEN}` },
       });
       const guilds = await gRes.json().catch(() => []);
-      console.log(`Found ${Array.isArray(guilds) ? guilds.length : 0} joined guilds.`);
       if (Array.isArray(guilds)) {
         for (const g of guilds) {
           try {
             console.log(`  ⏳ Deploying to ${g.name || g.id}...`);
-            const res = await putWithRateLimitRetry(`https://discord.com/api/v10/applications/${clientId}/guilds/${g.id}/commands`, dedup);
+            const res = await putWithRateLimitRetry(`https://discord.com/api/v10/applications/${clientId}/guilds/${g.id}/commands`, payloads);
             console.log(`  ✅ Deployed ${res.length} commands to guild ${g.name || g.id}`);
           } catch (err) {
             console.warn(`  ❌ Failed to deploy to guild ${g.id}: ${err.message}`);
           }
         }
       }
+      console.log(`Found ${Array.isArray(guilds) ? guilds.length : 0} joined guilds.`);
       console.log('\n⏳ Registering global commands...');
       try {
-        const res = await putWithRateLimitRetry(`https://discord.com/api/v10/applications/${clientId}/commands`, dedup);
+        const res = await putWithRateLimitRetry(`https://discord.com/api/v10/applications/${clientId}/commands`, payloads);
         console.log(`✅ Deployed ${res.length} commands globally.`);
       } catch (err) {
         console.warn(`⚠️ Global deploy warning: ${err.message}`);
       }
     } else {
       console.log('\n⏳ Registering global commands...');
-      const res = await putWithRateLimitRetry(`https://discord.com/api/v10/applications/${clientId}/commands`, dedup);
+      const res = await putWithRateLimitRetry(`https://discord.com/api/v10/applications/${clientId}/commands`, payloads);
       console.log(`✅ Deployed ${res.length} commands globally (up to 1 hour to propagate)`);
     }
   } catch (err) {

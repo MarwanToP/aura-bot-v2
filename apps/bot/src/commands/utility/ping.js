@@ -9,9 +9,16 @@ export default {
     const interaction = clientOrInteraction?.deferReply ? clientOrInteraction : interactionOrClient;
     const client = clientOrInteraction?.ws ? clientOrInteraction : (interactionOrClient?.ws ? interactionOrClient : interaction?.client);
 
-    const response = await interaction.deferReply({ withResponse: true });
-    const sent = response?.resource?.message;
-    const delay = sent?.createdTimestamp ? (sent.createdTimestamp - interaction.createdTimestamp) : 0;
+    // A deferred interaction has no message resource yet, so the roundtrip has
+    // to be measured from the reply that was actually sent.
+    await interaction.deferReply();
+    let sent = null;
+    try {
+      sent = await interaction.fetchReply();
+    } catch { /* fall back to the local clock below */ }
+    const delay = sent?.createdTimestamp
+      ? Math.max(0, sent.createdTimestamp - interaction.createdTimestamp)
+      : Math.max(0, Date.now() - interaction.createdTimestamp);
     const wsPing = client?.ws?.ping !== undefined ? `${Math.round(client.ws.ping)}ms` : 'N/A';
     const uptime = client?.readyTimestamp ? `<t:${Math.floor(client.readyTimestamp / 1000)}:R>` : 'Active';
 

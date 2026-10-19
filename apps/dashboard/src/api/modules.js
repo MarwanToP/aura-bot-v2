@@ -55,6 +55,34 @@ function pickAllowed(body, keys) {
   return updates;
 }
 
+// ── Prototype-pollution guard ───────────────────────────────────
+// A JSON request body can carry a "__proto__" key. When a record parser
+// copies such a key onto a plain object, the object's prototype is replaced
+// ("constructor" / "prototype" shadow the inherited members). The three keys
+// are rejected outright — the key schema sees the raw key before the record
+// is built — and a record whose prototype is not the standard one is refused
+// as well.
+const FORBIDDEN_RECORD_KEYS = Object.freeze(['__proto__', 'constructor', 'prototype']);
+
+const safeRecordKey = z.string().refine(
+  (key) => !FORBIDDEN_RECORD_KEYS.includes(key),
+  { message: 'Object key is not allowed' },
+);
+
+const safeRecord = z
+  .record(safeRecordKey, z.unknown())
+  .superRefine((rec, ctx) => {
+    const forbidden = Object.getOwnPropertyNames(rec || {}).find((key) => FORBIDDEN_RECORD_KEYS.includes(key));
+    if (forbidden) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: `Object key "${forbidden}" is not allowed` });
+      return;
+    }
+    const proto = Object.getPrototypeOf(rec || {});
+    if (proto !== null && proto !== Object.prototype) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Object prototype is not allowed' });
+    }
+  });
+
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const isUuid = (v) => UUID_RE.test(String(v || ''));
 
@@ -610,7 +638,7 @@ const invitesSchema = z.object({
   config: z.object({
     fakeShieldEnabled: z.boolean().optional(),
     minAccountAgeDays: z.number().int().min(0).max(3650).optional(),
-    rankRewards: z.array(z.record(z.unknown())).max(50).optional(),
+    rankRewards: z.array(safeRecord).max(50).optional(),
   }).optional(),
 });
 
@@ -736,6 +764,11 @@ router.post('/:guildId/moderation', requireAuth, requireGuildAdmin, async (req, 
 
 router.get('/:guildId/automod', requireAuth, requireGuildAdmin, async (req, res) => {
   const s = await getGuildSettings(req.params.guildId);
+  // A failed settings read must not be reported as "everything disabled" —
+  // that is indistinguishable from a real "off". Answer 503 instead.
+  if (settingsUnavailable(s)) {
+    return res.status(503).json({ error: 'Settings unavailable' });
+  }
   res.json({
     autoModEnabled: s?.autoModEnabled ?? false,
     aiModEnabled: s?.aiModEnabled ?? false,
@@ -780,6 +813,11 @@ router.post('/:guildId/automod', requireAuth, requireGuildAdmin, async (req, res
     return res.status(500).json({ error: 'Internal error' });
   }
 
+  // The bot caches the AI auto-mod flag under "aura:guild:<guildId>:config"
+  // for 300 s — drop it so the dashboard toggle reaches the running bot
+  // immediately instead of after the TTL.
+  await invalidateBotCache(guildId, [BOT_CACHE_KEYS.guildConfig(guildId)], 'AutoMod');
+
   res.json({ success: true });
 });
 
@@ -803,6 +841,11 @@ router.get('/:guildId/cases', requireAuth, requireGuildAdmin, async (req, res) =
 // ── 6. Security, Anti-Nuke, Anti-Raid ─────────────────────────
 router.get('/:guildId/security', requireAuth, requireGuildAdmin, async (req, res) => {
   const s = await getGuildSettings(req.params.guildId);
+  // A failed settings read must not be reported as "everything disabled" —
+  // that is indistinguishable from a real "off". Answer 503 instead.
+  if (settingsUnavailable(s)) {
+    return res.status(503).json({ error: 'Settings unavailable' });
+  }
   res.json({
     antiNukeEnabled: s?.antiNukeEnabled ?? false,
     antiNukeConfig: s?.antiNukeConfig || { maxChannelDeletions: 2, maxRoleDeletions: 2, maxBans: 3, maxKicks: 3, action: 'quarantine' },
@@ -914,19 +957,34 @@ function validateSocialAlerts(alerts) {
   return { alerts: validated };
 }
 
-// Best-effort cache bust after a successful save: the bot reads
-// `social:alerts:<guildId>` from Redis first (30-day TTL) and only falls back
-// to the DB when the key is missing, so the stale list must be removed for
-// dashboard toggles to reach the running bot. Uses @aura/redis (same key
-// prefix as the bot's client); imported lazily because the package builds its
-// ioredis clients at import time. Never fails the request.
+// Cache keys the BOT reads. The bot caches them through its own client, which
+// applies the "aura2:" key prefix — the shared @aura/redis client used below
+// carries the same prefix, so the raw key names below address exactly the
+// entries the bot reads:
+//   • autoresponder:<guildId>      → apps/bot/src/events/messageCreate.js
+//   • aura:guild:<guildId>:config → apps/bot/src/events/messageCreate.js
+//                                    (holds the AI auto-mod flag)
+//   • social:alerts:<guildId>     → packages/systems/socialAlerts/socialAlerts.js
+const BOT_CACHE_KEYS = {
+  autoResponder: (guildId) => `autoresponder:${guildId}`,
+  guildConfig:   (guildId) => `aura:guild:${guildId}:config`,
+  socialAlerts:  (guildId) => `social:alerts:${guildId}`,
+};
+
+// Best-effort cache bust after a successful save: the bot reads these keys
+// from Redis first (300 s … 30-day TTL) and only falls back to the DB when
+// the key is missing, so the stale entry must be removed for dashboard
+// changes to reach the running bot. Uses @aura/redis (same key prefix as the
+// bot's client); imported lazily because the package builds its ioredis
+// clients at import time. Never fails the request.
 let redisModulePromise = null;
-async function invalidateSocialAlertsCache(guildId) {
+async function invalidateBotCache(guildId, keys, label = 'Bot') {
+  if (!Array.isArray(keys) || keys.length === 0) return;
   try {
     redisModulePromise ??= import('../../../../packages/redis/index.js');
     const { redis } = await redisModulePromise;
 
-    const del = redis.del(`social:alerts:${guildId}`);
+    const del = redis.del(...keys);
     del.catch(() => {}); // settle the losing side of the timeout race below
 
     let timer;
@@ -943,8 +1001,23 @@ async function invalidateSocialAlertsCache(guildId) {
     }
   } catch (err) {
     redisModulePromise = null; // allow a later retry (e.g. module resolution error)
-    console.warn(`[ModulesAPI] Social alerts cache invalidation skipped for guild ${guildId}:`, err.message);
+    console.warn(`[ModulesAPI] ${label} cache invalidation skipped for guild ${guildId}:`, err.message);
   }
+}
+
+async function invalidateSocialAlertsCache(guildId) {
+  await invalidateBotCache(guildId, [BOT_CACHE_KEYS.socialAlerts(guildId)], 'Social alerts');
+}
+
+// Auto-responder CRUD changes what the bot answers with, and an AI-backed
+// responder also depends on the guild's AI moderation configuration, so both
+// bot-side cache entries are dropped after a write.
+async function invalidateAutoResponderCache(guildId) {
+  await invalidateBotCache(
+    guildId,
+    [BOT_CACHE_KEYS.autoResponder(guildId), BOT_CACHE_KEYS.guildConfig(guildId)],
+    'Auto-responder',
+  );
 }
 
 router.get('/:guildId/social-alerts', requireAuth, requireGuildAdmin, async (req, res) => {
@@ -1022,7 +1095,7 @@ const ticketPanelSchema = z.object({
   thumbnail: z.string().max(500).nullable().optional(),
   channelId: discordIdField.optional(),
   messageId: discordIdField.optional(),
-  categories: z.array(z.record(z.unknown())).max(50).optional(),
+  categories: z.array(safeRecord).max(50).optional(),
   active: z.boolean().optional(),
 });
 
@@ -1370,11 +1443,13 @@ router.post('/:guildId/auto-responders', requireAuth, requireGuildAdmin, async (
       if (!existing) return res.status(404).json({ error: 'Auto-responder not found' });
       if (existing) {
         await existing.update(data);
+        await invalidateAutoResponderCache(guildId);
         return res.json({ responder: autoResponderShape(existing) });
       }
     }
 
     const responder = await AutoResponder.create({ ...data, guildId });
+    await invalidateAutoResponderCache(guildId);
     res.json({ responder: autoResponderShape(responder) });
   } catch (err) {
     console.warn(`[ModulesAPI] Save auto-responder failed for guild ${guildId}:`, err.message);
@@ -1394,6 +1469,7 @@ router.delete('/:guildId/auto-responders/:id', requireAuth, requireGuildAdmin, a
     if (AutoResponder) {
       await AutoResponder.destroy({ where: { id, guildId } });
     }
+    await invalidateAutoResponderCache(guildId);
     res.json({ ok: true });
   } catch (err) {
     console.warn(`[ModulesAPI] Delete auto-responder failed for guild ${guildId}:`, err.message);
@@ -1494,11 +1570,18 @@ router.post('/:guildId/starboard', requireAuth, requireGuildAdmin, async (req, r
 
 // Fresh welcome/farewell payload — shared by GET and POST /welcome.
 function buildWelcomePayload(s) {
+  // welcomeCard is a real GuildSettings column (BOOLEAN). It is exposed both
+  // inside `welcome` and as a flat alias, because the POST body uses the flat
+  // `welcomeCard` field name — clients that read that name back from the GET
+  // response find it in both places.
+  const welcomeCard = Boolean(s?.welcomeCard);
   return {
+    welcomeCard,
     welcome: {
       enabled: Boolean(s?.welcomeEnabled),
       message: s?.welcomeMessage ?? null,
       channelId: s?.welcomeChannelId ?? null,
+      welcomeCard,
       config: s?.welcomeConfig && typeof s.welcomeConfig === 'object' && !Array.isArray(s.welcomeConfig)
         ? s.welcomeConfig
         : {},
@@ -1513,6 +1596,11 @@ function buildWelcomePayload(s) {
 
 router.get('/:guildId/welcome', requireAuth, requireGuildAdmin, async (req, res) => {
   const s = await getGuildSettings(req.params.guildId);
+  // A failed settings read (SETTINGS_UNAVAILABLE) must not be reported as
+  // "everything disabled" — that is indistinguishable from a real "off".
+  if (settingsUnavailable(s)) {
+    return res.status(503).json({ error: 'Settings unavailable' });
+  }
   res.json(buildWelcomePayload(s));
 });
 
@@ -1520,10 +1608,11 @@ const welcomeUpdateSchema = z.object({
   welcomeEnabled: z.boolean().optional(),
   welcomeMessage: z.string().max(2000).optional(),
   welcomeChannelId: z.string().regex(SNOWFLAKE_RE).nullable().optional(),
+  welcomeCard: z.boolean().optional(),
   farewellEnabled: z.boolean().optional(),
   farewellMessage: z.string().max(2000).optional(),
   farewellChannelId: z.string().regex(SNOWFLAKE_RE).nullable().optional(),
-  welcomeConfig: z.record(z.any()).optional(),
+  welcomeConfig: safeRecord.optional(),
 });
 
 router.post('/:guildId/welcome', requireAuth, requireGuildAdmin, async (req, res) => {
@@ -1546,6 +1635,7 @@ router.post('/:guildId/welcome', requireAuth, requireGuildAdmin, async (req, res
     if (data.welcomeEnabled !== undefined) updates.welcomeEnabled = data.welcomeEnabled;
     if (data.welcomeMessage !== undefined) updates.welcomeMessage = data.welcomeMessage;
     if (data.welcomeChannelId !== undefined) updates.welcomeChannelId = data.welcomeChannelId;
+    if (data.welcomeCard !== undefined) updates.welcomeCard = data.welcomeCard;
     if (data.farewellEnabled !== undefined) updates.farewellEnabled = data.farewellEnabled;
     if (data.farewellMessage !== undefined) updates.farewellMessage = data.farewellMessage;
     if (data.farewellChannelId !== undefined) updates.farewellChannelId = data.farewellChannelId;
@@ -1562,6 +1652,80 @@ router.post('/:guildId/welcome', requireAuth, requireGuildAdmin, async (req, res
     console.warn(`[ModulesAPI] Save welcome settings failed for guild ${guildId}:`, err.message);
     res.status(500).json({ error: 'Failed to save welcome settings' });
   }
+});
+
+// ── Auto-Roles (welcome-system auto role) ──────────────────────
+// Backed by the GuildSettings.autoRoleId / autoRoleDelay columns the bot's
+// welcome system reads when a new member joins
+// (packages/systems/welcome/welcomeSystem.js).
+//
+// Delay bounds: 0 (apply immediately) .. 86400 seconds (24 h). The value is stored
+// verbatim in the INTEGER column; the bot applies it as
+// `setTimeout(assign, delay * 1000)` (seconds) and its own /utility autorole
+// command allows 0..86400 seconds, so the API must not be stricter than the bot.
+const AUTO_ROLE_DELAY_MAX = 86400;
+
+const autoRolesSchema = z.object({
+  // null clears the stored role; anything else must be a Discord snowflake.
+  autoRoleId: z.string().regex(SNOWFLAKE_RE).nullable().optional(),
+  autoRoleDelay: z.number().int().min(0).max(AUTO_ROLE_DELAY_MAX).optional(),
+});
+
+// Shared projection so GET/POST /auto-roles return identical field sets.
+// Neutral defaults (null / 0) when the column is unset — never a made-up id.
+function autoRolesShape(s) {
+  return {
+    autoRoleId: readSetting(s, 'autoRoleId', null),
+    autoRoleDelay: toInt(readSetting(s, 'autoRoleDelay', 0)),
+  };
+}
+
+router.get('/:guildId/auto-roles', requireAuth, requireGuildAdmin, async (req, res) => {
+  const { guildId } = req.params;
+  try {
+    const s = await getGuildSettings(guildId);
+    if (settingsUnavailable(s)) {
+      return res.status(503).json({ error: 'Settings unavailable' });
+    }
+    res.json(autoRolesShape(s));
+  } catch (err) {
+    console.warn(`[ModulesAPI] Load auto-roles failed for guild ${guildId}:`, err.message);
+    res.status(500).json({ error: 'Internal error' });
+  }
+});
+
+router.post('/:guildId/auto-roles', requireAuth, requireGuildAdmin, async (req, res) => {
+  const { guildId } = req.params;
+
+  const parsed = autoRolesSchema.safeParse(req.body || {});
+  if (!parsed.success) {
+    return res.status(400).json({ error: 'Invalid auto-roles configuration' });
+  }
+  const data = parsed.data;
+  if (data.autoRoleId === undefined && data.autoRoleDelay === undefined) {
+    return res.status(400).json({ error: 'At least one auto-role field is required' });
+  }
+
+  const s = await getGuildSettings(guildId);
+  if (settingsUnavailable(s)) {
+    return res.status(503).json({ error: 'Settings unavailable' });
+  }
+
+  // Only the two allowlisted columns are ever written — a body-supplied
+  // guildId can never redirect the update to another guild.
+  const updates = {};
+  if (data.autoRoleId !== undefined) updates.autoRoleId = data.autoRoleId;
+  if (data.autoRoleDelay !== undefined) updates.autoRoleDelay = data.autoRoleDelay;
+
+  try {
+    await s.update(updates);
+  } catch (err) {
+    console.warn(`[ModulesAPI] Save auto-roles failed for guild ${guildId}:`, err.message);
+    return res.status(500).json({ error: 'Internal error' });
+  }
+
+  // Respond with the persisted values only — never the raw request body.
+  res.json(autoRolesShape(s));
 });
 
 // ── Applications — forms, submissions & review ────────────────
@@ -1861,6 +2025,11 @@ router.get('/:guildId/channels', requireAuth, requireGuildAdmin, async (req, res
 // ── 10. Temporary Voice ───────────────────────────────────────
 router.get('/:guildId/voice', requireAuth, requireGuildAdmin, async (req, res) => {
   const s = await getGuildSettings(req.params.guildId);
+  // A failed settings read must not be reported as "everything disabled" —
+  // that is indistinguishable from a real "off". Answer 503 instead.
+  if (settingsUnavailable(s)) {
+    return res.status(503).json({ error: 'Settings unavailable' });
+  }
   res.json({
     enabled: s?.tempVoiceEnabled ?? false,
     creatorChannelId: s?.tempVoiceCreatorId || '',
@@ -2024,6 +2193,11 @@ router.get('/:guildId/premium', requireAuth, requireGuildAdmin, async (req, res)
   const { guildId } = req.params;
   try {
     const s = await getGuildSettings(guildId);
+    // A failed settings read must not be reported as "tier 0 / inactive" —
+    // that is indistinguishable from a real free tier. Answer 503 instead.
+    if (settingsUnavailable(s)) {
+      return res.status(503).json({ error: 'Settings unavailable' });
+    }
     const tier = s?.premiumTier ?? 0;
     const expiry = s?.premiumExpiry ? new Date(s.premiumExpiry) : null;
     res.json({

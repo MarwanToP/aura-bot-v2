@@ -9,6 +9,42 @@ import { activateLockdown, liftLockdown, isInLockdown } from '../../../shared/sy
 import config          from '../../../shared/config/config.js';
 
 // ─── /settings ────────────────────────────────────────────────
+//
+// Cache invalidation — the keys the BOT actually reads.
+//
+// Every key below is read through `client.redis`, which applies the "aura2:"
+// key prefix automatically. The raw key names are therefore exactly the ones
+// the readers use; deleting them through a raw/unprefixed client would never
+// hit the cached entry and the change would only show up after the 300 s TTL.
+//
+//   • guild:lang:<guildId>        → packages/utils/i18n.js
+//   • logchan:<guildId>           → packages/systems/logging/loggingSystem.js
+//                                    (holds the audit-log channel)
+//   • aura:guild:<guildId>:config → apps/bot/src/events/messageCreate.js
+//                                    (holds the AI auto-mod flag)
+//   • antinuke:config:<guildId>   → no reader today (the anti-nuke config is
+//                                    read straight from Postgres); the DEL is a
+//                                    harmless no-op, kept in case a cache is
+//                                    added for it
+const CACHE_KEYS = {
+  language:   (guildId) => `guild:lang:${guildId}`,
+  logChannel: (guildId) => `logchan:${guildId}`,
+  aiMod:      (guildId) => `aura:guild:${guildId}:config`,
+  antiNuke:   (guildId) => `antinuke:config:${guildId}`,
+};
+
+// A cache invalidation must never break the settings update: against a dead
+// Redis the DEL rejects, and an awaited rejection here would skip the DB
+// write entirely — the command would report success while the toggle never
+// reached Postgres.
+const invalidateCache = async (client, key) => {
+  try {
+    await client.redis?.del(key);
+  } catch (err) {
+    console.warn(`[Settings] Cache invalidation failed for "${key}":`, err?.message);
+  }
+};
+
 export const settings = {
   data: new SlashCommandBuilder()
     .setName('settings').setDescription('Configure Aura Bot')
@@ -80,7 +116,7 @@ export const settings = {
       .setName('voicelog').setDescription('Set voice AI session log channel')
       .addChannelOption(o => o.setName('channel').setDescription('Channel').setRequired(true))
     ),
-  userPermissions: [PermissionFlagsBits.ManageGuild], guildOnly: true, cooldown: 3000,
+  userPermissions: [PermissionFlagsBits.ManageGuild], botPermissions: [PermissionFlagsBits.SendMessages], guildOnly: true, cooldown: 3000,
   async execute(client, interaction) {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     const sub  = interaction.options.getSubcommand();
@@ -112,14 +148,18 @@ export const settings = {
     }
 
     const updates = {};
-    if (sub === 'language')    { updates.language = interaction.options.getString('lang'); await client.redis.del(`guild:lang:${interaction.guildId}`); }
+    // Cache keys collected here and deleted AFTER the DB write: invalidating
+    // first would let a concurrent reader repopulate the cache with the
+    // pre-update value and pin the stale entry for the whole TTL.
+    const staleCacheKeys = [];
+    if (sub === 'language')    { updates.language = interaction.options.getString('lang'); staleCacheKeys.push(CACHE_KEYS.language(interaction.guildId)); }
     if (sub === 'welcome')     { const ch = interaction.options.getChannel('channel'), en = interaction.options.getBoolean('enabled'), card = interaction.options.getBoolean('card'); if (ch !== null) updates.welcomeChannelId = ch.id; if (en !== null) updates.welcomeEnabled = en; if (card !== null) updates.welcomeCard = card; }
     if (sub === 'farewell')    { const ch = interaction.options.getChannel('channel'), en = interaction.options.getBoolean('enabled'); if (ch !== null) updates.farewellChannelId = ch.id; if (en !== null) updates.farewellEnabled = en; }
-    if (sub === 'modlog')      { updates.modLogChannelId   = interaction.options.getChannel('channel').id; await client.redis.del(`logchan:${interaction.guildId}`); }
-    if (sub === 'auditlog')    { updates.auditLogChannelId = interaction.options.getChannel('channel').id; await client.redis.del(`logchan:${interaction.guildId}`); }
+    if (sub === 'modlog')      { updates.modLogChannelId   = interaction.options.getChannel('channel').id; staleCacheKeys.push(CACHE_KEYS.logChannel(interaction.guildId)); }
+    if (sub === 'auditlog')    { updates.auditLogChannelId = interaction.options.getChannel('channel').id; staleCacheKeys.push(CACHE_KEYS.logChannel(interaction.guildId)); }
     if (sub === 'leveling')    { const en = interaction.options.getBoolean('enabled'), ch = interaction.options.getChannel('channel'), mul = interaction.options.getNumber('multiplier'); if (en !== null) updates.levelingEnabled = en; if (ch !== null) updates.levelUpChannelId = ch.id; if (mul !== null) updates.xpMultiplier = mul; }
-    if (sub === 'antinuke')    { updates.antiNukeEnabled = interaction.options.getBoolean('enabled'); await client.redis.del(`antinuke:config:${interaction.guildId}`); }
-    if (sub === 'aimod')       { updates.aiModEnabled = interaction.options.getBoolean('enabled'); await client.redis.del(`settings:aimod:${interaction.guildId}`); }
+    if (sub === 'antinuke')    { updates.antiNukeEnabled = interaction.options.getBoolean('enabled'); staleCacheKeys.push(CACHE_KEYS.antiNuke(interaction.guildId)); }
+    if (sub === 'aimod')       { updates.aiModEnabled = interaction.options.getBoolean('enabled'); staleCacheKeys.push(CACHE_KEYS.aiMod(interaction.guildId)); }
     if (sub === 'aichat')      { const ch = interaction.options.getChannel('channel'), en = interaction.options.getBoolean('enabled'); if (ch !== null) updates.aiChatChannelId = ch.id; if (en !== null) updates.aiChatEnabled = en; }
     if (sub === 'autorole')    { updates.autoRoleId = interaction.options.getRole('role').id; updates.autoRoleDelay = interaction.options.getInteger('delay') ?? 0; }
     if (sub === 'tickets')     { 
@@ -142,6 +182,7 @@ export const settings = {
     if (sub === 'voicelog')    { updates.voiceLogChannelId = interaction.options.getChannel('channel').id; }
 
     await settings.update(updates);
+    for (const key of staleCacheKeys) await invalidateCache(client, key);
     return interaction.editReply({ embeds: [buildEmbed({ type: 'success', description: `✅ Settings updated successfully.` })] });
   },
 };
@@ -348,9 +389,16 @@ export const ping = {
     .setDescription('Check bot latency and uptime'),
   cooldown: 5000,
   async execute(client, interaction) {
-    const response = await interaction.deferReply({ withResponse: true });
-    const sent = response?.resource?.message;
-    const delay = sent?.createdTimestamp ? (sent.createdTimestamp - interaction.createdTimestamp) : 0;
+    // A deferred interaction has no message resource yet, so the roundtrip has
+    // to be measured from the reply that was actually sent.
+    await interaction.deferReply();
+    let sent = null;
+    try {
+      sent = await interaction.fetchReply();
+    } catch { /* fall back to the local clock below */ }
+    const delay = sent?.createdTimestamp
+      ? Math.max(0, sent.createdTimestamp - interaction.createdTimestamp)
+      : Math.max(0, Date.now() - interaction.createdTimestamp);
     
     return interaction.editReply({ 
       embeds: [buildEmbed({ 

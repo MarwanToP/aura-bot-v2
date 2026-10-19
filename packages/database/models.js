@@ -9,6 +9,13 @@ import logger from '../logger/index.js';
 
 const dbUrl = process.env.DATABASE_URL;
 
+if (!dbUrl && !process.env.DB_HOST && !process.env.DB_NAME) {
+  logger.warn(
+    '[Database] DATABASE_URL is not set - falling back to local Postgres defaults. ' +
+    'Set DATABASE_URL (or DB_HOST/DB_NAME/DB_USER/DB_PASSWORD) before running in production.',
+  );
+}
+
 const sequelize = dbUrl
   ? new Sequelize(dbUrl, {
     dialect: 'postgres',
@@ -155,6 +162,11 @@ const GuildSettings = sequelize.define('GuildSettings', {
   suggestionsChannelId: { type: DataTypes.STRING, allowNull: true },
   suggestionUpvotes:    { type: DataTypes.JSONB, defaultValue: {} },
   suggestionDownvotes:  { type: DataTypes.JSONB, defaultValue: {} },
+
+  // Custom brand emojis per guild (set via /aesthetic).
+  // Live column: guild_settings."customEmojis" jsonb NOT NULL DEFAULT '{}'
+  // (added with an additive ALTER TABLE; keep the model and the column in sync).
+  customEmojis:         { type: DataTypes.JSONB, allowNull: false, defaultValue: {} },
 }, { tableName: 'guild_settings', timestamps: true });
 
 // ── 2. User Profile ────────────────────────────────────────────
@@ -335,7 +347,7 @@ const Economy = sequelize.define('Economy', {
   dailyStreak: { type: DataTypes.INTEGER, defaultValue: 0 },
 }, {
   tableName: 'economy', timestamps: true,
-  indexes: [{ fields: ['userId', 'guildId'] }],
+  indexes: [{ unique: true, fields: ['userId', 'guildId'] }],
 });
 
 // ── 13. Shop ───────────────────────────────────────────────────
@@ -464,7 +476,7 @@ const ReactionRole = sequelize.define('ReactionRole', {
   type:      { type: DataTypes.ENUM('toggle', 'add_only', 'remove_only', 'unique'), defaultValue: 'toggle' },
 }, {
   tableName: 'reaction_roles', timestamps: true,
-  indexes: [{ fields: ['guildId', 'messageId'] }],
+  indexes: [{ fields: ['guildId', 'messageId'] }, { fields: ['messageId', 'emoji'] }],
 });
 
 // ── 22. Starboard ──────────────────────────────────────────────

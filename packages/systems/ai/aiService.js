@@ -6,11 +6,20 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import config    from '../../config/index.js';
 import logger    from '../../utils/logger.js';
 
+// The only `style` values the OpenAI images API accepts (dall-e-3).
+// Any other value makes the API reject the entire request.
+const OPENAI_IMAGE_STYLES = new Set(['vivid', 'natural']);
+
 class AIService {
   constructor() {
     this.gemini   = null;
-    this.model    = process.env.AI_CHAT_MODEL || 'gemini-1.5-flash';
-    this.modModel = process.env.AI_MOD_MODEL  || 'gemini-1.5-flash';
+    const envChatModel = process.env.AI_CHAT_MODEL;
+    // A Cloudflare model id (e.g. '@cf/meta/llama-3.2-3b-instruct') is not a valid
+    // Gemini model, so keep the two provider namespaces separate.
+    this.model       = envChatModel || 'gemini-1.5-flash';
+    this.geminiModel = process.env.AI_GEMINI_MODEL
+      || (typeof envChatModel === 'string' && !envChatModel.startsWith('@cf/') ? envChatModel : 'gemini-1.5-flash');
+    this.modModel    = process.env.AI_MOD_MODEL || this.geminiModel;
     this.enabled  = process.env.AI_ENABLED !== 'false';
     this.openai   = null;
     this.cloudflare = {
@@ -34,7 +43,7 @@ class AIService {
     if (geminiApiKey) {
       try {
         this.gemini = new GoogleGenerativeAI(geminiApiKey);
-        logger.info(`[AI] Gemini successfully initialized (Model: ${this.model}) ✓`);
+        logger.info(`[AI] Gemini successfully initialized (Model: ${this.geminiModel}) ✓`);
       } catch (err) {
         logger.error(`[AI] Gemini initialization failed: ${err.message}`);
       }
@@ -57,6 +66,22 @@ class AIService {
 
   isAvailable() { 
     return this.enabled && this._hasAnyChatProvider(); 
+  }
+
+  /**
+   * The chat provider that would be used for a request right now
+   * ('gemini' | 'cloudflare'), or null when no provider is configured.
+   *
+   * Read-only and never throws: the health probe (/doctor) reads it to report
+   * the active provider. Resolving it here keeps a single source of truth
+   * with _resolveChatProvider() — the chat/mod request path is untouched.
+   */
+  get provider() {
+    try {
+      return this._resolveChatProvider(this.model) || null;
+    } catch {
+      return null;
+    }
   }
 
   /**
@@ -85,8 +110,11 @@ class AIService {
     }
 
     try {
+      const geminiModelName = typeof modelName === 'string' && modelName.startsWith('@cf/')
+        ? this.geminiModel
+        : modelName;
       const genModel = this.gemini.getGenerativeModel({
-        model: modelName,
+        model: geminiModelName,
         systemInstruction: sysInstruction,
         generationConfig: { maxOutputTokens: maxTokens },
       });
@@ -373,30 +401,77 @@ class AIService {
     return this.prompt(text, system ? { system } : {});
   }
 
-  async _getOpenAI() {
-    if (this.openai) return this.openai;
-    if (!process.env.OPENAI_API_KEY) return null;
+  /**
+   * Resolve the optional OpenAI SDK.
+   *
+   * The `openai` package is an OPTIONAL dependency — it is not installed by
+   * default (and is not declared in packages/systems/package.json), so the
+   * dynamic import below can fail with ERR_MODULE_NOT_FOUND. That failure
+   * must never be reported as a missing API key: the two problems need
+   * completely different fixes (install the package vs. set a key).
+   *
+   * @returns {Promise<{ ok: true, client: object }
+   *                  | { ok: false, reason: 'module-missing' | 'no-key' | 'init-failed' }>}
+   */
+  async _resolveOpenAI() {
+    if (this.openai) return { ok: true, client: this.openai };
+
+    let OpenAI;
     try {
-      const { default: OpenAI } = await import('openai');
-      this.openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-      return this.openai;
+      ({ default: OpenAI } = await import('openai'));
     } catch {
-      return null;
+      // The optional dependency is not installed — this is NOT a key problem.
+      return { ok: false, reason: 'module-missing' };
+    }
+
+    if (!process.env.OPENAI_API_KEY) return { ok: false, reason: 'no-key' };
+
+    try {
+      this.openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+      return { ok: true, client: this.openai };
+    } catch {
+      return { ok: false, reason: 'init-failed' };
     }
   }
 
+  /** @returns {Promise<object|null>} the OpenAI client, or null when unusable. */
+  async _getOpenAI() {
+    const resolved = await this._resolveOpenAI();
+    return resolved.ok ? resolved.client : null;
+  }
+
   async generateImage(prompt, { size = '1024x1024', style = 'vivid' } = {}) {
-    const ai = await this._getOpenAI();
-    if (!ai) {
-      throw new Error('Image generation requires OPENAI_API_KEY.');
+    const resolved = await this._resolveOpenAI();
+    if (!resolved.ok) {
+      // Honest, actionable error per failure mode — never blame the API key
+      // for a missing optional dependency.
+      if (resolved.reason === 'no-key') {
+        throw new Error('Image generation requires OPENAI_API_KEY to be set.');
+      }
+      if (resolved.reason === 'init-failed') {
+        throw new Error('Image generation is unavailable: the OpenAI client could not be initialized.');
+      }
+      throw new Error(
+        "Image generation is unavailable: the optional 'openai' package is not installed " +
+        '(run `npm install openai` inside packages/systems to enable it).',
+      );
     }
 
-    const response = await ai.images.generate({
-      model: process.env.AI_IMAGE_MODEL || 'dall-e-3',
-      prompt,
-      size,
-      style,
-    });
+    const ai = resolved.client;
+
+    const model = process.env.AI_IMAGE_MODEL || 'dall-e-3';
+    const request = { model, prompt, size };
+
+    // `style` is only accepted by dall-e-3 and only with the values
+    // "vivid" / "natural" — any other value (or a model that does not
+    // support the option at all) makes the API reject the whole request.
+    // An unsupported style is therefore dropped instead of being sent.
+    const normalizedStyle = typeof style === 'string' ? style.trim().toLowerCase() : '';
+    if (model === 'dall-e-3' && OPENAI_IMAGE_STYLES.has(normalizedStyle)) {
+      request.style = normalizedStyle;
+    }
+
+    const response = await ai.images.generate(request);
 
     const image = response?.data?.[0];
     if (!image?.url) {

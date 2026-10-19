@@ -31,12 +31,8 @@ export default {
         .addStringOption((opt) => opt.setName('reason').setDescription('Reason for ban').setRequired(true))
     ),
   permissions: [PermissionFlagsBits.ModerateMembers],
+  botPermissions: [PermissionFlagsBits.ModerateMembers],
   async execute(client, interaction) {
-    if (!interaction && client?.options?.getSubcommand) {
-      interaction = client;
-      client = null;
-    }
-
     // Acknowledge within Discord's 3-second deadline: the member fetch and case
     // creation below can be slow. Errors stay ephemeral (defer + editReply);
     // success confirmations keep their public visibility via followUp.

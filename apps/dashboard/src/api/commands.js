@@ -52,38 +52,54 @@ router.get('/', (req, res) => {
 router.get('/:guildId', requireAuth, requireGuildAdmin, async (req, res) => {
   const { guildId } = req.params;
   try {
-    const { CommandSettings } = sequelize.models;
-    if (CommandSettings) {
-      const rows = await CommandSettings.findAll({ where: { guildId } });
-      const map = {};
-      for (const row of rows) {
-        map[row.commandName] = { enabled: row.enabled, allowedRoles: row.allowedRoles || [] };
-      }
-      return res.json({ success: true, settings: map });
+    const CommandSettings = sequelize.models?.CommandSettings;
+    if (!CommandSettings) {
+      console.warn('[CommandsAPI] CommandSettings model unavailable');
+      return res.status(503).json({ error: 'Command settings unavailable' });
     }
-  } catch (_) {}
 
-  res.json({ success: true, settings: {} });
+    const rows = await CommandSettings.findAll({ where: { guildId } });
+    const map = {};
+    for (const row of rows) {
+      map[row.commandName] = { enabled: row.enabled, allowedRoles: row.allowedRoles || [] };
+    }
+    // An empty map is a valid answer: the guild simply has no overrides yet.
+    return res.json({ success: true, settings: map });
+  } catch (error) {
+    // A failed read must never look like "no settings stored".
+    console.warn(`[CommandsAPI] Failed to load command settings for guild ${guildId}:`, error.message);
+    return res.status(500).json({ error: 'Failed to load command settings' });
+  }
 });
 
 // 3. Update command setting for a guild
 router.post('/:guildId/:commandName', requireAuth, requireGuildAdmin, async (req, res) => {
   const { guildId, commandName } = req.params;
-  const { enabled, allowedRoles } = req.body;
+  const { enabled, allowedRoles } = req.body || {};
+
+  // Coerce once and persist those exact values, so the response can echo
+  // what was actually written instead of the raw request body.
+  const nextEnabled = Boolean(enabled ?? true);
+  const nextAllowedRoles = Array.isArray(allowedRoles) ? allowedRoles : [];
 
   try {
-    const { CommandSettings } = sequelize.models;
-    if (CommandSettings) {
-      await CommandSettings.upsert({
-        guildId,
-        commandName,
-        enabled: Boolean(enabled ?? true),
-        allowedRoles: Array.isArray(allowedRoles) ? allowedRoles : [],
-      });
+    const CommandSettings = sequelize.models?.CommandSettings;
+    if (!CommandSettings) {
+      console.warn('[CommandsAPI] CommandSettings model unavailable');
+      return res.status(503).json({ error: 'Command settings unavailable' });
     }
-    res.json({ success: true, guildId, commandName, enabled, allowedRoles });
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to update command setting', message: err.message });
+
+    await CommandSettings.upsert({
+      guildId,
+      commandName,
+      enabled: nextEnabled,
+      allowedRoles: nextAllowedRoles,
+    });
+
+    return res.json({ success: true, guildId, commandName, enabled: nextEnabled, allowedRoles: nextAllowedRoles });
+  } catch (error) {
+    console.warn(`[CommandsAPI] Failed to update command setting ${commandName} for guild ${guildId}:`, error.message);
+    return res.status(500).json({ error: 'Failed to update command setting' });
   }
 });
 

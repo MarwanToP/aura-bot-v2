@@ -46,7 +46,7 @@ export const role = {
     ),
 
   userPermissions: [PermissionFlagsBits.ManageRoles],
-  botPermissions:  [PermissionFlagsBits.ManageRoles],
+  botPermissions:  [PermissionFlagsBits.ManageRoles, PermissionFlagsBits.ManageGuild],
   guildOnly: true,
   cooldown:  3000,
 

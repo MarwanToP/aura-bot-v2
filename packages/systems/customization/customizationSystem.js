@@ -1,7 +1,13 @@
 import logger from '../../utils/logger.js';
 
+// Reason codes returned by `isCommandRestricted`. They describe WHAT was
+// restricted so the caller can show a precise, branded message instead of a
+// generic "restricted" error.
+export const RESTRICTION_COMMAND_BLACKLIST = 'command-blacklist';
+export const RESTRICTION_DISABLED_CHANNEL = 'disabled-channel';
+
 /**
- * Customization System — Handles Command Aliases and Channel Restrictions.
+ * Customization System — Handles per-guild Command and Channel Restrictions.
  */
 class CustomizationSystem {
   sanitizeCommandName(value) {
@@ -15,10 +21,15 @@ class CustomizationSystem {
 
   /**
    * Check if a command is restricted in a specific channel.
-   * @param {Client} client 
-   * @param {string} guildId 
-   * @param {string} channelId 
-   * @param {string} commandName 
+   *
+   * Reads the cached guild settings first and falls back to the database.
+   * A guild without a settings row is never restricted.
+   *
+   * @param {Client} client
+   * @param {string} guildId
+   * @param {string} channelId
+   * @param {string} commandName
+   * @returns {Promise<{ restricted: boolean, reason: string|null }>}
    */
   async isCommandRestricted(client, guildId, channelId, commandName) {
     try {
@@ -33,7 +44,7 @@ class CustomizationSystem {
         if (settings) await client.redis.setJSON(cacheKey, settings, 300);
       }
 
-      if (!settings) return false;
+      if (!settings) return { restricted: false, reason: null };
 
       const normalizedCommand = this.sanitizeCommandName(commandName);
       const normalizedChannel = String(channelId || '').trim();
@@ -47,45 +58,37 @@ class CustomizationSystem {
         : [];
 
       // 1. Check Global Command Blacklist
-      if (normalizedCommand && blacklistedCommands.includes(normalizedCommand)) return true;
+      if (normalizedCommand && blacklistedCommands.includes(normalizedCommand)) {
+        return { restricted: true, reason: RESTRICTION_COMMAND_BLACKLIST };
+      }
 
       // 2. Check Channel Restrictions
-      if (normalizedChannel && disabledChannels.includes(normalizedChannel)) return true;
+      if (normalizedChannel && disabledChannels.includes(normalizedChannel)) {
+        return { restricted: true, reason: RESTRICTION_DISABLED_CHANNEL };
+      }
 
-      return false;
+      return { restricted: false, reason: null };
     } catch (err) {
+      // Fail open: an unreachable cache/database must never block a command.
       logger.error('[Customization] Restriction check failed:', err.message);
-      return false;
+      return { restricted: false, reason: null };
     }
   }
 
   /**
-   * Resolve an alias to its target command name.
-   * @param {Client} client 
-   * @param {string} guildId 
-   * @param {string} alias 
+   * Branded, user-facing text for a restriction reason.
+   *
+   * @param {string|null} reason  One of the RESTRICTION_* codes.
+   * @returns {string}
    */
-  async resolveAlias(client, guildId, alias) {
-    try {
-      const cacheKey = this.buildRedisKey('settings:aliases', guildId);
-      let aliases = await client.redis.getJSON(cacheKey);
-
-      if (!aliases) {
-        const settings = await client.db.models.GuildSettings.findOne({
-          where: { guildId },
-          attributes: ['commandAliases']
-        });
-        aliases = settings?.commandAliases || {};
-        await client.redis.setJSON(cacheKey, aliases, 300);
-      }
-
-      const normalizedAlias = this.sanitizeCommandName(alias);
-      if (!normalizedAlias) return alias;
-      return aliases[normalizedAlias] || normalizedAlias;
-    } catch (err) {
-      logger.error('[Customization] Alias resolution failed:', err.message);
-      return alias;
+  describeRestriction(reason) {
+    if (reason === RESTRICTION_COMMAND_BLACKLIST) {
+      return '❌ This command has been disabled for this server by the administrators.';
     }
+    if (reason === RESTRICTION_DISABLED_CHANNEL) {
+      return '❌ Commands are disabled in this channel by the administrators.';
+    }
+    return '❌ This command is restricted in this channel or has been disabled globally by administrators.';
   }
 }
 

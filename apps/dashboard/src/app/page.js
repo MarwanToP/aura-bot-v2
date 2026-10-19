@@ -37,7 +37,7 @@ import ModerationPanel from "../components/ModerationPanel";
 import MembersPanel from "../components/MembersPanel";
 import ControlPanel from "../components/ControlPanel";
 import { useAuth } from "../context/AuthContext";
-import { LogIn } from "lucide-react";
+import { LogIn, RefreshCw, ServerOff } from "lucide-react";
 
 const TAB_TITLES = {
   dashboard: "Overview",
@@ -96,6 +96,11 @@ export default function DashboardHome() {
   const [activeTab, setActiveTab] = useState("dashboard");
   const { isAuthenticated, loading: authLoading, login } = useAuth();
   const [guilds, setGuilds] = useState([]);
+  // null = not loaded yet, true = live server list, false = Discord unreachable.
+  const [guildsLive, setGuildsLive] = useState(null);
+  const [guildReload, setGuildReload] = useState(0);
+  // True once /api/guilds has answered: only then may panels use a real guild id.
+  const [guildsResolved, setGuildsResolved] = useState(false);
 
   // Active guild snowflake for the module/command/security panels.
   // Seeded with the placeholder guild, then replaced by the first live
@@ -107,33 +112,64 @@ export default function DashboardHome() {
       // Reset to the placeholder seed so a later login never reuses a stale guild id.
       setGuildId("123456789012345678");
       setGuilds([]);
+      setGuildsLive(null);
+      setGuildsResolved(false);
       return undefined;
     }
     let cancelled = false;
     (async () => {
       try {
         const res = await fetch("/api/guilds");
-        if (!res.ok) return;
+        if (!res.ok) {
+          if (!cancelled) setGuildsLive(false);
+          return;
+        }
         const data = await res.json();
         const list = Array.isArray(data?.guilds) ? data.guilds : [];
-        if (!cancelled && list.length > 0) {
+        // live:false means the API could not reach Discord and answered with a
+        // placeholder entry. Presenting that as a real server would be a lie, so
+        // we drop it and let the panels fall back to demo data.
+        const live = data?.live !== false;
+        if (cancelled) return;
+        if (!live) {
+          setGuilds([]);
+          setGuildId(null);
+          setGuildsLive(false);
+          setGuildsResolved(false);
+          return;
+        }
+        setGuildsLive(true);
+        setGuildsResolved(true);
+        if (list.length > 0) {
           setGuilds(list);
           setGuildId((current) =>
             list.some((g) => g.id === current) ? current : list[0].id
           );
+        } else {
+          // The account manages no server: there is no real guild to query.
+          setGuilds([]);
+          setGuildId(null);
         }
       } catch (err) {
-        // Network/auth failure: keep placeholder wiring; panels fall back to mock data.
+        // Network/auth failure: fall back to demo data and say so in the banner.
+        if (!cancelled) {
+          setGuilds([]);
+          setGuildId(null);
+          setGuildsLive(false);
+          setGuildsResolved(false);
+        }
         console.warn("Failed to load guild list:", err);
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [isAuthenticated]);
+  }, [isAuthenticated, guildReload]);
 
-  // Guest mode has no real guild: components must not fetch (contract: falsy = no fetch)
-  const activeGuildId = isAuthenticated ? guildId : null;
+  // Panels may only query a REAL guild: guests never fetch, and an
+  // authenticated user waits until the live guild list has resolved (until
+  // then guildId is still the placeholder snowflake, which no panel should hit).
+  const activeGuildId = isAuthenticated && guildsResolved ? guildId : null;
 
   const title = TAB_TITLES[activeTab] || "Overview";
 
@@ -182,7 +218,9 @@ export default function DashboardHome() {
                         <div>
                           <h3 className="font-display flex flex-wrap items-center gap-2 text-[13px] font-extrabold text-white">
                             Verify Discord Account &amp; Link Dashboard
-                            <span className="chip chip-violet font-mono text-[9px]">OAuth2</span>
+                            <span className="chip chip-violet text-[9px] font-semibold tracking-wide">
+                              SECURE SIGN-IN
+                            </span>
                           </h3>
                           <p className="mt-1 max-w-xl font-body text-[11px] leading-relaxed text-slate-400">
                             Connect your Discord account to verify server ownership, sync permissions,
@@ -198,6 +236,43 @@ export default function DashboardHome() {
                       >
                         <LogIn className="h-4 w-4" />
                         <span>Login with Discord</span>
+                      </motion.button>
+                    </motion.div>
+                  )}
+
+                  {/* Discord unreachable - the panels below are demo data */}
+                  {!authLoading && isAuthenticated && guildsLive === false && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+                      className="glass-card flex flex-col items-center justify-between gap-4 p-4 md:flex-row"
+                    >
+                      <div className="flex items-center gap-4">
+                        <span className="icon-tile icon-tile-amber h-10 w-10 rounded-[14px]">
+                          <ServerOff className="h-5 w-5" />
+                        </span>
+                        <div>
+                          <h3 className="font-display flex flex-wrap items-center gap-2 text-[13px] font-extrabold text-white">
+                            Servers unavailable
+                            <span className="chip chip-amber text-[9px] font-semibold tracking-wide">
+                              DEMO DATA
+                            </span>
+                          </h3>
+                          <p className="mt-1 max-w-xl font-body text-[11px] leading-relaxed text-slate-400">
+                            We couldn&apos;t reach Discord to load your servers, so every panel below
+                            is showing demo data. Nothing here is live.
+                          </p>
+                        </div>
+                      </div>
+                      <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => setGuildReload((c) => c + 1)}
+                        className="btn-glass shrink-0"
+                      >
+                        <RefreshCw className="h-4 w-4" />
+                        <span>Try again</span>
                       </motion.button>
                     </motion.div>
                   )}
@@ -229,24 +304,24 @@ export default function DashboardHome() {
                       activeTab === "anti_nuke") && <SecuritySettings guildId={activeGuildId} />}
                     {activeTab === "tickets" && <TicketsCanvas guildId={activeGuildId} />}
                     {(activeTab === "invites" || activeTab === "invite_tracker") && <InviteSettings guildId={activeGuildId} />}
-                    {(activeTab === "tempchannels" || activeTab === "voice") && <TempVoiceSettings />}
+                    {(activeTab === "tempchannels" || activeTab === "voice") && <TempVoiceSettings guildId={activeGuildId} />}
                     {activeTab === "applications" && <ApplicationSettings guildId={activeGuildId} />}
                     {(activeTab === "social" || activeTab === "twitch" || activeTab === "youtube") && (
                       <SocialAlertsSettings guildId={activeGuildId} />
                     )}
-                    {activeTab === "welcome" && <WelcomeSettings />}
+                    {activeTab === "welcome" && <WelcomeSettings guildId={activeGuildId} />}
                     {activeTab === "verification" && <VerificationModule guildId={activeGuildId} />}
                     {(activeTab === "autoroles" || activeTab === "reaction_roles") && (
-                      <AutoRolesSettings />
+                      <AutoRolesSettings guildId={activeGuildId} />
                     )}
                     {activeTab === "embed" && <EmbedBuilder />}
                     {activeTab === "logs" && <LogViewer guildId={activeGuildId} />}
                     {(activeTab === "giveaway" || activeTab === "giveaways") && <GiveawaySettings guildId={activeGuildId} />}
                     {activeTab === "timedmessages" && <TimedMessages guildId={activeGuildId} />}
-                    {(activeTab === "settings" || activeTab === "servers") && <ServerSettings guilds={guilds} />}
+                    {(activeTab === "settings" || activeTab === "servers") && <ServerSettings guilds={guilds} guildId={activeGuildId} />}
                     {activeTab === "backups" && <BackupSettings />}
-                    {activeTab === "premium" && <PremiumSettings />}
-                    {activeTab === "utility" && <UtilityHub />}
+                    {activeTab === "premium" && <PremiumSettings guildId={activeGuildId} />}
+                    {activeTab === "utility" && <UtilityHub guildId={activeGuildId} />}
                     {activeTab === "responder" && <AutoResponderSettings guildId={activeGuildId} />}
                     {(activeTab === "leveling" || activeTab === "xp_rewards") && <LevelingSettings guildId={activeGuildId} />}
                     {activeTab === "starboard" && <StarboardSettings guildId={activeGuildId} />}

@@ -19,25 +19,36 @@ A state-of-the-art Discord Intelligence Platform and Web Dashboard rebuilt with 
 ## 📦 Project Architecture
 
 ```
-aura-bot-v2/
-├── bot/                       # All Discord Bot Logic
-│   ├── cogs/                  # Modular Command Modules (admin, ai, fun, games, management, mod, premium, utility)
-│   ├── core/                  # Main Bot Client, Command Loader & Event Loader
-│   ├── events/                # Discord Event Listeners (ready, interactionCreate, messageCreate, etc.)
-│   └── utils/                 # Bot-specific utilities
-├── dashboard/                 # Web Dashboard & Public Assets
-│   ├── server.js              # Express + Socket.IO REST/Realtime Backend
-│   ├── cloudflare-worker.js   # Cloudflare Edge Worker integration
-│   └── public/                # Web Frontend Assets & UI pages
-├── shared/                    # Code shared between Bot and Dashboard
-│   ├── config/                # Environment & Configuration Schemas
-│   ├── database/              # PostgreSQL Sequelize & Redis Models
+aura-bot-v2/                   # ESM monorepo (npm workspaces)
+├── apps/
+│   ├── bot/                   # Discord Bot Service
+│   │   └── src/
+│   │       ├── index.js       # Bot entrypoint (gateway client, boot health check)
+│   │       ├── commands/      # Slash command modules (admin, ai, fun, games, general, management, moderation, premium, utility)
+│   │       ├── core/          # Command loader & shared bot core
+│   │       ├── events/        # Discord event listeners (interactionCreate, messageCreate, ...)
+│   │       ├── handlers/      # Interaction & command dispatch handlers
+│   │       └── modules/       # Bot-specific feature modules
+│   ├── dashboard/             # Web Dashboard (Next.js UI + Express/Socket.IO backend)
+│   │   ├── src/server.js      # Dashboard entrypoint (REST API + Socket.IO + Next.js)
+│   │   ├── src/api/           # REST route modules (auth, guilds, modules, commands, stats)
+│   │   ├── src/components/    # Dashboard UI components
+│   │   └── public/            # Static assets served by the edge worker
+│   └── ai-worker/             # Asynchronous AI moderation worker
+│       └── src/index.js       # Worker entrypoint (drains the aura:ai:jobs queue)
+├── packages/                  # Code shared between Bot, Dashboard & Worker
+│   ├── config/                # Environment schema & configuration (Zod)
+│   ├── database/              # PostgreSQL (Prisma/Sequelize) & Redis models
+│   ├── redis/                 # Redis client, pub/sub & job queue helpers
 │   ├── locales/               # Internationalization i18n JSON files
-│   ├── scripts/               # Structured Maintenance, Tests & Deployment Scripts
-│   ├── systems/               # Decoupled Core Systems (AI, Economy, Tickets, Leveling, Voice)
-│   └── utils/                 # Shared Logger, Embed Builder, Permissions
+│   ├── logger/                # Shared structured logger (Winston)
+│   ├── systems/               # Decoupled Core Systems (AI, Economy, Tickets, Leveling, Voice, Health, ...)
+│   └── utils/                 # Shared embeds, permissions, card generator
+├── deploy/                    # Infrastructure & platform manifests
+│   ├── platform-configs/      # Railway, Render, Koyeb, disCloud, Square Cloud, Cloudflare
+│   └── scripts/               # Maintenance, test & deployment scripts
 ├── docs/                      # Documentation & Architecture Specifications
-└── main.js                    # Unified Entry Point (Split-Core Orchestration)
+└── package.json               # Workspace root (npm scripts, dependencies)
 ```
 
 ---
@@ -52,7 +63,6 @@ npm install
 ### 2. Configure Environment
 Copy `.env.example` to `.env` and configure your credentials:
 ```env
-MODE=BOTH
 DISCORD_TOKEN=your_bot_token
 DISCORD_CLIENT_ID=your_client_id
 DISCORD_CLIENT_SECRET=your_client_secret
@@ -61,51 +71,77 @@ REDIS_URL=redis://localhost:6379
 JWT_SECRET=your_super_secret_jwt_key
 ```
 
-### 3. Run Concurrently
-Run both the Bot and Dashboard concurrently via the main orchestrator:
+### 3. Run the Stack
+Every service has its own npm script (see the root `package.json`):
 ```bash
-npm start
+npm start              # Discord bot only (apps/bot/src/index.js)
+npm run start:dashboard # Web dashboard only (apps/dashboard/src/server.js)
+npm run start:worker   # AI worker only (apps/ai-worker/src/index.js)
+npm run dev            # bot + dashboard + AI worker, concurrently
+npm run dev:bot        # bot + AI worker (no dashboard)
 ```
-Or with auto-reload in development:
-```bash
-npm run dev
-```
+
+The AI worker is not optional: without it the `aura:ai:jobs` queue is never
+drained and no moderation action is ever applied.
 
 ---
 
 ## 🎛️ Operational Modes
 
-| Command | Mode | Description |
+| Command | Runs | Description |
 | :--- | :--- | :--- |
-| `MODE=BOTH node main.js` | BOTH | Runs both Discord Bot and Web Dashboard concurrently in a single process. |
-| `MODE=BOT node main.js` | BOT | Runs Discord Bot worker only (with health check endpoint). |
-| `MODE=DASHBOARD node main.js` | DASHBOARD | Runs Web Dashboard Express server only. |
+| `npm start` | Bot | Discord bot worker (gateway client, command loader, event handlers). |
+| `npm run start:dashboard` | Dashboard | Web dashboard only — Express REST API, Socket.IO telemetry and the Next.js UI. |
+| `npm run start:worker` | Worker | AI worker only — asynchronous Gemini moderation pipeline. |
+| `npm run dev` | Bot + Dashboard + Worker | All three services concurrently, with auto-reload. |
+| `npm run dev:bot` | Bot + Worker | Everything except the dashboard. |
 
 ---
 
 ## 🧪 Testing & Verification Scripts
 
 ```bash
-# Run syntax linter across all JS files (/bot, /dashboard, /shared)
+# Run the syntax linter across all JS files (apps/, packages/, deploy/)
 npm run lint:syntax
 
-# Perform static audit on all 50+ slash commands
+# Perform a static audit on every slash command
 npm run audit:commands
 
-# Run full smoke tests (Bot commands + Dashboard health endpoint)
+# Run the offline smoke gate (lint:syntax + audit:commands + command harness)
 npm run test:smoke
 
-# Run end-to-end command mock test harness
-npm run test:e2e
+# Run the slash-command mock harness on its own
+npm run test:commands
+```
+
+Live checks (they need real credentials in `.env`):
+```bash
+npm run test:db         # database model/schema integrity
+npm run test:db:types   # column type / primary-key drift
+npm run test:live       # full runtime audit (gateway login, permissions, DB, Redis, AI)
 ```
 
 ---
 
 ## ☁️ Production Deployment
 
+### Platform manifests
+Ready-to-use manifests live in `deploy/platform-configs/`:
+
+| Platform | File | Start command |
+| :--- | :--- | :--- |
+| Railway | `railway.json` | `node apps/bot/src/index.js` |
+| disCloud | `discloud.config` | `MAIN=apps/bot/src/index.js` |
+| Square Cloud | `squarecloud.app` | `MAIN=apps/bot/src/index.js` (`START=npm start`) |
+| Render / Koyeb | `render.yaml`, `koyeb.yaml` | Docker (`Dockerfile` → `npm start`) |
+
+All three bot hosts start the bot entrypoint `apps/bot/src/index.js` — there is
+no root `main.js` in this repository. The dashboard is a separate service
+(`apps/dashboard/src/server.js`); run it as its own container/worker.
+
 ### WispByte + Cloudflare Deployment
-- **Bot & Dashboard Host**: Deployed on **WispByte** application node using `main.js` (`MODE=BOTH` or split `MODE=BOT` / `MODE=DASHBOARD`).
-- **Edge Routing & CDN**: Proxy web traffic through **Cloudflare** Worker (`dashboard/cloudflare-worker.js`) for SSL, DDoS protection, and global edge caching.
+- **Bot & Dashboard Host**: Deployed on **WispByte** application nodes — the bot runs `npm start` (`apps/bot/src/index.js`) and the dashboard runs `npm run start:dashboard` (`apps/dashboard/src/server.js`).
+- **Edge Routing & CDN**: Proxy web traffic through the **Cloudflare** Worker (`wrangler.toml` → `deploy/scripts/cloudflare/setup-cloudflare-zone.mjs`) for SSL, DDoS protection, and global edge caching.
 
 ---
 
@@ -117,7 +153,7 @@ Aura Bot v2 includes per-guild command management and role visibility controls d
 - **Enable / Disable Commands**: Toggle individual slash commands on or off for your server in real-time.
 - **Role Restrictions**: Restrict command execution to specific Discord Role IDs. If configured, only members with one of the allowed roles can execute the command.
 - **Bot Enforcement**: Direct real-time permission check during interaction creation with immediate user feedback via ephemeral embeds.
-- **Redis Cache Invalidation & Realtime Sync**: Instant updates across shards using Redis `aura:config_update` event publishing.
+- **Redis Cache Invalidation**: Guild-scoped settings are cached in Redis and invalidated on write — the AI-moderation toggle lives under `aura:guild:<guildId>:config` (TTL 300s), the auto-responder rules under `autoresponder:<guildId>`, and social alert state under `social:alerts:<guildId>`. Command enable/disable flags and role allowlists are read from the database (`CommandSettings`) on every interaction, so a dashboard change takes effect on the next command use. AI moderation results travel back to the bot over the `aura:moderation:actions` pub/sub channel.
 
 ---
 © 2026 Aura Innovations. Enterprise Discord Intelligence Platform.

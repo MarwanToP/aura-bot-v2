@@ -56,6 +56,7 @@ export const voice = {
       .addChannelOption(o => o.setName('log_channel').setDescription('Channel for voice session logs').addChannelTypes(ChannelType.GuildText))
     ),
 
+  botPermissions: [PermissionFlagsBits.ManageChannels],
   guildOnly: true,
   cooldown: 5000,
 

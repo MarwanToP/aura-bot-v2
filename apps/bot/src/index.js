@@ -13,10 +13,12 @@ import aiService from '../../../packages/systems/ai/aiService.js';
 import { startBackgroundTasks } from '../../../packages/systems/backgroundTasks.js';
 import { handleMemberJoin, handleMemberLeave } from '../../../packages/systems/welcome/welcomeSystem.js';
 import { trackInvite, markLeft } from '../../../packages/systems/logging/inviteTracker.js';
+import { runBootHealthCheck as runDependencyHealthCheck } from '../../../packages/systems/health/healthCheck.js';
 import { onChannelDelete, onRoleDelete, onGuildBanAdd, onGuildMemberRemove } from '../../../packages/systems/antinuke/antiNuke.js';
 import { trackJoin } from '../../../packages/systems/antinuke/antiRaid.js';
 import { handleReactionRole } from '../../../packages/systems/reactionroles/reactionRoleHandler.js';
 import { logMemberJoin, logMemberLeave, logMemberUpdate, logChannelCreate, logChannelDelete, logRoleCreate, logRoleDelete, logBanAdd, logBanRemove, logMessageDelete, logMessageEdit, logGhostPing, logVoiceUpdate } from '../../../packages/systems/logging/loggingSystem.js';
+import { startEmbeddedWorker } from '../../ai-worker/src/embedded.js';
 
 // 1. Trap unhandled errors to keep the process alive
 process.on('unhandledRejection', (reason, promise) => {
@@ -185,11 +187,49 @@ try {
   console.error('⚠️ AI service init failed:', err.message);
 }
 
+// ── Boot-time dependency health check ──────────────────────────────
+// Surfaces broken wiring (database down, Redis down, missing AI provider)
+// IMMEDIATELY in the logs instead of letting every command fail later on.
+// Strictly non-fatal: every probe is individually try/caught, nothing here
+// calls process.exit and the bot always continues booting. The probe runs
+// alongside the command loader so a slow dependency cannot delay the boot.
+const bootHealthCheck = runDependencyHealthCheck(client).catch((err) => {
+  client.logger?.warn?.('[Health] Boot probe failed:', err?.message);
+});
+
 // Initialize AI Moderation Action Subscriber
 initModerationActionSubscriber(client);
 
 // Load commands before logging into Discord
 await loadCommands(client);
+
+// Command registry health signal — reported after loadCommands so the
+// count reflects the real registry.
+try {
+  const commandCount = client.commands?.size ?? 0;
+  client.logger?.info?.(`[Health] Commands loaded: ${commandCount}`);
+  if (!commandCount) {
+    client.logger?.warn?.('[Health] Commands loaded: 0 — no slash commands were registered');
+  }
+} catch (err) {
+  client.logger?.warn?.('[Health] Command count failed:', err?.message);
+}
+
+// Make sure the health probe finished so its lines are always in the boot log.
+await bootHealthCheck;
+
+// Embedded AI moderation worker — the Docker image runs the bot only, so the
+// queue consumer has to live in this process. Set AI_WORKER_STANDALONE=true
+// on hosts that run `npm run start:worker` as a separate service.
+if (process.env.AI_WORKER_STANDALONE === 'true') {
+  console.log('ℹ️ [AI Worker] AI_WORKER_STANDALONE=true — standalone worker expected, embedded worker disabled.');
+} else {
+  try {
+    startEmbeddedWorker(client);
+  } catch (err) {
+    console.warn('⚠️ [AI Worker] Failed to start the embedded AI worker:', err?.message);
+  }
+}
 
 // Voice session tracking state consumed by backgroundTasks (Map<`${userId}:${guildId}`, joinedAtMs>)
 client.voiceSessions = new Map();

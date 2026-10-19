@@ -1,4 +1,3 @@
-import { createCanvas, loadImage } from '@napi-rs/canvas';
 import { AttachmentBuilder }       from 'discord.js';
 import { existsSync }              from 'fs';
 import { join, dirname }           from 'path';
@@ -8,6 +7,66 @@ import logger                      from '../../utils/logger.js';
 import { buildEmbed }              from '../../utils/embedBuilder.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+
+// ─── Lazy native canvas loader ─────────────────────────────────────
+// '@napi-rs/canvas' is a NATIVE module: on a host without a matching
+// prebuilt binary (musl/alpine images, an unsupported platform, a broken
+// install) importing it throws *while the module graph is evaluated*.
+//
+// A static import therefore aborted the whole boot chain
+// (apps/bot/src/index.js → events/messageCreate.js → levelingSystem and
+// index.js → packages/systems/backgroundTasks.js → levelingSystem). Worse,
+// the command loader swallowed the import error, so a dozen commands
+// silently vanished while the deploy script still published them.
+//
+// The native module is therefore loaded lazily, exactly once per process,
+// and every failure is contained: the loader resolves to `null` and the
+// rank card is skipped, leaving the command's text-only response intact.
+const CANVAS_MODULE_ID = '@napi-rs/canvas';
+
+// Operational kill switch: AURA_DISABLE_CANVAS=true forces the loader to
+// behave as if the native module were unavailable.
+const CANVAS_DISABLE_ENV = 'AURA_DISABLE_CANVAS';
+
+const TRUTHY_VALUES = new Set(['1', 'true', 'yes', 'on']);
+
+// Cached loader promise. `null` is a valid, cached result: a native module
+// that failed to load once must not be retried on every card render.
+let canvasPromise = null;
+let disabledNoticeLogged = false;
+
+/**
+ * Loads the native canvas module exactly once per process.
+ *
+ * @returns {Promise<{createCanvas: Function, loadImage: Function}|null>}
+ *          the native module, or `null` when it is unavailable/disabled.
+ */
+async function loadCanvasModule() {
+  const raw = process.env[CANVAS_DISABLE_ENV];
+  if (typeof raw === 'string' && TRUTHY_VALUES.has(raw.trim().toLowerCase())) {
+    if (!disabledNoticeLogged) {
+      disabledNoticeLogged = true;
+      logger.info(`[Canvas] ${CANVAS_DISABLE_ENV} is set — native canvas disabled, rank cards fall back to text output.`);
+    }
+    return null;
+  }
+
+  if (!canvasPromise) {
+    canvasPromise = import(CANVAS_MODULE_ID)
+      .then((mod) => {
+        if (!mod || typeof mod.createCanvas !== 'function' || typeof mod.loadImage !== 'function') {
+          logger.warn('[Canvas] Native module loaded but exposes no createCanvas/loadImage — rank cards fall back to text output.');
+          return null;
+        }
+        return mod;
+      })
+      .catch((err) => {
+        logger.warn(`[Canvas] Native module unavailable (${err?.message || err}) — rank cards fall back to text output.`);
+        return null;
+      });
+  }
+  return canvasPromise;
+}
 
 export function xpForLevel(level) { return config.leveling.levelFormula(level); }
 
@@ -283,9 +342,20 @@ export async function recalculateGuildRanks(client, guildId) {
 }
 
 // ─── Canvas Rank Card ─────────────────────────────────────────
+/**
+ * Renders the rank card.
+ *
+ * @returns {Promise<AttachmentBuilder|null>} the card, or `null` when the
+ *          native canvas runtime is unavailable or the render failed. The
+ *          caller falls back to its text-only response.
+ */
 export async function generateRankCard(member, profile, rank) {
   try {
-    const canvas = createCanvas(1000, 280);
+    const native = await loadCanvasModule();
+    // Native module unavailable → the caller falls back to the text response.
+    if (!native) return null;
+
+    const canvas = native.createCanvas(1000, 280);
     const ctx    = canvas.getContext('2d');
     const xp     = Number(profile.xp);
     const { level, currentXp, nextLevelXp } = levelFromXp(xp);
@@ -305,7 +375,7 @@ export async function generateRankCard(member, profile, rank) {
 
     // Avatar
     const avatarUrl = member.user.displayAvatarURL({ size: 256, extension: 'png' });
-    const avatar    = await loadImage(avatarUrl).catch(() => null);
+    const avatar    = await native.loadImage(avatarUrl).catch(() => null);
     if (avatar) {
       ctx.save();
       ctx.beginPath(); ctx.arc(130, 140, 90, 0, Math.PI * 2); ctx.closePath(); ctx.clip();

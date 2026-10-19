@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ClipboardList,
@@ -852,7 +852,7 @@ function BuilderView({
                 <div key={q.id}>
                   <div className="text-[10px] font-semibold text-slate-400">
                     {q.label || "Untitled question"}
-                    {q.required && <span className="ml-1 text-[#FF5C7A]">*</span>}
+                    {q.required && <span className="ml-1 text-[#F87171]">*</span>}
                   </div>
                   <div
                     className={`mt-1 flex items-center rounded-md border border-white/[0.05] bg-white/[0.04] px-2 text-[9px] text-slate-600 ${

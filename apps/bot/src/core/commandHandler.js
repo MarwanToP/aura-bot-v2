@@ -19,6 +19,11 @@ export async function loadCommands(client) {
     duplicatesOverwritten: 0,
     invalidExports: 0,
     importFailures: 0,
+    // Details of every file that could not be imported: { file, error }.
+    // A failing import means the commands of that file are MISSING at
+    // runtime, so the failures are collected and reported instead of being
+    // silently swallowed.
+    importFailureDetails: [],
   };
   const commandsPath = join(__dirname, '../commands');
   await loadDir(client, commandsPath, true, audit);
@@ -31,6 +36,14 @@ export async function loadCommands(client) {
   client.logger?.info(
     `[Commands] Audit complete | files=${audit.filesScanned} modules=${audit.modulesLoaded} registered=${audit.registered} duplicateAliasesSkipped=${audit.duplicateAliasesSkipped} duplicatesSkipped=${audit.duplicatesSkipped} duplicatesOverwritten=${audit.duplicatesOverwritten} invalidExports=${audit.invalidExports} importFailures=${audit.importFailures}`,
   );
+
+  if (audit.importFailures > 0) {
+    client.logger?.error(
+      `[Commands] ${audit.importFailures} file(s) failed to import — their commands are NOT registered.`,
+    );
+  }
+
+  return audit;
 }
 
 async function loadDir(client, dirPath, allowOverwrite = true, audit) {
@@ -89,8 +102,14 @@ async function loadDir(client, dirPath, allowOverwrite = true, audit) {
         if (k !== 'default') register(v, k);
       }
     } catch (err) {
+      // A file that cannot be imported contributes NO commands at runtime.
+      // Swallowing this silently made a whole command group vanish while the
+      // deploy script still published it to Discord — so the failure is
+      // logged as an ERROR and collected for the caller.
       audit.importFailures += 1;
-      client.logger?.warn(`[Commands] Skipping ${entry}: ${err.message}`);
+      const message = err?.message || String(err);
+      audit.importFailureDetails.push({ file: full, error: message });
+      client.logger?.error(`[Commands] Failed to import ${entry}: ${message}`);
     }
   }
 }

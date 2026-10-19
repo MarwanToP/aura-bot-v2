@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ShieldCheck,
@@ -69,7 +69,7 @@ function mapVerification(data) {
   };
 }
 
-export default function VerificationModule({ guildId = "default" }) {
+export default function VerificationModule({ guildId = null }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState(null);
@@ -98,6 +98,11 @@ export default function VerificationModule({ guildId = "default" }) {
   };
 
   const fetchVerificationData = useCallback(async () => {
+    /* Guest mode: no real guild, so there is nothing to load — never hit the network. */
+    if (!guildId) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const [resConfig, resRoles, resChannels] = await Promise.all([
@@ -113,12 +118,14 @@ export default function VerificationModule({ guildId = "default" }) {
 
       if (resRoles.ok) {
         const roleData = await resRoles.json();
-        setRoles(Array.isArray(roleData) ? roleData : []);
+        // The API returns { roles: [...] } / { channels: [...] }; accept a bare
+        // array too so the pickers are never silently empty.
+        setRoles(Array.isArray(roleData) ? roleData : Array.isArray(roleData?.roles) ? roleData.roles : []);
       }
 
       if (resChannels.ok) {
         const channelData = await resChannels.json();
-        setChannels(Array.isArray(channelData) ? channelData : []);
+        setChannels(Array.isArray(channelData) ? channelData : Array.isArray(channelData?.channels) ? channelData.channels : []);
       }
     } catch (err) {
       console.error("[VerificationModule] Error loading configuration:", err);
@@ -133,6 +140,12 @@ export default function VerificationModule({ guildId = "default" }) {
   }, [fetchVerificationData]);
 
   const handleSave = async () => {
+    /* Guest demo: nothing is persisted anywhere, so keep the original local feedback
+       and skip the network entirely. */
+    if (!guildId) {
+      showToast("Verification Gateway settings saved — demo mode", "success");
+      return;
+    }
     setSaving(true);
     try {
       const res = await fetch(`/api/guilds/${guildId}/verification`, {
@@ -441,8 +454,8 @@ export default function VerificationModule({ guildId = "default" }) {
                     }
                     className={`cursor-pointer rounded-xl border px-2 py-2 text-center transition-colors ${
                       isActive
-                        ? "border-[#FFB547]/40 bg-[#FFB547]/10 text-[#FFB547]"
-                        : "border-white/[0.06] bg-white/[0.02] text-slate-500 hover:border-white/[0.12] hover:text-slate-300"
+                        ? "border-[#FBBF24]/45 bg-[#FBBF24]/[0.10] text-[#FCD34D]"
+                        : "border-white/[0.07] bg-white/[0.02] text-slate-500 hover:border-white/[0.14] hover:text-slate-300"
                     }`}
                   >
                     <div className="font-mono text-xs font-bold">{preset.days}d</div>
@@ -454,11 +467,11 @@ export default function VerificationModule({ guildId = "default" }) {
               })}
             </div>
 
-            <div className="flex items-start gap-3 rounded-xl border border-[#FFB547]/20 bg-[#FFB547]/[0.06] p-3.5 text-xs leading-relaxed text-[#FFB547]/90">
-              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-[#FFB547]" />
+            <div className="flex items-start gap-3 rounded-xl border border-[#FBBF24]/25 bg-[#FBBF24]/[0.07] p-3.5 text-xs leading-relaxed text-[#FCD34D]">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-[#FBBF24]" />
               <span>
                 Accounts created less than{" "}
-                <strong className="font-mono text-[#FFB547]">{settings.altAgeLimit} days</strong> ago
+                <strong className="font-mono text-[#FCD34D]">{settings.altAgeLimit} days</strong> ago
                 will be required to pass an extra verification step or will be blocked automatically.
               </span>
             </div>
@@ -466,14 +479,14 @@ export default function VerificationModule({ guildId = "default" }) {
         </motion.section>
 
         {/* Section 3: roles & channel selectors */}
-        <motion.section variants={rise} className="panel panel-hover space-y-5 p-5">
-          <div className="flex items-center gap-2.5">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#5B8CFF]/25 bg-[#5B8CFF]/10 text-[#5B8CFF]">
+        <motion.section variants={rise} className="glass-card glass-card-hover space-y-5 p-5">
+          <div className="flex items-center gap-3">
+            <span className="icon-tile icon-tile-blue h-9 w-9 rounded-xl">
               <UserCheck className="h-4 w-4" />
             </span>
-            <div>
-              <h2 className="text-sm font-extrabold text-white">Roles & Channel Gateway Assignment</h2>
-              <p className="mt-1 text-xs text-slate-500">
+            <div className="min-w-0">
+              <h2 className="card-title">Roles &amp; Channel Gateway Assignment</h2>
+              <p className="card-sub mt-0.5">
                 Configure roles awarded or removed and the gateway channel
               </p>
             </div>
@@ -483,7 +496,7 @@ export default function VerificationModule({ guildId = "default" }) {
             {/* Verified role selector */}
             <div>
               <label className="mb-1.5 flex items-center gap-2 text-xs font-semibold text-slate-300">
-                <UserCheck className="h-3.5 w-3.5 text-[#39D98A]" />
+                <UserCheck className="h-3.5 w-3.5 text-[#6EE7B7]" />
                 Verified Role (Granted upon completion)
               </label>
 
@@ -493,7 +506,7 @@ export default function VerificationModule({ guildId = "default" }) {
                   onChange={(e) =>
                     setSettings((prev) => ({ ...prev, verificationRoleId: e.target.value }))
                   }
-                  className={`${selectCls} focus:border-[#39D98A]/50`}
+                  className={selectCls}
                 >
                   <option value="">Select Verified Role...</option>
                   {roles.map((role) => (
@@ -510,7 +523,7 @@ export default function VerificationModule({ guildId = "default" }) {
                   onChange={(e) =>
                     setSettings((prev) => ({ ...prev, verificationRoleId: e.target.value }))
                   }
-                  className={`${fieldCls} font-mono focus:border-[#39D98A]/50`}
+                  className={`${fieldCls} font-mono`}
                 />
               )}
             </div>
@@ -518,7 +531,7 @@ export default function VerificationModule({ guildId = "default" }) {
             {/* Unverified role selector */}
             <div>
               <label className="mb-1.5 flex items-center gap-2 text-xs font-semibold text-slate-300">
-                <UserX className="h-3.5 w-3.5 text-[#FF5C7A]" />
+                <UserX className="h-3.5 w-3.5 text-[#FCA5A5]" />
                 Unverified Role (Assigned upon joining)
               </label>
 
@@ -528,7 +541,7 @@ export default function VerificationModule({ guildId = "default" }) {
                   onChange={(e) =>
                     setSettings((prev) => ({ ...prev, unverifiedRoleId: e.target.value }))
                   }
-                  className={`${selectCls} focus:border-[#FF5C7A]/50`}
+                  className={selectCls}
                 >
                   <option value="">Select Unverified Role (Optional)...</option>
                   {roles.map((role) => (
@@ -545,7 +558,7 @@ export default function VerificationModule({ guildId = "default" }) {
                   onChange={(e) =>
                     setSettings((prev) => ({ ...prev, unverifiedRoleId: e.target.value }))
                   }
-                  className={`${fieldCls} font-mono focus:border-[#FF5C7A]/50`}
+                  className={`${fieldCls} font-mono`}
                 />
               )}
             </div>
@@ -553,7 +566,7 @@ export default function VerificationModule({ guildId = "default" }) {
             {/* Gateway channel selector */}
             <div>
               <label className="mb-1.5 flex items-center gap-2 text-xs font-semibold text-slate-300">
-                <Hash className="h-3.5 w-3.5 text-[#5B8CFF]" />
+                <Hash className="h-3.5 w-3.5 text-[#A9C2FF]" />
                 Verification Gateway Channel
               </label>
 
@@ -563,7 +576,7 @@ export default function VerificationModule({ guildId = "default" }) {
                   onChange={(e) =>
                     setSettings((prev) => ({ ...prev, verificationChannelId: e.target.value }))
                   }
-                  className={`${selectCls} focus:border-[#5B8CFF]/50`}
+                  className={selectCls}
                 >
                   <option value="">Select Gateway Channel...</option>
                   {channels.map((chan) => (
@@ -580,7 +593,7 @@ export default function VerificationModule({ guildId = "default" }) {
                   onChange={(e) =>
                     setSettings((prev) => ({ ...prev, verificationChannelId: e.target.value }))
                   }
-                  className={`${fieldCls} font-mono focus:border-[#5B8CFF]/50`}
+                  className={`${fieldCls} font-mono`}
                 />
               )}
             </div>
@@ -588,32 +601,28 @@ export default function VerificationModule({ guildId = "default" }) {
         </motion.section>
 
         {/* Section 4: interactive verification panel live preview */}
-        <motion.section variants={rise} className="panel panel-hover space-y-5 p-5 lg:col-span-2">
+        <motion.section variants={rise} className="glass-card glass-card-hover space-y-5 p-5 lg:col-span-2">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-2.5">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#7C5CFF]/25 bg-[#7C5CFF]/10 text-[#7C5CFF]">
+            <div className="flex min-w-0 items-center gap-3">
+              <span className="icon-tile icon-tile-violet h-9 w-9 rounded-xl">
                 <Eye className="h-4 w-4" />
               </span>
-              <div>
-                <h2 className="text-sm font-extrabold text-white">
-                  Interactive Verification Panel Live Preview
-                </h2>
-                <p className="mt-1 text-xs text-slate-500">
+              <div className="min-w-0">
+                <h2 className="card-title">Interactive Verification Panel Live Preview</h2>
+                <p className="card-sub mt-0.5">
                   Live preview card of the verification message posted in your Discord channel
                 </p>
               </div>
             </div>
 
-            <span className="rounded-full border border-[#7C5CFF]/25 bg-[#7C5CFF]/10 px-2 py-0.5 text-[10px] font-bold text-[#7C5CFF]">
-              DISCORD EMBED PREVIEW
-            </span>
+            <span className="chip chip-violet uppercase tracking-wider">Discord embed preview</span>
           </div>
 
           {/* Discord message preview frame */}
-          <div className="rounded-xl border border-black/40 bg-[#313338] p-4 text-left font-sans shadow-2xl sm:p-5">
+          <div className="rounded-2xl border border-white/[0.08] bg-[#313338] p-4 text-left font-sans shadow-2xl sm:p-5">
             <div className="flex items-start gap-3">
               {/* Bot avatar */}
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#7C5CFF] shadow-md">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#4C7DFF] to-[#7C5CFF] shadow-md">
                 <ShieldCheck className="h-6 w-6 text-white" />
               </div>
 
@@ -621,19 +630,19 @@ export default function VerificationModule({ guildId = "default" }) {
                 {/* Bot header */}
                 <div className="mb-1 flex items-center gap-2">
                   <span className="text-sm font-semibold text-white">Aura Security Gate</span>
-                  <span className="rounded bg-[#7C5CFF] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white">
+                  <span className="rounded bg-[#4C7DFF] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white">
                     BOT
                   </span>
                   <span className="text-xs text-zinc-400">Today at 12:00 PM</span>
                 </div>
 
                 {/* Discord embed box */}
-                <div className="mt-2 space-y-3 rounded-lg border-l-4 border-l-[#39D98A] bg-[#2b2d31] p-4">
+                <div className="mt-2 space-y-3 rounded-lg border-l-4 border-l-[#34D399] bg-[#2b2d31] p-4">
                   <div className="flex items-center justify-between gap-3">
                     <h3 className="flex items-center gap-2 text-sm font-bold text-white">
                       🛡️ Server Security Verification
                     </h3>
-                    <span className="rounded-full border border-[#39D98A]/25 bg-[#39D98A]/10 px-2 py-0.5 font-mono text-[10px] font-bold text-[#39D98A]">
+                    <span className="chip chip-green font-mono">
                       {settings.verificationMode.toUpperCase()} GATEWAY
                     </span>
                   </div>
@@ -641,7 +650,7 @@ export default function VerificationModule({ guildId = "default" }) {
                   <p className="text-xs leading-relaxed text-zinc-300">
                     Welcome to Crystal Realm! To prevent raid bots and automated spam, please verify your account.
                     {settings.altAgeLimit > 0 && (
-                      <span className="mt-1 block text-[11px] text-[#FFB547]/90">
+                      <span className="mt-1 block text-[11px] text-[#FCD34D]/90">
                         ⚡ Note: Accounts younger than {settings.altAgeLimit} days require identity verification.
                       </span>
                     )}
@@ -649,7 +658,7 @@ export default function VerificationModule({ guildId = "default" }) {
 
                   <div className="flex items-center justify-between gap-3 border-t border-white/5 pt-2 text-[11px] text-zinc-400">
                     <span>Aura Security Gateway • Verification Gate</span>
-                    <span className="flex items-center gap-1 text-[#39D98A]">
+                    <span className="flex items-center gap-1 text-[#34D399]">
                       <CheckCircle2 className="h-3 w-3" /> System Operational
                     </span>
                   </div>
@@ -660,7 +669,7 @@ export default function VerificationModule({ guildId = "default" }) {
                   {settings.verificationMode === "web" && (
                     <button
                       onClick={openTestModal}
-                      className="flex cursor-pointer items-center gap-2 rounded-md bg-[#7C5CFF] px-4 py-2 text-xs font-medium text-white shadow-md transition-all hover:opacity-90"
+                      className="flex cursor-pointer items-center gap-2 rounded-md bg-[#4C7DFF] px-4 py-2 text-xs font-medium text-white shadow-md transition-all hover:opacity-90"
                     >
                       <ExternalLink className="h-3.5 w-3.5" />
                       Verify via Web Portal
@@ -670,7 +679,7 @@ export default function VerificationModule({ guildId = "default" }) {
                   {settings.verificationMode === "button" && (
                     <button
                       onClick={openTestModal}
-                      className="flex cursor-pointer items-center gap-2 rounded-md bg-[#39D98A] px-4 py-2 text-xs font-bold text-[#0B0D12] shadow-md transition-all hover:opacity-90"
+                      className="flex cursor-pointer items-center gap-2 rounded-md bg-[#34D399] px-4 py-2 text-xs font-bold text-[#06120C] shadow-md transition-all hover:opacity-90"
                     >
                       <CheckCircle2 className="h-3.5 w-3.5" />
                       Click to Verify
@@ -704,45 +713,45 @@ export default function VerificationModule({ guildId = "default" }) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
+            className="modal-scrim fixed inset-0 z-50 flex items-center justify-center p-4"
           >
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="panel relative w-full max-w-md p-6 shadow-2xl"
+              className="modal-surface relative w-full max-w-md p-6 shadow-2xl"
             >
               <button
                 onClick={() => setTestModalOpen(false)}
-                className="absolute right-4 top-4 rounded-lg p-1 text-slate-400 transition-colors hover:bg-white/10 hover:text-white"
+                className="btn-icon absolute right-4 top-4 h-9 w-9 rounded-xl"
               >
-                <X className="h-5 w-5" />
+                <X className="h-4 w-4" />
               </button>
 
               <div className="mb-4 flex items-center gap-3">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#39D98A]/25 bg-[#39D98A]/10 text-[#39D98A]">
+                <span className="icon-tile icon-tile-green h-9 w-9 rounded-xl">
                   <ShieldCheck className="h-4 w-4" />
                 </span>
                 <div>
-                  <h3 className="text-base font-bold text-white">
+                  <h3 className="card-title">
                     {settings.verificationMode === "web" && "Web Captcha Gateway Simulation"}
                     {settings.verificationMode === "button" && "One-Click Verification Test"}
                     {settings.verificationMode === "math" && "Math Challenge Verification"}
                   </h3>
-                  <p className="text-xs text-slate-500">Interactive preview simulation</p>
+                  <p className="card-sub">Interactive preview simulation</p>
                 </div>
               </div>
 
               {settings.verificationMode === "web" && (
                 <div className="space-y-4 py-2">
-                  <div className="rounded-xl border border-[#5B8CFF]/20 bg-[#5B8CFF]/[0.06] p-4 text-xs leading-relaxed text-slate-300">
-                    🌐 <strong className="text-[#5B8CFF]">Web Captcha Flow:</strong> Users click the
+                  <div className="rounded-xl border border-[#4C7DFF]/25 bg-[#4C7DFF]/[0.08] p-4 text-xs leading-relaxed text-slate-300">
+                    🌐 <strong className="text-[#A9C2FF]">Web Captcha Flow:</strong> Users click the
                     link to be securely redirected to an OAuth + hCaptcha page. Upon passing
                     hCaptcha, the bot assigns the Verified Role automatically.
                   </div>
                   <button
                     onClick={() => setTestResult("success")}
-                    className="w-full cursor-pointer rounded-lg bg-[#7C5CFF] py-2.5 text-xs font-semibold text-white shadow-[0_0_18px_rgba(124,92,255,0.35)] transition-colors hover:bg-[#6a4cf0]"
+                    className="btn-primary w-full"
                   >
                     Simulate hCaptcha Solved Pass ✅
                   </button>
@@ -751,17 +760,17 @@ export default function VerificationModule({ guildId = "default" }) {
 
               {settings.verificationMode === "button" && (
                 <div className="space-y-4 py-2">
-                  <div className="rounded-xl border border-[#39D98A]/20 bg-[#39D98A]/[0.06] p-4 text-xs leading-relaxed text-slate-300">
-                    ✅ <strong className="text-[#39D98A]">One-Click Flow:</strong> User clicks the
+                  <div className="rounded-xl border border-[#34D399]/25 bg-[#34D399]/[0.08] p-4 text-xs leading-relaxed text-slate-300">
+                    ✅ <strong className="text-[#6EE7B7]">One-Click Flow:</strong> User clicks the
                     button, the bot immediately grants role{" "}
-                    <code className="font-mono text-[#39D98A]">
+                    <code className="font-mono text-[#6EE7B7]">
                       @{roles.find((r) => r.id === settings.verificationRoleId)?.name || "Verified"}
                     </code>
                     .
                   </div>
                   <button
                     onClick={() => setTestResult("success")}
-                    className="w-full cursor-pointer rounded-lg bg-[#7C5CFF] py-2.5 text-xs font-semibold text-white shadow-[0_0_18px_rgba(124,92,255,0.35)] transition-colors hover:bg-[#6a4cf0]"
+                    className="btn-primary w-full"
                   >
                     Simulate Button Verification ✅
                   </button>
@@ -770,7 +779,7 @@ export default function VerificationModule({ guildId = "default" }) {
 
               {settings.verificationMode === "math" && (
                 <form onSubmit={handleTestSubmit} className="space-y-4 py-2">
-                  <div className="space-y-2 rounded-xl border border-[#7C5CFF]/20 bg-[#7C5CFF]/[0.06] p-4 text-center">
+                  <div className="space-y-2 rounded-xl border border-[#7C5CFF]/25 bg-[#7C5CFF]/[0.08] p-4 text-center">
                     <p className="text-xs font-medium text-slate-300">Solve the equation to verify:</p>
                     <div className="rounded-lg border border-[#7C5CFF]/25 bg-white/[0.03] py-2 font-mono text-2xl font-bold tracking-widest text-white">
                       {testMath.a} + {testMath.b} = ?
@@ -782,13 +791,13 @@ export default function VerificationModule({ guildId = "default" }) {
                     placeholder="Enter the sum..."
                     value={testInput}
                     onChange={(e) => setTestInput(e.target.value)}
-                    className={`${fieldCls} text-center font-mono focus:border-[#7C5CFF]/50`}
+                    className={`${fieldCls} text-center font-mono`}
                     autoFocus
                   />
 
                   <button
                     type="submit"
-                    className="w-full cursor-pointer rounded-lg bg-[#7C5CFF] py-2.5 text-xs font-semibold text-white shadow-[0_0_18px_rgba(124,92,255,0.35)] transition-colors hover:bg-[#6a4cf0]"
+                    className="btn-primary w-full"
                   >
                     Submit Answer
                   </button>
@@ -797,15 +806,15 @@ export default function VerificationModule({ guildId = "default" }) {
 
               {/* Simulation result feedback */}
               {testResult === "success" && (
-                <div className="mt-4 flex items-center gap-2 rounded-xl border border-[#39D98A]/30 bg-[#39D98A]/[0.08] p-3 text-xs text-[#39D98A]">
-                  <CheckCircle2 className="h-4 w-4 shrink-0 text-[#39D98A]" />
+                <div className="mt-4 flex items-center gap-2 rounded-xl border border-[#34D399]/30 bg-[#34D399]/[0.08] p-3 text-xs text-[#6EE7B7]">
+                  <CheckCircle2 className="h-4 w-4 shrink-0 text-[#34D399]" />
                   <span>Verified! The member is unlocked and the verified role was assigned.</span>
                 </div>
               )}
 
               {testResult === "error" && (
-                <div className="mt-4 flex items-center gap-2 rounded-xl border border-[#FF5C7A]/30 bg-[#FF5C7A]/[0.08] p-3 text-xs text-[#FF5C7A]">
-                  <AlertTriangle className="h-4 w-4 shrink-0 text-[#FF5C7A]" />
+                <div className="mt-4 flex items-center gap-2 rounded-xl border border-[#F87171]/30 bg-[#F87171]/[0.08] p-3 text-xs text-[#FCA5A5]">
+                  <AlertTriangle className="h-4 w-4 shrink-0 text-[#F87171]" />
                   <span>Incorrect answer! Please try again.</span>
                 </div>
               )}

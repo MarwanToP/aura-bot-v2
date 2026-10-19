@@ -13,7 +13,9 @@
     "start:bot": "node apps/bot/src/index.js",
     "start:dashboard": "node apps/dashboard/src/server.js",
     "start:worker": "node apps/ai-worker/src/index.js",
-    "dev": "concurrently \"npm run start:bot\" \"npm run start:dashboard\"",
+    "dev": "concurrently \"npm run start:bot\" \"npm run start:dashboard\" \"npm run start:worker\"",
+    "dev:bot": "concurrently \"npm run start:bot\" \"npm run start:worker\"",
+    "start:all": "concurrently \"npm run start:bot\" \"npm run start:dashboard\" \"npm run start:worker\"",
     "lint": "eslint .",
     "format": "prettier --write .",
     "lint:syntax": "node deploy/scripts/maintenance/check-syntax.js",
@@ -24,6 +26,8 @@
     "security:audit": "npm audit --audit-level=high",
     "test:commands": "node deploy/scripts/tests/test-all-commands.js",
     "test:db": "node deploy/scripts/tests/test-db-models.js",
+    "test:db:types": "node deploy/scripts/tests/test-db-types.js",
+    "test:live": "node deploy/scripts/tests/test-live-runtime.js",
     "test:smoke": "npm run lint:syntax && npm run audit:commands && npm run test:commands"
   },
   "dependencies": {
@@ -33,6 +37,7 @@
     "@prisma/client": "^5.22.0",
     "axios": "^1.15.0",
     "clsx": "^2.1.1",
+    "concurrently": "^8.2.2",
     "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",
     "cron": "^3.1.7",
@@ -67,7 +72,6 @@
   },
   "devDependencies": {
     "autoprefixer": "^10.5.4",
-    "concurrently": "^8.2.2",
     "eslint": "^9.0.0",
     "nodemon": "^3.1.4",
     "postcss": "^8.5.26",

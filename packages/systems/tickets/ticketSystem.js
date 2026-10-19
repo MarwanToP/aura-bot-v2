@@ -814,6 +814,6 @@ export async function handleSelectMenu(client, interaction, args) {
       description: `Please select the language for your **${category}** ticket.\nيرجى اختيار لغة تذكرة **${category}**.` 
     })],
     components: [row],
-    ephemeral: true
+    flags: MessageFlags.Ephemeral
   });
 }

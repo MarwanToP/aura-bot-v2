@@ -3,7 +3,7 @@
 //  /remind set|list|cancel — personal reminders delivered by the
 //  backgroundTasks cron job (original channel first, DM fallback).
 // ================================================================
-import { SlashCommandBuilder, MessageFlags } from 'discord.js';
+import { SlashCommandBuilder, MessageFlags, PermissionFlagsBits } from 'discord.js';
 import ms from 'ms';
 import { buildEmbed } from '../../../../../packages/utils/embedBuilder.js';
 
@@ -37,6 +37,7 @@ export const remind = {
       .addIntegerOption(o => o.setName('id').setDescription('Reminder ID (see /remind list)').setRequired(true).setMinValue(1))
     ),
 
+  botPermissions: [PermissionFlagsBits.SendMessages],
   cooldown: 5000,
   guildOnly: true,
 

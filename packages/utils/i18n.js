@@ -44,21 +44,32 @@ async function getGuildLanguage(client, guildId) {
   } catch { return 'en'; }
 }
 
-async function getUserLanguage(client, userId) {
+/**
+ * The language a user picked for one specific server.
+ *
+ * user_profiles is unique on (userId, guildId), so the row has to be read
+ * with BOTH keys: a userId-only lookup returns an arbitrary server's row and
+ * therefore a language the user never chose for this server. The Redis cache
+ * key is scoped by guild for the same reason — one server's choice must not
+ * leak into another. Without a guild there is no unambiguous row to read, so
+ * the lookup is skipped and the caller falls back to the guild language.
+ */
+async function getUserLanguage(client, userId, guildId = null) {
   if (!userId) return null;
+  const cacheKey = `user:lang:${guildId || 'global'}:${userId}`;
   try {
-    const cached = await client.redis.get(`user:lang:${userId}`);
+    const cached = await client.redis.get(cacheKey);
     if (cached) return cached === 'null' ? null : cached;
     const { UserProfile } = client.db.models;
-    const p    = await UserProfile.findOne({ where: { userId } });
+    const p = guildId ? await UserProfile.findOne({ where: { userId, guildId } }) : null;
     const lang = p?.language || null;
-    await client.redis.setex(`user:lang:${userId}`, 120, lang || 'null');
+    await client.redis.setex(cacheKey, 120, lang || 'null');
     return lang;
   } catch { return null; }
 }
 
 async function resolveLanguage(client, userId, guildId) {
-  const u = await getUserLanguage(client, userId);
+  const u = await getUserLanguage(client, userId, guildId);
   if (u) return u;
   return getGuildLanguage(client, guildId);
 }

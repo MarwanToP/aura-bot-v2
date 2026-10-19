@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   UserCheck,
@@ -11,6 +11,7 @@ import {
   Save,
   CheckCircle2,
   Hash,
+  AlertCircle,
 } from "lucide-react";
 
 /* ────────────────────────────── motion helpers ────────────────────────────── */
@@ -58,9 +59,44 @@ const PLACEHOLDER_AVATAR = "https://cdn.discordapp.com/embed/avatars/0.png";
 
 const MEMBER_COUNT = "12,646";
 
+/* ────────────────────────────── helpers ────────────────────────────── */
+
+/* The API stores Discord snowflakes — anything else is rejected by the server. */
+const SNOWFLAKE_RE = /^\d{17,20}$/;
+
+const clampNum = (value, min, max, fallback) => {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(max, Math.max(min, Math.round(n)));
+};
+
+const isHexColor = (value) =>
+  typeof value === "string" && /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(value.trim());
+
+/* Only text channels (Discord channel type 0) can receive a welcome/farewell message. */
+const mapTextChannels = (raw) =>
+  (Array.isArray(raw) ? raw : [])
+    .filter((c) => c && c.id != null && Number(c.type) === 0)
+    .map((c) => ({ id: String(c.id), name: c.name ? String(c.name) : String(c.id) }));
+
+/* Keep a stored id selectable even when the live channel list doesn't contain it. */
+const channelOptions = (list, selectedId) => {
+  const base = Array.isArray(list) ? list : [];
+  if (selectedId && !base.some((c) => c.id === selectedId)) {
+    return [...base, { id: selectedId, name: null, missing: true }];
+  }
+  return base;
+};
+
+const channelLabel = (list, id) => {
+  if (!id) return null;
+  const match = (Array.isArray(list) ? list : []).find((c) => c.id === id);
+  return match ? `#${match.name}` : `id ${id}`;
+};
+
 /* ══════════════════════════════════ main ══════════════════════════════ */
 
-export default function WelcomeSettings() {
+export default function WelcomeSettings({ guildId }) {
   const [welcomeEnabled, setWelcomeEnabled] = useState(true);
   const [farewellEnabled, setFarewellEnabled] = useState(true);
   const [welcomeChannel, setWelcomeChannel] = useState("#general");
@@ -77,13 +113,252 @@ export default function WelcomeSettings() {
   const [username, setUsername] = useState("NovaStar");
   const [serverName, setServerName] = useState("Crystal Realm");
   const [toast, setToast] = useState(null);
+  const [toastTone, setToastTone] = useState("success");
 
-  const showToast = (msg) => {
+  /* real-mode state — only used once `live` is true */
+  const [live, setLive] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [welcomeChannelId, setWelcomeChannelId] = useState("");
+  const [farewellChannelId, setFarewellChannelId] = useState("");
+  const [channels, setChannels] = useState(null);
+  const [guildName, setGuildName] = useState(null);
+  const [memberCount, setMemberCount] = useState(null);
+
+  /* the preview server-name field is user-owned: never overwrite an edited value */
+  const serverNameEdited = useRef(false);
+
+  const showToast = (msg, tone = "success") => {
+    setToastTone(tone);
     setToast(msg);
     setTimeout(() => setToast(null), 3200);
   };
 
   const template = CARD_TEMPLATES.find((t) => t.id === selectedTemplate) || CARD_TEMPLATES[0];
+
+  /* ────────────────────────────── real data ────────────────────────────── */
+
+  /* request guards — only the latest load may write state */
+  const requestSeq = useRef(0);
+  const channelSeq = useRef(0);
+  const guildSeq = useRef(0);
+
+  /* Guest mode (no guild) keeps the humanized demo exactly as it was. */
+  const applyDemoState = useCallback(() => {
+    setWelcomeEnabled(true);
+    setFarewellEnabled(true);
+    setWelcomeChannel("#general");
+    setFarewellChannel("#announcements");
+    setWelcomeMsg("Welcome {user} to {guild}!");
+    setFarewellMsg("Goodbye {user}, we will miss you!");
+    setShowCard(true);
+    setSelectedTemplate("default");
+    setCardColor("#FFFFFF");
+    setAvatarX(50);
+    setAvatarY(50);
+    setTextX(150);
+    setTextY(150);
+    setUsername("NovaStar");
+    setServerName("Crystal Realm");
+    setWelcomeChannelId("");
+    setFarewellChannelId("");
+    setChannels(null);
+    setGuildName(null);
+    setMemberCount(null);
+    setLive(false);
+  }, []);
+
+  /* Apply a server payload (GET answer or the POST echo) to the live state. */
+  const applyWelcomePayload = useCallback((data) => {
+    const w = data?.welcome && typeof data.welcome === "object" ? data.welcome : {};
+    const f = data?.farewell && typeof data.farewell === "object" ? data.farewell : {};
+
+    setWelcomeEnabled(Boolean(w.enabled));
+    setFarewellEnabled(Boolean(f.enabled));
+    setWelcomeMsg(typeof w.message === "string" ? w.message : "");
+    setFarewellMsg(typeof f.message === "string" ? f.message : "");
+    setWelcomeChannelId(w.channelId ? String(w.channelId) : "");
+    setFarewellChannelId(f.channelId ? String(f.channelId) : "");
+
+    /* welcomeCard is exposed flat and mirrored inside `welcome` — prefer the flat flag. */
+    const cardFlag =
+      typeof data?.welcomeCard === "boolean"
+        ? data.welcomeCard
+        : typeof w.welcomeCard === "boolean"
+          ? w.welcomeCard
+          : true;
+    setShowCard(cardFlag);
+
+    /* The card designer owns image / color / coordinates inside welcomeConfig. */
+    const cfg =
+      w.config && typeof w.config === "object" && !Array.isArray(w.config) ? w.config : {};
+    if (typeof cfg.image === "string" && CARD_TEMPLATES.some((t) => t.id === cfg.image)) {
+      setSelectedTemplate(cfg.image);
+    }
+    if (isHexColor(cfg.color)) setCardColor(cfg.color.trim());
+    const coords =
+      cfg.coordinates && typeof cfg.coordinates === "object" ? cfg.coordinates : {};
+    setAvatarX(clampNum(coords?.avatar?.x, 10, 200, 50));
+    setAvatarY(clampNum(coords?.avatar?.y, 10, 200, 50));
+    setTextX(clampNum(coords?.text?.x, 10, 400, 150));
+    setTextY(clampNum(coords?.text?.y, 10, 300, 150));
+  }, []);
+
+  const loadWelcome = useCallback(async () => {
+    const requestId = ++requestSeq.current;
+    if (!guildId) {
+      applyDemoState();
+      return;
+    }
+    try {
+      const res = await fetch(`/api/guilds/${guildId}/welcome`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      if (requestId !== requestSeq.current) return; // stale response from a previous guild
+      applyWelcomePayload(data);
+      setLive(true);
+    } catch (err) {
+      if (requestId !== requestSeq.current) return; // stale failure — ignore
+      // Keep the humanized fallback quietly (live stays false → demo markup).
+      console.warn("[WelcomeSettings] Failed to load welcome settings — showing demo data:", err);
+    }
+  }, [guildId, applyDemoState, applyWelcomePayload]);
+
+  useEffect(() => {
+    loadWelcome();
+    return () => {
+      requestSeq.current += 1;
+    };
+  }, [loadWelcome]);
+
+  /* Live channel list for the pickers — null means "not available" (manual id entry). */
+  const loadChannels = useCallback(async () => {
+    const requestId = ++channelSeq.current;
+    if (!guildId) {
+      setChannels(null);
+      return;
+    }
+    try {
+      const res = await fetch(`/api/guilds/${guildId}/channels`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      if (requestId !== channelSeq.current) return;
+      setChannels(mapTextChannels(data?.channels));
+    } catch (err) {
+      if (requestId !== channelSeq.current) return;
+      console.warn(
+        "[WelcomeSettings] Failed to load channels — using a manual channel id input:",
+        err
+      );
+      setChannels(null);
+    }
+  }, [guildId]);
+
+  useEffect(() => {
+    loadChannels();
+    return () => {
+      channelSeq.current += 1;
+    };
+  }, [loadChannels]);
+
+  /* Real guild name + member count (the demo numbers are never shown as live facts). */
+  const loadGuild = useCallback(async () => {
+    const requestId = ++guildSeq.current;
+    if (!guildId) {
+      setGuildName(null);
+      setMemberCount(null);
+      return;
+    }
+    try {
+      const res = await fetch("/api/guilds");
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      if (requestId !== guildSeq.current) return;
+      const list = Array.isArray(data?.guilds) ? data.guilds : [];
+      const match = list.find((g) => g && String(g.id) === String(guildId));
+      if (!match) return; // the guild list is not authoritative for every guild
+      const name = match.name ? String(match.name) : null;
+      setGuildName(name);
+      setMemberCount(typeof match.memberCount === "number" ? match.memberCount : null);
+      if (!serverNameEdited.current) setServerName(name || "your server");
+    } catch (err) {
+      if (requestId !== guildSeq.current) return;
+      console.warn(
+        "[WelcomeSettings] Failed to load guild details — showing placeholder labels:",
+        err
+      );
+    }
+  }, [guildId]);
+
+  useEffect(() => {
+    loadGuild();
+    return () => {
+      guildSeq.current += 1;
+    };
+  }, [loadGuild]);
+
+  /* ────────────────────────────── save ────────────────────────────── */
+
+  const saveSettings = async () => {
+    if (!guildId) {
+      showToast("Welcome & goodbye settings saved");
+      return;
+    }
+    if (!live) {
+      showToast("Couldn't load live settings — nothing was saved", "error");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/guilds/${guildId}/welcome`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          welcomeEnabled: Boolean(welcomeEnabled),
+          welcomeMessage: welcomeMsg,
+          welcomeChannelId: SNOWFLAKE_RE.test(welcomeChannelId) ? welcomeChannelId : null,
+          welcomeCard: Boolean(showCard),
+          farewellEnabled: Boolean(farewellEnabled),
+          farewellMessage: farewellMsg,
+          farewellChannelId: SNOWFLAKE_RE.test(farewellChannelId) ? farewellChannelId : null,
+          welcomeConfig: {
+            image: selectedTemplate,
+            color: cardColor,
+            coordinates: {
+              avatar: { x: Number(avatarX) || 0, y: Number(avatarY) || 0 },
+              text: { x: Number(textX) || 0, y: Number(textY) || 0 },
+            },
+          },
+        }),
+      });
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        showToast(errBody?.error || "Failed to save welcome settings", "error");
+        return;
+      }
+      await res.json().catch(() => ({})); // drain the body — the re-read below is authoritative
+      /* Re-read: the server owns the stored value (e.g. welcomeCard may be ignored). */
+      await loadWelcome();
+      showToast("Welcome & goodbye settings saved");
+    } catch (err) {
+      console.warn("[WelcomeSettings] Failed to save welcome settings:", err);
+      showToast("Network error while saving welcome settings", "error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  /* ────────────────────────────── derived values ────────────────────────────── */
+
+  const memberCountText = live
+    ? memberCount != null
+      ? Number(memberCount).toLocaleString("en-US")
+      : "—"
+    : MEMBER_COUNT;
+
+  const guildLabel = live ? guildName || "this server" : "Crystal Realm";
+
+  /* ══════════════════════════════════ render ══════════════════════════════ */
 
   return (
     <motion.div variants={stagger} initial="hidden" animate="show" className="space-y-5 text-white">
@@ -96,7 +371,11 @@ export default function WelcomeSettings() {
             exit={{ opacity: 0, y: 8, scale: 0.99 }}
             className="glass-dropdown fixed bottom-6 right-6 z-[90] flex items-center gap-2.5 px-4 py-3 text-xs font-semibold"
           >
-            <CheckCircle2 className="h-4 w-4 text-[#34D399]" />
+            {toastTone === "error" ? (
+              <AlertCircle className="h-4 w-4 text-[#FBBF24]" />
+            ) : (
+              <CheckCircle2 className="h-4 w-4 text-[#34D399]" />
+            )}
             <span>{toast}</span>
           </motion.div>
         )}
@@ -111,19 +390,20 @@ export default function WelcomeSettings() {
           <div className="min-w-0">
             <h2 className="card-title text-[15px]">Welcome &amp; Goodbye Designer</h2>
             <p className="card-sub mt-0.5">
-              Design animated welcome cards, customize messages, and set farewell embeds for
-              Crystal Realm.
+              Design animated welcome cards, customize messages, and set farewell embeds for{" "}
+              {guildLabel}.
             </p>
           </div>
         </div>
         <motion.button
           type="button"
           whileTap={{ scale: 0.98 }}
-          onClick={() => showToast("Welcome & goodbye settings saved")}
+          onClick={saveSettings}
+          disabled={live && saving}
           className="btn-primary"
         >
           <Save className="h-3.5 w-3.5" />
-          Save Settings
+          {live && saving ? "Saving…" : "Save Settings"}
         </motion.button>
       </motion.div>
 
@@ -153,15 +433,55 @@ export default function WelcomeSettings() {
               <div className="mt-5 space-y-4">
                 <label className="block">
                   <span className="section-label mb-1.5 block">Channel</span>
-                  <span className="relative block">
-                    <Hash className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-600" />
+                  {!live ? (
+                    <span className="relative block">
+                      <Hash className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-600" />
+                      <input
+                        type="text"
+                        value={welcomeChannel}
+                        onChange={(e) => setWelcomeChannel(e.target.value)}
+                        className="glass-input pl-8"
+                      />
+                    </span>
+                  ) : channels && channels.length === 0 ? (
+                    <div className="empty-state">
+                      <span className="empty-state-icon">
+                        <Hash className="h-4 w-4" />
+                      </span>
+                      <span className="empty-state-title">No channels available</span>
+                      <span>
+                        The bot can&apos;t read this server&apos;s channels — invite it with channel
+                        permissions, then reload.
+                      </span>
+                    </div>
+                  ) : channels ? (
+                    <select
+                      value={welcomeChannelId}
+                      onChange={(e) => setWelcomeChannelId(e.target.value)}
+                      className="glass-select"
+                    >
+                      <option value="">No channel selected</option>
+                      {channelOptions(channels, welcomeChannelId).map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.missing ? `${c.id} (not in channel list)` : `#${c.name}`}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
                     <input
                       type="text"
-                      value={welcomeChannel}
-                      onChange={(e) => setWelcomeChannel(e.target.value)}
-                      className="glass-input pl-8"
+                      value={welcomeChannelId}
+                      onChange={(e) => setWelcomeChannelId(e.target.value)}
+                      placeholder="Channel ID"
+                      className="glass-input font-mono"
                     />
-                  </span>
+                  )}
+                  {live ? (
+                    <span className="mt-1.5 block text-[10px] text-slate-500">
+                      Saved channel:{" "}
+                      {channelLabel(channels, welcomeChannelId) || "none selected"}
+                    </span>
+                  ) : null}
                 </label>
                 <label className="block">
                   <span className="section-label mb-1.5 block">
@@ -209,15 +529,55 @@ export default function WelcomeSettings() {
               <div className="mt-5 space-y-4">
                 <label className="block">
                   <span className="section-label mb-1.5 block">Channel</span>
-                  <span className="relative block">
-                    <Hash className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-600" />
+                  {!live ? (
+                    <span className="relative block">
+                      <Hash className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-600" />
+                      <input
+                        type="text"
+                        value={farewellChannel}
+                        onChange={(e) => setFarewellChannel(e.target.value)}
+                        className="glass-input pl-8"
+                      />
+                    </span>
+                  ) : channels && channels.length === 0 ? (
+                    <div className="empty-state">
+                      <span className="empty-state-icon">
+                        <Hash className="h-4 w-4" />
+                      </span>
+                      <span className="empty-state-title">No channels available</span>
+                      <span>
+                        The bot can&apos;t read this server&apos;s channels — invite it with channel
+                        permissions, then reload.
+                      </span>
+                    </div>
+                  ) : channels ? (
+                    <select
+                      value={farewellChannelId}
+                      onChange={(e) => setFarewellChannelId(e.target.value)}
+                      className="glass-select"
+                    >
+                      <option value="">No channel selected</option>
+                      {channelOptions(channels, farewellChannelId).map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.missing ? `${c.id} (not in channel list)` : `#${c.name}`}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
                     <input
                       type="text"
-                      value={farewellChannel}
-                      onChange={(e) => setFarewellChannel(e.target.value)}
-                      className="glass-input pl-8"
+                      value={farewellChannelId}
+                      onChange={(e) => setFarewellChannelId(e.target.value)}
+                      placeholder="Channel ID"
+                      className="glass-input font-mono"
                     />
-                  </span>
+                  )}
+                  {live ? (
+                    <span className="mt-1.5 block text-[10px] text-slate-500">
+                      Saved channel:{" "}
+                      {channelLabel(channels, farewellChannelId) || "none selected"}
+                    </span>
+                  ) : null}
                 </label>
                 <label className="block">
                   <span className="section-label mb-1.5 block">Farewell message</span>
@@ -351,13 +711,18 @@ export default function WelcomeSettings() {
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   placeholder="Username"
+                  title={live ? "Preview only — a sample member name" : undefined}
                   className="glass-input h-9 w-28 py-0"
                 />
                 <input
                   type="text"
                   value={serverName}
-                  onChange={(e) => setServerName(e.target.value)}
+                  onChange={(e) => {
+                    serverNameEdited.current = true;
+                    setServerName(e.target.value);
+                  }}
                   placeholder="Server"
+                  title={live ? "Preview only — the name shown on the card" : undefined}
                   className="glass-input h-9 w-28 py-0"
                 />
               </div>
@@ -398,7 +763,7 @@ export default function WelcomeSettings() {
 
               {/* Member count badge */}
               <div className="absolute top-4 right-4 rounded-full bg-black/20 px-3 py-1 font-mono text-[10px] font-bold text-white backdrop-blur-sm">
-                Member #{MEMBER_COUNT}
+                {live ? `Members ${memberCountText}` : `Member #${MEMBER_COUNT}`}
               </div>
             </div>
           </motion.section>
@@ -418,7 +783,7 @@ export default function WelcomeSettings() {
                 {welcomeMsg
                   .replace("{user}", `<@${username}>`)
                   .replace("{guild}", serverName)
-                  .replace("{memberCount}", MEMBER_COUNT)}
+                  .replace("{memberCount}", memberCountText)}
               </p>
             </div>
           </motion.section>

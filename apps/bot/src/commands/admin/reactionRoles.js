@@ -244,15 +244,19 @@ export const reactionrole = {
         });
       }
 
-      // Group by messageId for readability (max 25 entries shown)
-      const grouped = entries.reduce((acc, e) => {
-        if (!acc[e.messageId]) acc[e.messageId] = [];
-        acc[e.messageId].push(e);
-        return acc;
-      }, {});
+      // Group by messageId for readability (max 25 entries shown).
+      // A Map is used instead of a plain object: a message id such as
+      // "constructor" or "__proto__" would otherwise collide with
+      // Object.prototype and break the grouping.
+      const grouped = new Map();
+      for (const entry of entries) {
+        const bucket = grouped.get(entry.messageId);
+        if (bucket) bucket.push(entry);
+        else grouped.set(entry.messageId, [entry]);
+      }
 
       const fields = [];
-      for (const [msgId, bindings] of Object.entries(grouped)) {
+      for (const [msgId, bindings] of grouped) {
         const firstChannel = bindings[0].channelId;
         const lines = bindings.map(b => `${b.emoji} → <@&${b.roleId}> \`[${b.type}]\``).join('\n');
         fields.push({

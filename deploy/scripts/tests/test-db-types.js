@@ -12,34 +12,38 @@
  * Exit code: 0 = no drift, 1 = drift found.
  */
 import 'dotenv/config';
-import { DataTypes } from 'sequelize';
 import sequelize from '../../../packages/database/index.js';
 
+// Sequelize exposes a stable `key` on every DataType instance (e.g. 'STRING', 'JSONB'),
+// which is safer to compare than class identity across sequelize versions.
 const ACCEPTED = {
-  [DataTypes.STRING]: ['character varying', 'text', 'character', 'character varying(255)'],
-  [DataTypes.TEXT]: ['text'],
-  [DataTypes.BOOLEAN]: ['boolean'],
-  [DataTypes.INTEGER]: ['integer', 'bigint', 'smallint'],
-  [DataTypes.BIGINT]: ['bigint', 'integer'],
-  [DataTypes.FLOAT]: ['double precision', 'real', 'numeric'],
-  [DataTypes.DOUBLE]: ['double precision', 'real', 'numeric'],
-  [DataTypes.DECIMAL]: ['numeric', 'double precision'],
-  [DataTypes.DATE]: ['timestamp with time zone', 'timestamp without time zone', 'date'],
-  [DataTypes.UUID]: ['uuid'],
-  [DataTypes.JSONB]: ['jsonb', 'json'],
-  [DataTypes.JSON]: ['jsonb', 'json'],
-  [DataTypes.ENUM]: ['USER-DEFINED', 'text'],
+  STRING: ['character varying', 'text', 'character'],
+  TEXT: ['text'],
+  BOOLEAN: ['boolean'],
+  INTEGER: ['integer', 'bigint', 'smallint'],
+  BIGINT: ['bigint', 'integer'],
+  FLOAT: ['double precision', 'real', 'numeric'],
+  DOUBLE: ['double precision', 'real', 'numeric'],
+  DECIMAL: ['numeric', 'double precision'],
+  DATE: ['timestamp with time zone', 'timestamp without time zone', 'date'],
+  UUID: ['uuid'],
+  JSONB: ['jsonb', 'json'],
+  JSON: ['jsonb', 'json'],
+  ENUM: ['USER-DEFINED', 'text'],
 };
 
+function typeKey(attribute) {
+  const type = attribute?.type;
+  return type && type.key ? String(type.key).toUpperCase() : null;
+}
+
 function acceptedTypes(attribute) {
-  const key = Object.keys(ACCEPTED).find((k) => attribute.type instanceof k);
-  return key ? ACCEPTED[key] : null;
+  const key = typeKey(attribute);
+  return key && ACCEPTED[key] ? ACCEPTED[key] : null;
 }
 
 function modelTypeName(attribute) {
-  const key = Object.keys(ACCEPTED).find((k) => attribute.type instanceof k);
-  if (!key) return String(attribute.type);
-  return key.replace('DataTypes.', '').toUpperCase();
+  return typeKey(attribute) || String(attribute?.type);
 }
 
 async function main() {

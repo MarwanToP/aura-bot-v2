@@ -1,37 +1,45 @@
-import { dequeueAIJob } from './queues/aiQueue.js';
-import { analyzeContent } from './gemini/moderator.js';
-import { pubsubPublisher, ACTION_CHANNEL } from '../../../packages/redis/src/queue.js';
+import { startConsumerLoop, stopConsumerLoop } from './consumer.js';
+import { closeAIQueue } from './queues/aiQueue.js';
+import { pubsubPublisher } from '../../../packages/redis/src/queue.js';
+import { MODERATION_MODEL } from './gemini/client.js';
 
-console.log('🤖 Starting Aura AI Worker Service (Gemini 1.5 Flash Neural Engine)...');
+console.log(`🤖 Starting Aura AI Worker Service (Neural Engine — model: ${MODERATION_MODEL})...`);
 
-async function processLoop() {
-  while (true) {
-    try {
-      const job = await dequeueAIJob(3);
-      if (!job) continue;
+startConsumerLoop();
 
-      if (job.type === 'MODERATION_ANALYZE') {
-        const { messageText, authorId, guildId, channelId, messageId } = job.payload;
-        const analysis = await analyzeContent(messageText, authorId, guildId);
+// ── Graceful shutdown ────────────────────────────────────────
+// SIGTERM/SIGINT stop the consume loop, close the Redis connections and
+// exit 0 — a redeploy must never leave a half-dead worker behind.
+let shuttingDown = false;
 
-        if (analysis.success) {
-          await pubsubPublisher.publish(
-            ACTION_CHANNEL,
-            JSON.stringify({
-              guildId,
-              channelId,
-              messageId,
-              authorId,
-              result: analysis.data,
-            })
-          );
-        }
-      }
-    } catch (error) {
-      console.error('❌ Error processing AI job:', error.message);
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-    }
+async function shutdown(signal) {
+  if (shuttingDown) return;
+  shuttingDown = true;
+
+  console.log(`👋 [AI Worker] ${signal} received — shutting down gracefully...`);
+  stopConsumerLoop();
+
+  // Hard cap: the process is gone within a few seconds even if Redis hangs.
+  const forceExit = setTimeout(() => {
+    console.warn('⚠️ [AI Worker] Shutdown timeout reached — forcing exit.');
+    process.exit(0);
+  }, 5000);
+
+  try {
+    await closeAIQueue();
+  } catch (err) {
+    console.warn('⚠️ [AI Worker] Failed to close the queue connection:', err?.message);
   }
+
+  try {
+    await pubsubPublisher.quit();
+  } catch (err) {
+    console.warn('⚠️ [AI Worker] Failed to close the publisher connection:', err?.message);
+  }
+
+  clearTimeout(forceExit);
+  process.exit(0);
 }
 
-processLoop();
+process.on('SIGTERM', () => { shutdown('SIGTERM'); });
+process.on('SIGINT', () => { shutdown('SIGINT'); });

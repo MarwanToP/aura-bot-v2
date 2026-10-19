@@ -53,14 +53,17 @@ export async function createCase(client, { guildId, userId, moderatorId, type, r
     // Broadcast to Dashboard via Redis Pub/Sub
     if (client.redis) {
       const user = await client.users.fetch(userId).catch(() => ({ tag: userId }));
-      client.redis.publish('aura:modlogs', JSON.stringify({
+      // Fire-and-forget: a Redis outage must never fail the moderation case,
+      // and the publish promise must never be left unhandled (an unhandled
+      // rejection takes the whole process down when Redis is down).
+      void Promise.resolve(client.redis.publish('aura:modlogs', JSON.stringify({
         guildId,
         type,
         user: user.tag || user.globalName || userId,
         moderatorId,
         reason: reason || 'No reason provided',
         color: modlogColor(type),
-      }));
+      }))).catch(() => {});
     }
 
     return modCase;

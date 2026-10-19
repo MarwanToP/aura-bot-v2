@@ -61,7 +61,7 @@ export function buildEmbed({
   return embed;
 }
 
-export function buildProfileEmbed({ user, credits = 50000, rep = 1250, streak = 15, isPremium = true, avatarUrl }) {
+export function buildProfileEmbed({ user, credits = 50000, rep = 1250, streak = 15, isPremium = true, avatarUrl, attachmentName = null }) {
   const embed = new EmbedBuilder()
     .setColor('#9D4EDD')
     .setAuthor({ name: `✦ ${user.username ?? user} Card`, iconURL: avatarUrl })
@@ -73,9 +73,12 @@ export function buildProfileEmbed({ user, credits = 50000, rep = 1250, streak = 
       { name: '🪙 Credits', value: `**${credits.toLocaleString()}** 💰`, inline: true },
       { name: '🔥 Daily Streak', value: `**${streak} Days** 🔥`, inline: true },
     )
-    .setImage('attachment://banner_profile.png')
     .setFooter({ text: '✨ Aura Economy System • Imperial Crystal Edition' })
     .setTimestamp();
+
+  // Only reference an attachment that the caller actually attaches — a
+  // `attachment://` URL without a matching file renders as a broken image.
+  if (attachmentName) embed.setImage(`attachment://${attachmentName}`);
 
   return embed;
 }

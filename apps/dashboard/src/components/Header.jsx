@@ -10,6 +10,8 @@ import {
   LogIn,
   LogOut,
   Moon,
+  Rocket,
+  ShieldCheck,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
@@ -98,13 +100,9 @@ export default function Header({ onNavigate, title = "Overview" }) {
               {loading ? (
                 <>Syncing your Discord session…</>
               ) : isAuthenticated ? (
-                <>
-                  Welcome back,{" "}
-                  <span className="font-semibold text-slate-200">{user?.username || "there"}</span>!
-                  Here&apos;s what&apos;s happening with your servers today. 👋
-                </>
+                <>Your servers, live and in sync.</>
               ) : (
-                <>Sign in with Discord to sync live data from your servers. 👋</>
+                <>Sign in with Discord to sync live data from your servers.</>
               )}
             </p>
             <span className="chip chip-green hidden shrink-0 xl:inline-flex">
@@ -165,7 +163,7 @@ export default function Header({ onNavigate, title = "Overview" }) {
                   <div className="space-y-1.5">
                     <div className="list-row border-white/[0.06] bg-white/[0.025]">
                       <span className="icon-tile icon-tile-violet h-8 w-8 rounded-[11px] text-sm">
-                        🚀
+                        <Rocket className="h-4 w-4" />
                       </span>
                       <span className="min-w-0">
                         <span className="block font-semibold text-slate-100">Server Boosted</span>
@@ -177,7 +175,7 @@ export default function Header({ onNavigate, title = "Overview" }) {
                     </div>
                     <div className="list-row border-white/[0.06] bg-white/[0.025]">
                       <span className="icon-tile icon-tile-amber h-8 w-8 rounded-[11px] text-sm">
-                        🛡️
+                        <ShieldCheck className="h-4 w-4" />
                       </span>
                       <span className="min-w-0">
                         <span className="block font-semibold text-slate-100">Auto-Mod Flag</span>

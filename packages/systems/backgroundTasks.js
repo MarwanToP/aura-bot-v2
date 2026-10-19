@@ -20,8 +20,9 @@ export function startBackgroundTasks(client) {
     }
   }, null, true);
 
-  // ── 2. Birthday Check (daily at 9 AM UTC) ────────────────
-  new CronJob('0 9 * * *', async () => {
+  // ── 2. Birthday Check (every 15 min — each guild fires at its own local
+  //        check hour, see checkBirthdays/birthdaySystem.js) ────────
+  new CronJob('*/15 * * * *', async () => {
     await checkBirthdays(client);
   }, null, true);
 
@@ -143,7 +144,9 @@ async function processTimedMessages(client) {
       try {
         const channel = await client.channels.fetch(msg.channelId).catch(() => null);
         if (channel?.isTextBased()) {
-          await channel.send(msg.content);
+          // The message body is user-authored — a stored "@everyone" must never
+          // be able to ping the whole server.
+          await channel.send({ content: msg.content, allowedMentions: { parse: [] } });
           const next = new Date(now.getTime() + msg.interval * 1000);
           await msg.update({ lastSentAt: now, nextSendAt: next });
         }
@@ -262,7 +265,12 @@ export async function processReminders(client) {
         try {
           const channel = await client.channels.fetch(row.channelId);
           if (channel) {
-            await channel.send(`<@${row.userId}> ⏰ ${row.content}`);
+            // The reminder body is user-authored: only the single user this
+            // reminder belongs to may be mentioned, never @everyone/@here.
+            await channel.send({
+              content: `<@${row.userId}> ⏰ ${row.content}`,
+              allowedMentions: { parse: [], users: [row.userId] },
+            });
             delivered = true;
           }
         } catch {}

@@ -26,8 +26,14 @@ process.on('uncaughtException', (err) => {
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const dev = process.env.NODE_ENV !== 'production';
-const nextApp = next({ dev, dir: join(__dirname, '..') });
-const handle = nextApp.getRequestHandler();
+// The page renderer is optional so the dev API can run WITHOUT a second Next
+// instance. Two Next dev instances sharing one .next directory overwrite each
+// other's build artifacts (missing CSS chunks, MODULE_NOT_FOUND, random 500s),
+// so in dev the UI is served by `next dev` on :3000 and this process is
+// API-only (next.config.js proxies /api/* here).
+const serveNextUI = process.env.AURA_SKIP_NEXT !== '1';
+const nextApp = serveNextUI ? next({ dev, dir: join(__dirname, '..') }) : null;
+const handle = nextApp ? nextApp.getRequestHandler() : null;
 
 const app = express();
 const httpServer = createServer(app);
@@ -54,6 +60,16 @@ app.use('/api/modules', moduleRoutes);
 app.use('/api/commands', commandRoutes);
 app.use('/api/stats', statsRoutes);
 
+// 3a. JSON 404 for unmatched /api/* requests. Registered after every API
+// router mount, so it only sees requests no router handled. Without it those
+// requests fall through to the Next.js page renderer below and come back as
+// the dashboard HTML with HTTP 200 — a client calling res.json() then blows
+// up on a parse error, and res.ok alone would accept the HTML as a payload.
+app.use((req, res, next) => {
+  if (req.path !== '/api' && !req.path.startsWith('/api/')) return next();
+  res.status(404).json({ error: 'Not found' });
+});
+
 // 3b. Terminal Express error handler. Express 4 only catches synchronous
 // throws from handlers, so an async rejection (or any error forwarded with
 // next(err)) would otherwise leave the socket open until the client times out.
@@ -78,15 +94,26 @@ initTelemetrySocket(httpServer);
 
 // 5. Next.js Frontend Page Renderer for UI
 async function startServer() {
-  try {
-    await nextApp.prepare();
-    console.log('✨ Next.js Frontend Intelligence Engine ready');
-    
-    app.all('*', (req, res) => {
-      return handle(req, res);
+  if (serveNextUI) {
+    try {
+      await nextApp.prepare();
+      console.log('✨ Next.js Frontend Intelligence Engine ready');
+
+      app.all('*', (req, res) => {
+        return handle(req, res);
+      });
+    } catch (err) {
+      console.warn('⚠️ Next.js prepare fallback:', err.message);
+    }
+  } else {
+    // API-only dev mode: the UI runs in `next dev` on :3000. Answer any
+    // non-API path with a pointer instead of a bare Express 404.
+    app.use((req, res) => {
+      res.status(404).json({
+        error: 'Not found',
+        hint: 'API-only dev server — the dashboard UI runs on http://localhost:3000 (npm run dev)',
+      });
     });
-  } catch (err) {
-    console.warn('⚠️ Next.js prepare fallback:', err.message);
   }
 
   // Registered last so it also terminates errors raised by the page renderer.

@@ -1,6 +1,23 @@
-import { redis, enqueueAIJob } from '../../../../packages/redis/src/queue.js';
+import { enqueueAIJob } from '../../../../packages/redis/src/queue.js';
 import { awardMessageXp } from '../../../../packages/systems/leveling/levelingSystem.js';
 import { handleCustomCommand } from '../../../../packages/systems/customcommands/customCommands.js';
+import safeRegex from 'safe-regex';
+
+// The message caches below MUST be read/written through the same client that
+// /autoresponder invalidates them with (`client.redis` → key prefix "aura2:").
+// They used to go through the unprefixed queue client, so the `del()` from the
+// command never hit the cached entry and every change only showed up after the
+// 300s TTL expired. The AI job queue stays on the queue client because the
+// ai-worker reads the unprefixed "aura:ai:jobs" key.
+const cacheGet = async (client, key) => {
+  if (!client?.redis) return null;
+  return client.redis.get(key).catch(() => null);
+};
+
+const cacheSetex = async (client, key, ttl, value) => {
+  if (!client?.redis) return null;
+  return client.redis.setex(key, ttl, value).catch(() => null);
+};
 
 export async function handleMessageCreate(client, message) {
   // Ignore bots and direct messages
@@ -8,9 +25,12 @@ export async function handleMessageCreate(client, message) {
 
   try {
     const cacheKey = `aura:guild:${message.guild.id}:config`;
-    let neuralEnabled = true;
+    // AI moderation is opt-in: a guild without a settings row (or with the
+    // flag left at its model default) must NOT have its messages shipped to
+    // an external AI provider.
+    let neuralEnabled = false;
 
-    const cached = await redis.get(cacheKey).catch(() => null);
+    const cached = await cacheGet(client, cacheKey);
 
     if (cached !== null) {
       neuralEnabled = cached === '1';
@@ -21,9 +41,9 @@ export async function handleMessageCreate(client, message) {
         attributes: ['aiModEnabled'],
       });
 
-      neuralEnabled = settings ? settings.aiModEnabled === true : true;
+      neuralEnabled = settings ? settings.aiModEnabled === true : false;
       // Cache result in Redis for 5 minutes (300 seconds)
-      await redis.setex(cacheKey, 300, neuralEnabled ? '1' : '0').catch(() => null);
+      await cacheSetex(client, cacheKey, 300, neuralEnabled ? '1' : '0');
     }
 
     if (neuralEnabled) {
@@ -61,7 +81,7 @@ export async function handleMessageCreate(client, message) {
     // Redis cache pattern mirrors the guild-config block: read → DB fallback on miss/error.
     // Cache value: JSON array of { id, trigger, triggerType, response, allowedChannels, requiredRoles },
     // invalidated by /autoresponder (add/remove/toggle/edit) via redis.del(cacheKey).
-    const cached = await redis.get(cacheKey).catch(() => null);
+    const cached = await cacheGet(client, cacheKey);
 
     if (cached !== null) {
       try {
@@ -88,7 +108,7 @@ export async function handleMessageCreate(client, message) {
         allowedChannels: r.allowedChannels ?? [],
         requiredRoles: r.requiredRoles ?? [],
       }));
-      await redis.setex(cacheKey, 300, JSON.stringify(responders)).catch(() => null);
+      await cacheSetex(client, cacheKey, 300, JSON.stringify(responders));
     }
 
     // First enabled responder (ascending id) whose trigger matches wins; no dedupe/cooldown handling.
@@ -104,7 +124,15 @@ export async function handleMessageCreate(client, message) {
           case 'exact':      hit = message.content === r.trigger; break;
           case 'contains':   hit = message.content.includes(r.trigger); break;
           case 'startsWith': hit = message.content.startsWith(r.trigger); break;
-          case 'regex':      hit = new RegExp(r.trigger).test(message.content); break;
+          case 'regex':
+            // Read-time ReDoS guard: a pattern stored before /autoresponder
+            // validated its input (or written straight to the database) must
+            // never be compiled against live messages — a catastrophic
+            // pattern would block the event loop for the whole process.
+            hit = safeRegex(r.trigger, { limit: 25 })
+              ? new RegExp(r.trigger).test(message.content)
+              : false;
+            break;
           default:           hit = false;
         }
       } catch {
@@ -120,7 +148,12 @@ export async function handleMessageCreate(client, message) {
     if (matched) {
       // {user} placeholder is the documented author-mention syntax from /autoresponder add
       const text = String(matched.response).replace(/\{user\}/gi, `<@${message.author.id}>`);
-      await message.reply(text.slice(0, 2000));
+      // The response is user-authored content — a stored "@everyone" must never
+      // be able to ping the whole server.
+      await message.reply({
+        content: text.slice(0, 2000),
+        allowedMentions: { parse: [] },
+      });
     }
   } catch (error) {
     console.error('⚠️ Error handling auto-responders:', error.message);

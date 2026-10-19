@@ -5,9 +5,30 @@
 import { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } from 'discord.js';
 import safeRegex from 'safe-regex';
 import { buildEmbed } from '../../../shared/utils/embedBuilder.js';
-import { Op } from 'sequelize';
 
 const CACHE_KEY = (guildId) => `autoresponder:${guildId}`;
+
+/**
+ * ReDoS / syntax guard for a regex trigger.
+ *
+ * The stored pattern is compiled and executed against every message in the
+ * guild (apps/bot/src/events/messageCreate.js), so a catastrophic-backtracking
+ * pattern would freeze the event loop. This is the single guard used by BOTH
+ * the `add` and the `edit` subcommand — `edit` must never be able to store a
+ * pattern that `add` would refuse.
+ *
+ * @returns {string|null} an error description, or null when the pattern is safe.
+ */
+function checkRegexTrigger(trigger) {
+  try { new RegExp(trigger); }
+  catch (e) {
+    return `❌ Invalid regex pattern: ${e.message}`;
+  }
+  if (!safeRegex(trigger, { limit: 25 })) {
+    return '❌ Regex pattern rejected: too complex / nested quantifiers (ReDoS guard).';
+  }
+  return null;
+}
 
 export const autoresponder = {
   data: new SlashCommandBuilder()
@@ -53,6 +74,7 @@ export const autoresponder = {
       .addIntegerOption(o => o.setName('cooldown').setDescription('New cooldown in seconds').setMinValue(0).setMaxValue(3600).setRequired(false))
     ),
 
+  botPermissions: [PermissionFlagsBits.ManageGuild],
   guildOnly: true,
   cooldown: 3000,
 
@@ -73,15 +95,10 @@ export const autoresponder = {
 
         // Validate regex
         if (triggerType === 'regex') {
-          try { new RegExp(trigger); }
-          catch (e) {
+          const regexError = checkRegexTrigger(trigger);
+          if (regexError) {
             return interaction.editReply({
-              embeds: [buildEmbed({ type: 'error', description: `❌ Invalid regex pattern: ${e.message}` })],
-            });
-          }
-          if (!safeRegex(trigger, { limit: 25 })) {
-            return interaction.editReply({
-              embeds: [buildEmbed({ type: 'error', description: '❌ Regex pattern rejected: too complex / nested quantifiers (ReDoS guard).' })],
+              embeds: [buildEmbed({ type: 'error', description: regexError })],
             });
           }
         }
@@ -186,6 +203,27 @@ export const autoresponder = {
             embeds: [buildEmbed({ type: 'warning', description: '⚠️ Provide at least one field to update.' })],
           });
         }
+
+        // The row is loaded first: a regex responder's trigger is compiled and
+        // executed against every message in the guild (messageCreate), so the
+        // edit path must run the very same guard as `add` — otherwise a stored
+        // catastrophic-backtracking pattern freezes the event loop.
+        const existing = await AutoResponder.findOne({ where: { id, guildId } });
+        if (!existing) {
+          return interaction.editReply({
+            embeds: [buildEmbed({ type: 'error', description: `❌ No auto-responder with ID \`${id}\` in this server.` })],
+          });
+        }
+
+        if (newTrigger && existing.triggerType === 'regex') {
+          const regexError = checkRegexTrigger(updates.trigger);
+          if (regexError) {
+            return interaction.editReply({
+              embeds: [buildEmbed({ type: 'error', description: regexError })],
+            });
+          }
+        }
+
         const [affected] = await AutoResponder.update(updates, { where: { id, guildId } });
         if (!affected) {
           return interaction.editReply({

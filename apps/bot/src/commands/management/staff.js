@@ -19,6 +19,7 @@ export const staffCommand = {
       .addUserOption(o => o.setName('target').setDescription('Staff member to view stats for'))
     ),
 
+  botPermissions: [PermissionFlagsBits.ManageMessages],
   guildOnly: true,
   cooldown: 5000,
 

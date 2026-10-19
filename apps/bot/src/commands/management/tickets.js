@@ -31,6 +31,7 @@ export const ticketsCommand = {
       .setDescription('Generate HTML/Text transcript of current ticket')
     ),
 
+  botPermissions: [PermissionFlagsBits.ManageChannels],
   guildOnly: true,
   cooldown: 3000,
 

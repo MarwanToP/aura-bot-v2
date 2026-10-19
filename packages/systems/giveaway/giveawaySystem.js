@@ -3,7 +3,7 @@
 // ================================================================
 
 import {
-  SlashCommandBuilder, PermissionFlagsBits,
+  SlashCommandBuilder, PermissionFlagsBits, MessageFlags,
   ActionRowBuilder, ButtonBuilder, ButtonStyle,
 } from 'discord.js';
 import { buildEmbed } from '../../utils/embedBuilder.js';
@@ -45,7 +45,10 @@ export async function createGiveaway(client, { guildId, channelId, hostId, prize
   // Schedule end
   const delay = duration;
   if (delay <= 2147483647) { // Max setTimeout
-    setTimeout(() => endGiveaway(client, giveaway.id), delay);
+    // unref()ed: a multi-day handle must never keep the event loop alive
+    // (the giveaway-expiry cron already ends giveaways that are due).
+    const endTimer = setTimeout(() => endGiveaway(client, giveaway.id), delay);
+    endTimer.unref?.();
   }
 
   return giveaway;
@@ -149,12 +152,13 @@ export const giveaway = {
     ),
 
   userPermissions: [PermissionFlagsBits.ManageGuild],
+  botPermissions:  [PermissionFlagsBits.SendMessages],
   guildOnly:       true,
   premiumTier:     1,
   cooldown:        3000,
 
   async execute(client, interaction) {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     const sub = interaction.options.getSubcommand();
 
     if (sub === 'start') {
@@ -236,7 +240,7 @@ export async function handleButton(client, interaction, args) {
   const [action, giveawayId] = args.split(':');
 
   if (action === 'enter') {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     const { Giveaway, GiveawayEntry } = client.db.models;
     const giveaway = await Giveaway.findByPk(giveawayId);
 
@@ -263,7 +267,7 @@ export async function handleButton(client, interaction, args) {
   }
 
   if (action === 'entries') {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     const { GiveawayEntry } = client.db.models;
     const count = await GiveawayEntry.count({ where: { giveawayId } });
     return interaction.editReply({ embeds: [buildEmbed({ type: 'info', description: `👥 **${count}** entries in this giveaway.` })] });

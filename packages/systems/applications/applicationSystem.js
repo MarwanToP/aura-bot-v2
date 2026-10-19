@@ -82,14 +82,14 @@ export async function showApplicationModal(interaction, formRef = null) {
   if (!form) {
     return interaction.reply({
       embeds: [buildEmbed({ type: 'error', description: '❌ Applications are currently closed for this server.' })],
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
   }
 
   if (!form.enabled) {
     return interaction.reply({
       embeds: [buildEmbed({ type: 'error', description: `❌ The **${form.name || 'requested'}** form is currently closed.` })],
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
   }
 
@@ -99,7 +99,7 @@ export async function showApplicationModal(interaction, formRef = null) {
     if (!member?.roles?.cache?.has(form.requiredRoleId)) {
       return interaction.reply({
         embeds: [buildEmbed({ type: 'error', description: `❌ You need the <@&${form.requiredRoleId}> role to apply for this position.` })],
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
   }
@@ -134,7 +134,7 @@ export async function handleModal(client, interaction, data) {
   // customId is apply:submit:<formId>; interactionCreate passes "submit:<formId>"
   const formId = (data || '').split(':')[1] || null;
 
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
   const form = formId
     ? await ApplicationForm.findOne({ where: { id: formId, guildId } }).catch(() => null)

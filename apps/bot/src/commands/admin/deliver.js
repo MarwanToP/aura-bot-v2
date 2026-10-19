@@ -9,6 +9,7 @@ export const deliver = {
     .addStringOption(opt => opt.setName('item').setDescription('The message, link, or resource to securely deliver').setRequired(true))
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
+  botPermissions: [PermissionFlagsBits.SendMessages, PermissionFlagsBits.EmbedLinks],
   guildOnly: true,
 
   async execute(client, interaction) {

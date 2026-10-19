@@ -29,6 +29,7 @@ export const verify = {
       .setDescription('Show current verification configuration')
     ),
 
+  botPermissions: [PermissionFlagsBits.ManageRoles],
   guildOnly: true,
   cooldown: 5000,
 

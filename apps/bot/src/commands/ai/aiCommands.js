@@ -332,6 +332,7 @@ export const aimod = {
     ),
 
   userPermissions: [PermissionFlagsBits.ModerateMembers],
+  botPermissions:  [PermissionFlagsBits.ModerateMembers],
   guildOnly:       true,
   cooldown:        5000,
 
@@ -385,6 +386,7 @@ export const aiPermissions = {
     .addStringOption(o => o.setName('purpose').setDescription('What is this role for? (Higher accuracy)').setMaxLength(500)),
 
   userPermissions: [PermissionFlagsBits.ManageRoles],
+  botPermissions:  [PermissionFlagsBits.ManageRoles],
   guildOnly:       true,
   cooldown:        10000,
 

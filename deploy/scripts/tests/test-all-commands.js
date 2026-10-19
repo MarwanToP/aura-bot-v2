@@ -6,10 +6,11 @@
 //  Usage:  node shared/scripts/tests/test-all-commands.js [--only <name>]
 //  Exit:   0 = all passed, 1 = failures found
 // ================================================================
-import { Collection } from 'discord.js';
+import { Collection, PermissionsBitField } from 'discord.js';
 import { Op, fn, col, literal } from 'sequelize';
 import { Transform } from 'node:stream';
 import { createRequire } from 'node:module';
+import { createServer } from 'node:http';
 import prism from 'prism-media';
 import { logger as sharedLogger } from '../../../packages/logger/index.js';
 import { loadCommands } from '../../../apps/bot/src/core/commandHandler.js';
@@ -25,6 +26,36 @@ const GUILD_ID = '900000000000000001';
 const CHANNEL_ID = '900000000000000002';
 const USER_ID = '900000000000000003';
 const ROLE_ID = '900000000000000004';
+
+// ── Local avatar server ──────────────────────────────────────────
+// The mocked avatar used to point at Discord's live CDN
+// (cdn.discordapp.com/embed/avatars/0.png). That made every command that
+// renders or embeds an avatar depend on a real HTTP round-trip: when the CDN
+// was slow, the /bank balance path (the only path that decodes an avatar
+// into a canvas card) intermittently ran past the harness timeout.
+//
+// The harness is documented as needing no external connection, so the avatar
+// is served from a loopback HTTP server instead. The URL stays a normal
+// http(s) URL — Discord's own embed validation rejects anything else — and
+// the real fetch → decode → draw path is still exercised, only locally.
+const AVATAR_PNG = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+  'base64',
+);
+let mockAvatarUrl = 'http://127.0.0.1/avatar.png';
+const avatarServer = createServer((_req, res) => {
+  res.writeHead(200, { 'Content-Type': 'image/png', 'Content-Length': AVATAR_PNG.length });
+  res.end(AVATAR_PNG);
+});
+await new Promise((resolve) => {
+  // If the loopback socket cannot be opened the harness keeps the default
+  // URL — the avatar then fails to load and the card falls back to its
+  // monogram, which is still a valid, passing path.
+  avatarServer.once('error', () => resolve());
+  avatarServer.listen(0, '127.0.0.1', resolve);
+});
+const avatarAddress = avatarServer.address();
+if (avatarAddress) mockAvatarUrl = `http://127.0.0.1:${avatarAddress.port}/avatar.png`;
 
 // ── Console preservation (used by load + capture fallbacks) ─────
 const origConsole = { warn: console.warn, log: console.log, error: console.error };
@@ -231,6 +262,14 @@ const i18nStub = {
 // ── Discord entity mocks ────────────────────────────────────────
 const permsAllow = { has: () => true, toArray: () => ['Administrator'], bitfield: 8n };
 
+// The mocked bot's own permission set. Commands declare `botPermissions`
+// (the permissions the BOT needs) and the shared gate
+// (packages/utils/permissions.js) resolves them with
+// `guild.members.me.permissionsIn(channel)` — so the mock member has to
+// answer that call with a real bitfield. The mocked bot holds every
+// permission so no command path is blocked by a missing bot permission.
+const BOT_PERMISSIONS = new PermissionsBitField(PermissionsBitField.All);
+
 function makeMockMessage() {
   const msg = {
     id: SNOWFLAKE,
@@ -270,7 +309,7 @@ function makeMockUser(id = USER_ID, bot = false) {
     id, bot,
     username: 'testuser', tag: 'testuser#0', discriminator: '0', globalName: 'Test User',
     createdTimestamp: Date.now() - 90 * 86_400_000,
-    displayAvatarURL: () => 'https://cdn.discordapp.com/embed/avatars/0.png',
+    displayAvatarURL: () => mockAvatarUrl,
     flags: { toArray: () => [] },
     send: async () => makeMockMessage(),
   };
@@ -283,6 +322,9 @@ function makeMockMember(client, id = USER_ID) {
     id, user, nickname: null, presence: null,
     joinedTimestamp: Date.now() - 30 * 86_400_000,
     permissions: permsAllow,
+    // The bot's own permissions in a given channel — the shared permission gate
+    // resolves `botPermissions` through this. The mocked bot holds them all.
+    permissionsIn: () => BOT_PERMISSIONS,
     kickable: true, bannable: true, moderatable: true, manageable: true,
     displayAvatarURL: () => user.displayAvatarURL(),
     roles: {
@@ -350,6 +392,25 @@ function makeMockGuild(client) {
   guild.emojis = { cache: new Collection() };
   guild.stickers = { cache: new Collection() };
   guild.invites = { fetch: async () => new Collection() };
+  // Audit log (Discord API) — lets /auditlog exercise its real rendering path
+  // instead of the "audit log unavailable" fallback.
+  guild.fetchAuditLogs = async ({ limit = 10 } = {}) => {
+    const entries = [];
+    for (let i = 0; i < Math.min(Number(limit) || 10, 25); i++) {
+      entries.push({
+        id: String(1000 + i),
+        action: 12, // AuditLogEvent.MemberBanAdd
+        actionType: 'MemberBanAdd',
+        targetId: '900000000000000099',
+        target: makeMockUser('900000000000000099'),
+        executorId: USER_ID,
+        executor: makeMockUser(USER_ID),
+        createdTimestamp: Date.now() - (i + 1) * 60_000,
+        reason: 'test entry',
+      });
+    }
+    return { entries: new Collection(entries.map((e, i) => [e.id, e])) };
+  };
   return guild;
 }
 
@@ -401,6 +462,9 @@ function defaultForOption(opt) {
       if (/emoji/.test(n)) return '⭐';
       if (/actions/.test(n)) return '[]';
       if (/lang/.test(n)) return 'en';
+      // Social-alert identifiers are validated server-side (SSRF guard):
+      // a generic "test value" contains a space and is not a valid handle.
+      if (n === 'identifier') return 'testuser';
       return 'test value';
     }
     case 4: return Math.max(1, opt.min_value ?? 1); // INTEGER
@@ -528,7 +592,7 @@ const client = {
   guilds: { cache: new Collection() },
   users: { cache: new Collection(), fetch: async (id) => makeMockUser(id) },
   channels: { cache: new Collection(), fetch: async () => null },
-  user: { id: 'bot-id', tag: 'Aura#0000', displayAvatarURL: () => 'https://cdn.discordapp.com/embed/avatars/1.png' },
+  user: { id: 'bot-id', tag: 'Aura#0000', displayAvatarURL: () => mockAvatarUrl },
   voiceAiSessions: new Map(),
 };
 
@@ -549,7 +613,17 @@ const failures = [];
 const noreplies = [];
 
 const TIMEOUT_MS = 8000;
-const withTimeout = (p, ms) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error(`Timed out after ${ms}ms`)), ms))]);
+// The watchdog timer is cleared once the path settles. Leaving it pending
+// would keep one 8s timer alive per path (155 of them), and every one of
+// them would fire in the middle of a later path, adding timer-phase work
+// exactly where the budget is tightest.
+const withTimeout = (p, ms) => {
+  let timer;
+  const watchdog = new Promise((_, rej) => {
+    timer = setTimeout(() => rej(new Error(`Timed out after ${ms}ms`)), ms);
+  });
+  return Promise.race([p, watchdog]).finally(() => clearTimeout(timer));
+};
 
 for (const [name, cmd] of [...client.commands.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
   if (onlyName && name !== onlyName) continue;

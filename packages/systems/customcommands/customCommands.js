@@ -2,7 +2,7 @@
 //  AURA BOT v2.0 — Custom Commands System (500 Premium)
 // ================================================================
 
-import { SlashCommandBuilder, PermissionFlagsBits } from 'discord.js';
+import { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } from 'discord.js';
 import { buildEmbed } from '../../utils/embedBuilder.js';
 import config         from '../../config/index.js';
 
@@ -45,11 +45,12 @@ export const customcmd = {
     ),
 
   userPermissions: [PermissionFlagsBits.ManageGuild],
+  botPermissions:  [PermissionFlagsBits.SendMessages],
   guildOnly:       true,
   cooldown:        3000,
 
   async execute(client, interaction) {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     const sub = interaction.options.getSubcommand();
     const { CustomCommand } = client.db.models;
 
@@ -64,6 +65,12 @@ export const customcmd = {
       const cooldown = interaction.options.getInteger('cooldown') ?? 0;
 
       if (!name) return interaction.editReply({ embeds: [buildEmbed({ type: 'error', description: '❌ Invalid command name. Use only letters, numbers, _, -' })] });
+
+      // A free-tier limit of 0 means the feature itself is premium-only —
+      // "limit reached (0 items)" would be nonsense.
+      if (limit <= 0) {
+        return interaction.editReply({ embeds: [buildEmbed({ type: 'warning', description: '⭐ Custom commands are a **Premium** feature. Upgrade to Aura Premium to create up to 500 custom commands.' })] });
+      }
 
       const count = await CustomCommand.count({ where: { guildId: interaction.guildId } });
       if (count >= limit) {
@@ -198,7 +205,12 @@ export async function handleCustomCommand(client, message) {
       } catch { /* keep the template response */ }
     }
 
-    await message.channel.send(response.slice(0, 2000));
+    // The response is user-authored content — a stored "@everyone" must never
+    // be able to ping the whole server.
+    await message.channel.send({
+      content: response.slice(0, 2000),
+      allowedMentions: { parse: [] },
+    });
 
     // Increment usage
     const { CustomCommand } = client.db.models;

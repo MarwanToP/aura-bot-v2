@@ -1,6 +1,14 @@
 import { PermissionsBitField, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } from 'discord.js';
 import { hasPermissions, checkCooldown } from './security.js';
-import { checkCommandPermissions } from '../../shared/utils/permissions.js';
+import { checkCommandPermissions, permissionFailureMessage } from '../../shared/utils/permissions.js';
+import customization from '../../shared/systems/customization/customizationSystem.js';
+
+// The per-guild restriction lookup reads Redis first and falls back to the
+// database, so the round-trip is bounded exactly like the premium-tier check
+// below: a slow lookup must never push the interaction past Discord's 3s
+// acknowledgement deadline. The gate fails OPEN (the command runs) when the
+// bound is hit or the lookup errors.
+const RESTRICTION_TIMEOUT_MS = 400;
 
 export async function handleInteraction(client, interaction) {
   if (interaction.isChatInputCommand()) {
@@ -30,18 +38,44 @@ export async function handleInteraction(client, interaction) {
         }
       }
 
-      // 1b. userPermissions / botPermissions metadata (parity with events/interactionCreate.js)
+      // 1b. userPermissions / botPermissions metadata (shared gate, same
+      //      helper and same branded message as the component router)
       const cp = checkCommandPermissions(command, { member: interaction.member, guild: interaction.guild, channel: interaction.channel });
       if (!cp.ok) {
-        const message = cp.kind === 'bot'
-          ? '❌ I am missing required permissions to run this command in this channel.'
-          : '❌ You do not have permission to execute this command.';
+        // One shared message for every router: the shared gate already carries
+        // the precise text (`cp.message`), so the two paths can never drift.
+        const message = permissionFailureMessage(cp);
         return interaction.reply({ content: message, flags: MessageFlags.Ephemeral });
       }
 
       // 1c. Guild-only enforcement
       if (command.guildOnly && !interaction.guildId) {
         return interaction.reply({ content: '❌ This command can only be used within a server.', flags: MessageFlags.Ephemeral });
+      }
+
+      // 1d. Per-guild command restrictions — a blacklisted command or a
+      //     disabled channel refuses the command. The lookup is bounded and
+      //     fails open, so a slow database never delays the interaction and a
+      //     guild without a settings row keeps the unrestricted behaviour.
+      //     It runs before the cooldown gate so a refused command does not
+      //     burn the caller's cooldown.
+      if (interaction.guildId) {
+        try {
+          const restriction = await Promise.race([
+            customization
+              .isCommandRestricted(client, interaction.guildId, interaction.channelId, interaction.commandName)
+              .catch(() => null),
+            after(RESTRICTION_TIMEOUT_MS, null),
+          ]);
+          if (restriction?.restricted) {
+            return interaction.reply({
+              content: customization.describeRestriction(restriction.reason),
+              flags: MessageFlags.Ephemeral,
+            });
+          }
+        } catch (e) {
+          client.logger?.warn?.('Restriction check failed:', e?.message);
+        }
       }
 
       // 2. Cooldown enforcement — `command.cooldown` is declared in MILLISECONDS
@@ -187,8 +221,22 @@ async function getComponentRouter() {
 }
 
 /**
+ * Resolves with `value` after `ms`.
+ * Used to bound an I/O bound gate so a slow call can never push an
+ * interaction past Discord's 3s acknowledgement deadline. The timer is
+ * unref'd, so a pending bound never keeps the process alive.
+ */
+function after(ms, value) {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => resolve(value), ms);
+    if (typeof timer.unref === 'function') timer.unref();
+  });
+}
+
+/**
  * Best-effort premium-tier lookup (cache hit preferred, DB fallback).
- * Mirror of the helper in events/interactionCreate.js.
+ * The single implementation of this gate — the event router no longer
+ * carries a second (unreachable) copy.
  */
 async function getGuildPremiumTier(client, guildId) {
   if (!client.redis || client.redis.status !== 'ready') {

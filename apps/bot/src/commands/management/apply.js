@@ -1,7 +1,7 @@
 // ================================================================
 //  AURA BOT v2.0 — Staff Applications System (Appy style)
 // ================================================================
-import { SlashCommandBuilder, MessageFlags } from 'discord.js';
+import { SlashCommandBuilder, MessageFlags, PermissionFlagsBits } from 'discord.js';
 import { buildEmbed } from '../../../shared/utils/embedBuilder.js';
 import { showApplicationModal } from '../../../shared/systems/applications/applicationSystem.js';
 
@@ -23,6 +23,7 @@ export const applyCommand = {
       .setDescription('Check the status of your submitted application')
     ),
 
+  botPermissions: [PermissionFlagsBits.SendMessages],
   guildOnly: true,
   cooldown: 5000,
 

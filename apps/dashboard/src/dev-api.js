@@ -5,5 +5,10 @@
 // Production deployments use `npm start` (node src/server.js) and keep their
 // real NODE_ENV.
 process.env.NODE_ENV = 'development';
+// API-only in dev: the dashboard UI is served by `next dev` on :3000, and
+// next.config.js proxies /api/* to this process. Booting a second Next
+// instance here would share the same .next directory and corrupt the build
+// (missing CSS chunks / MODULE_NOT_FOUND / random 500s).
+process.env.AURA_SKIP_NEXT = '1';
 console.warn('⚠️ dev-api.js forces NODE_ENV=development — never use this entrypoint in production.');
 await import('./server.js');
