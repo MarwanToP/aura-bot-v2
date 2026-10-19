@@ -58,6 +58,25 @@ function lev(a, b) {
 
 export async function activateLockdown(client, guild, reason = 'Manual') {
   const key = `lockdown:${guild.id}`;
+
+  // Idempotency guard: a lockdown is already active for this guild.
+  // Do NOT re-run the channel-permission pass, do NOT delete invites again
+  // and do NOT post a second audit embed — just refresh the TTL so the
+  // lockdown stays alive for the full window.
+  let alreadyActive = false;
+  try {
+    alreadyActive = !!(await isInLockdown(client, guild.id));
+  } catch {
+    alreadyActive = false;
+  }
+
+  if (alreadyActive) {
+    await client.redis.expire(key, 3600).catch(() => {});
+    await client.redis.setex(key, 3600, '1').catch(() => {});
+    logger.warn(`[AntiRaid] Lockdown already active in ${guild.name}, refreshed TTL: ${reason}`);
+    return { alreadyActive: true, guildId: guild.id, reason };
+  }
+
   await client.redis.setex(key, 3600, '1');
   logger.warn(`[AntiRaid] Lockdown in ${guild.name}: ${reason}`);
 
@@ -77,6 +96,8 @@ export async function activateLockdown(client, guild, reason = 'Manual') {
     const ch = await client.channels.fetch(channelId).catch(() => null);
     if (ch?.isTextBased()) await ch.send({ embeds: [buildEmbed({ type: 'error', title: '🚨 Lockdown Activated', description: reason, timestamp: true })] });
   }
+
+  return { alreadyActive: false, guildId: guild.id, reason };
 }
 
 export async function liftLockdown(client, guild, executor) {

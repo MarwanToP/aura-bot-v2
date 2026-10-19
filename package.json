@@ -23,6 +23,7 @@
     "db:generate": "cd packages/database && npx prisma generate --schema prisma/schema.prisma",
     "security:audit": "npm audit --audit-level=high",
     "test:commands": "node deploy/scripts/tests/test-all-commands.js",
+    "test:db": "node deploy/scripts/tests/test-db-models.js",
     "test:smoke": "npm run lint:syntax && npm run audit:commands && npm run test:commands"
   },
   "dependencies": {

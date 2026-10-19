@@ -29,10 +29,10 @@ const rise = {
 /* ────────────────────────────── data ────────────────────────────── */
 
 const TYPE_META = {
-  auth: { label: "Auth", color: "#5B8CFF" },
-  config: { label: "Config", color: "#7C5CFF" },
-  mod: { label: "Moderation", color: "#FFB547" },
-  system: { label: "System", color: "#39D98A" },
+  auth: { label: "Auth", color: "#4C7DFF", chip: "chip-blue" },
+  config: { label: "Config", color: "#7C5CFF", chip: "chip-violet" },
+  mod: { label: "Moderation", color: "#FBBF24", chip: "chip-amber" },
+  system: { label: "System", color: "#34D399", chip: "chip-green" },
 };
 
 const CONTROL_LOGS = [
@@ -69,9 +69,9 @@ export default function ControlPanel() {
             initial={{ opacity: 0, y: 12, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 8, scale: 0.99 }}
-            className="fixed bottom-6 right-6 z-[90] panel px-4 py-3 flex items-center gap-2.5 text-xs font-semibold shadow-2xl shadow-black/60"
+            className="panel fixed bottom-6 right-6 z-[90] flex items-center gap-2.5 px-4 py-3 text-xs font-semibold shadow-2xl shadow-black/60"
           >
-            <CheckCircle2 className="w-4 h-4 text-[#39D98A]" />
+            <CheckCircle2 className="h-4 w-4 text-[#34D399]" />
             <span>{toast}</span>
           </motion.div>
         )}
@@ -80,36 +80,44 @@ export default function ControlPanel() {
       {/* Header */}
       <motion.div variants={rise} className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h2 className="flex items-center gap-2.5 text-lg font-extrabold">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#7C5CFF]/25 bg-[#7C5CFF]/10 text-[#7C5CFF]">
+          <h2 className="font-display flex items-center gap-3 text-lg font-extrabold tracking-tight text-white">
+            <span className="icon-tile icon-tile-violet h-9 w-9 rounded-xl">
               <Folder className="h-4 w-4" />
             </span>
-            Control Panel & Mod Actions
+            Control Panel &amp; Mod Actions
           </h2>
-          <p className="mt-1.5 font-body text-xs text-slate-500">
+          <p className="mt-2 font-body text-xs text-slate-400">
             Dashboard audit logs, configuration changes, and moderator action history.
           </p>
         </div>
+        <span className="chip chip-green">
+          <span className="status-dot status-dot-online animate-pulse-dot h-1.5 w-1.5" />
+          All systems monitored
+        </span>
       </motion.div>
 
       <motion.div variants={rise} className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         {/* Control panel logs */}
-        <section className="panel panel-hover relative overflow-hidden flex flex-col">
-          <div className="flex items-center gap-3 p-5 pb-4">
-            <span className="w-9 h-9 rounded-xl bg-[#7C5CFF]/10 border border-[#7C5CFF]/25 flex items-center justify-center text-[#7C5CFF] shrink-0">
-              <FileText className="w-4 h-4" />
+        <section className="panel panel-hover relative flex flex-col overflow-hidden">
+          <div className="pointer-events-none absolute -top-20 -right-14 h-48 w-48 rounded-full bg-[#4C7DFF]/[0.07] blur-3xl" />
+
+          <div className="relative flex items-center gap-3 p-5 pb-4">
+            <span className="icon-tile icon-tile-blue h-9 w-9 rounded-xl">
+              <FileText className="h-4 w-4" />
             </span>
-            <div>
-              <h3 className="text-sm font-extrabold text-white">Control Panel Logs</h3>
-              <p className="text-xs text-slate-500 mt-0.5">Most recent dashboard activity</p>
+            <div className="min-w-0">
+              <h3 className="card-title">Control Panel Logs</h3>
+              <p className="card-sub mt-0.5">Most recent dashboard activity</p>
             </div>
-            <span className="ml-auto inline-flex items-center gap-1.5 text-[10px] font-bold text-[#39D98A]">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#39D98A] animate-pulse-dot" />
+            <span className="ml-auto inline-flex shrink-0 items-center gap-1.5 text-[10px] font-bold text-[#34D399]">
+              <span className="h-1.5 w-1.5 animate-pulse-dot rounded-full bg-[#34D399]" />
               LIVE
             </span>
           </div>
 
-          <div className="divide-y divide-white/[0.04] border-t border-white/[0.04]">
+          <div className="hairline mx-5" />
+
+          <div className="relative flex flex-col gap-0.5 p-3 pt-2">
             {CONTROL_LOGS.map((log, i) => {
               const meta = TYPE_META[log.type] || TYPE_META.system;
               return (
@@ -118,22 +126,29 @@ export default function ControlPanel() {
                   initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.12 + i * 0.06, duration: 0.35, ease: EASE }}
-                  className="flex items-start gap-3 px-5 py-3.5 hover:bg-white/[0.02] transition-colors"
+                  className="list-row items-start px-2.5 py-2.5"
                 >
                   <span
-                    className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
-                    style={{ backgroundColor: `${meta.color}1A`, color: meta.color }}
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[11px] border"
+                    style={{
+                      backgroundColor: `${meta.color}1A`,
+                      borderColor: `${meta.color}3D`,
+                      color: meta.color,
+                    }}
                   >
-                    <Activity className="w-3.5 h-3.5" />
+                    <Activity className="h-3.5 w-3.5" />
                   </span>
-                  <div className="flex-1 min-w-0">
+                  <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
                       <span className="text-xs font-bold text-white">{log.action}</span>
                       <span className="text-[10px] text-slate-500">by {log.user}</span>
                     </div>
-                    <p className="text-[11px] text-slate-400 mt-0.5 truncate">{log.detail}</p>
+                    <p className="mt-0.5 truncate text-[11px] text-slate-400">{log.detail}</p>
                   </div>
-                  <span className="text-[10px] text-slate-600 font-mono shrink-0 whitespace-nowrap">{log.time}</span>
+                  <span className={`chip ${meta.chip} shrink-0`}>{meta.label}</span>
+                  <span className="shrink-0 whitespace-nowrap font-mono text-[10px] text-slate-600">
+                    {log.time}
+                  </span>
                 </motion.div>
               );
             })}
@@ -141,18 +156,22 @@ export default function ControlPanel() {
         </section>
 
         {/* Mod actions */}
-        <section className="panel panel-hover relative overflow-hidden flex flex-col">
-          <div className="flex items-center gap-3 p-5 pb-4">
-            <span className="w-9 h-9 rounded-xl bg-[#7C5CFF]/10 border border-[#7C5CFF]/25 flex items-center justify-center text-[#7C5CFF] shrink-0">
-              <Scale className="w-4 h-4" />
+        <section className="panel panel-hover relative flex flex-col overflow-hidden">
+          <div className="pointer-events-none absolute -top-20 -left-14 h-48 w-48 rounded-full bg-[#7C5CFF]/[0.08] blur-3xl" />
+
+          <div className="relative flex items-center gap-3 p-5 pb-4">
+            <span className="icon-tile icon-tile-violet h-9 w-9 rounded-xl">
+              <Scale className="h-4 w-4" />
             </span>
-            <div>
-              <h3 className="text-sm font-extrabold text-white">Mod Actions</h3>
-              <p className="text-xs text-slate-500 mt-0.5">Bulk tools for the moderation team</p>
+            <div className="min-w-0">
+              <h3 className="card-title">Mod Actions</h3>
+              <p className="card-sub mt-0.5">Bulk tools for the moderation team</p>
             </div>
           </div>
 
-          <div className="divide-y divide-white/[0.04] border-t border-white/[0.04]">
+          <div className="hairline mx-5" />
+
+          <div className="relative flex flex-col gap-0.5 p-3 pt-2">
             {MOD_ACTIONS.map((item, i) => {
               const Icon = item.icon;
               return (
@@ -164,16 +183,16 @@ export default function ControlPanel() {
                   transition={{ delay: 0.12 + i * 0.06, duration: 0.35, ease: EASE }}
                   whileTap={{ scale: 0.99 }}
                   onClick={() => showToast(item.toast)}
-                  className="flex w-full items-center gap-3 px-5 py-3.5 text-left hover:bg-white/[0.02] transition-colors cursor-pointer"
+                  className="list-row w-full cursor-pointer text-left"
                 >
-                  <span className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-[#7C5CFF]/10 border border-[#7C5CFF]/20 text-[#7C5CFF]">
-                    <Icon className="w-4 h-4" />
+                  <span className="icon-tile icon-tile-amber h-8 w-8 rounded-[11px]">
+                    <Icon className="h-3.5 w-3.5" />
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block text-xs font-bold text-white truncate">{item.action}</span>
-                    <span className="block text-[10px] text-slate-500 truncate">{item.desc}</span>
+                    <span className="block truncate text-xs font-bold text-white">{item.action}</span>
+                    <span className="block truncate text-[10.5px] text-slate-500">{item.desc}</span>
                   </span>
-                  <ChevronRight className="w-4 h-4 text-slate-600 shrink-0" />
+                  <ChevronRight className="h-4 w-4 shrink-0 text-slate-600" />
                 </motion.button>
               );
             })}

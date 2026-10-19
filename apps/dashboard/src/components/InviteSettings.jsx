@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Mail, UserCheck, ShieldAlert, Award, LogOut, Users } from "lucide-react";
+import { Mail, UserCheck, ShieldAlert, Award, LogOut, Users, Crown } from "lucide-react";
 
 /* ────────────────────────────── motion helpers ────────────────────────────── */
 
@@ -166,6 +166,15 @@ const REAL_STATS = [
   { key: "valid", label: "Valid", note: (n) => `invites − fake − left · top ${n}`, color: "#39D98A", icon: UserCheck },
 ];
 
+/* map a stat accent colour onto the glass icon-tile palette */
+const toneFor = (color) => {
+  if (color === "#39D98A") return "green";
+  if (color === "#FF5C7A") return "red";
+  if (color === "#FFB547") return "amber";
+  if (color === "#7C5CFF") return "violet";
+  return "blue";
+};
+
 /* ────────────────────────────── pieces ────────────────────────────── */
 
 function StatCard({ s, index }) {
@@ -173,21 +182,16 @@ function StatCard({ s, index }) {
   const Icon = s.icon;
 
   return (
-    <motion.div variants={rise} className="panel panel-hover p-5">
-      <div className="flex items-center justify-between gap-2">
-        <span className="section-label">{s.label}</span>
-        <span
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg"
-          style={{ backgroundColor: `${s.color}1A`, color: s.color }}
-        >
-          <Icon className="h-3.5 w-3.5" />
+    <div className="kpi-tile">
+      <div className="flex items-start justify-between gap-3">
+        <span className="kpi-label">{s.label}</span>
+        <span className={`icon-tile icon-tile-${toneFor(s.color)} h-9 w-9 rounded-[12px]`}>
+          <Icon className="h-4 w-4" />
         </span>
       </div>
-      <div className="mt-2 text-2xl font-extrabold text-white tabular-nums">
-        {Math.round(count).toLocaleString("en-US")}
-      </div>
-      <div className="mt-1 text-[11px] font-medium text-slate-500">{s.note}</div>
-    </motion.div>
+      <div className="kpi-value mt-3">{Math.round(count).toLocaleString("en-US")}</div>
+      <p className="mt-1 text-[10px] text-slate-500">{s.note}</p>
+    </div>
   );
 }
 
@@ -211,30 +215,32 @@ function InviteRow({ row, rank }) {
   const hue = hashHue(row.userId || display);
 
   return (
-    <div className="flex flex-wrap items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3.5 py-3 transition-colors hover:bg-white/[0.04]">
-      <span className="w-5 shrink-0 text-center text-[10px] font-bold tabular-nums text-slate-600">
-        {rank}
+    <div className="list-row gap-3 px-3 py-2.5">
+      <span className="w-5 shrink-0 text-center text-[11px] font-black tabular-nums text-slate-600">
+        {rank <= 3 ? <Crown className="h-3.5 w-3.5 text-[#FBBF24]" /> : rank}
       </span>
 
-      {row.avatarUrl && !broken ? (
-        <img
-          src={row.avatarUrl}
-          alt=""
-          referrerPolicy="no-referrer"
-          loading="lazy"
-          onError={() => setBroken(true)}
-          className="h-8 w-8 shrink-0 rounded-full border border-white/[0.06] object-cover"
-        />
-      ) : (
-        <span
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white"
-          style={{
-            background: `linear-gradient(135deg, hsl(${hue} 70% 55%), hsl(${(hue + 40) % 360} 70% 45%))`,
-          }}
-        >
-          {initials}
-        </span>
-      )}
+      <span className="avatar-ring shrink-0">
+        {row.avatarUrl && !broken ? (
+          <img
+            src={row.avatarUrl}
+            alt=""
+            referrerPolicy="no-referrer"
+            loading="lazy"
+            onError={() => setBroken(true)}
+            className="h-8 w-8 rounded-full object-cover"
+          />
+        ) : (
+          <span
+            className="flex h-8 w-8 items-center justify-center rounded-full text-[10px] font-bold text-white"
+            style={{
+              background: `linear-gradient(135deg, hsl(${hue} 70% 55%), hsl(${(hue + 40) % 360} 70% 45%))`,
+            }}
+          >
+            {initials}
+          </span>
+        )}
+      </span>
 
       <div className="min-w-0 flex-1">
         <div
@@ -369,18 +375,19 @@ export default function InviteSettings({ guildId }) {
     <motion.div variants={stagger} initial="hidden" animate="show" className="space-y-5 text-white">
       {/* Header */}
       <motion.div variants={rise} className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h2 className="flex items-center gap-2.5 text-lg font-extrabold">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#7C5CFF]/25 bg-[#7C5CFF]/10 text-[#7C5CFF]">
-              <Mail className="h-4 w-4" />
-            </span>
-            Invite Tracker &amp; Milestone Rewards
-          </h2>
-          <p className="mt-1.5 font-body text-xs text-slate-500">
-            Track real vs fake invites, prevent self-invite cheating, and award automatic
-            milestone roles.
-          </p>
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="icon-tile icon-tile-violet">
+            <Mail className="h-5 w-5" />
+          </span>
+          <div className="min-w-0">
+            <h2 className="card-title text-[15px]">Invite Tracker &amp; Milestone Rewards</h2>
+            <p className="card-sub mt-0.5">
+              Track real vs fake invites, prevent self-invite cheating, and award automatic
+              milestone roles.
+            </p>
+          </div>
         </div>
+        <span className="chip chip-cyan">Invite tracker</span>
       </motion.div>
 
       {/* Stats summary */}
@@ -397,140 +404,133 @@ export default function InviteSettings({ guildId }) {
         ))}
       </motion.div>
 
-      {/* Milestone roles */}
-      <motion.div variants={rise} className="panel p-5">
-        <div className="flex items-center gap-3">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#7C5CFF]/25 bg-[#7C5CFF]/10 text-[#7C5CFF]">
-            <Award className="h-4 w-4" />
-          </span>
-          <div className="min-w-0">
-            <h3 className="text-sm font-extrabold text-white">Invite Milestone Role Rewards</h3>
-            <p className="mt-1 text-xs text-slate-500">
-              Granted the moment a member hits the threshold
-            </p>
-          </div>
-        </div>
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+        {/* Invite leaderboard — real mode only (no demo rows exist for this section) */}
+        {isReal && (
+          <motion.div variants={rise} className="glass-card p-5">
+            <div className="flex items-center gap-3">
+              <span className="icon-tile icon-tile-blue h-9 w-9 rounded-[12px]">
+                <Users className="h-4 w-4" />
+              </span>
+              <div className="min-w-0">
+                <h3 className="card-title">Top inviters</h3>
+                <p className="card-sub mt-0.5">Ranked by tracked invites — top {leaderboard.length}</p>
+              </div>
+            </div>
 
-        {milestones && milestones.length > 0 ? (
-          <div className="mt-4 space-y-2">
-            {milestones.map((m, i) => {
-              const info = m.roleId ? roleMap[m.roleId] : null;
-              const resolvedName =
-                info && typeof info.name === "string" && info.name ? info.name : null;
-              const label = m.roleName || resolvedName;
-              const color = info ? roleDotColor(info.color) : m.color;
-              return (
-                <div
-                  key={m.roleId || `${m.invites}-${i}`}
-                  className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3.5 py-3 transition-colors hover:bg-white/[0.04]"
-                >
-                  <div className="min-w-0">
-                    <div className="text-xs font-bold text-white">
-                      {m.invites
-                        ? `${m.invites} Invite${m.invites === 1 ? "" : "s"} Required`
-                        : "Invite milestone"}
+            {leaderboard.length === 0 ? (
+              <div className="empty-state mt-4">
+                <span className="empty-state-icon">
+                  <Users className="h-4 w-4" />
+                </span>
+                <span className="empty-state-title">No tracked invites yet</span>
+                <span>Invites will appear here once members start inviting.</span>
+              </div>
+            ) : (
+              <div className="mt-4 space-y-1.5">
+                {leaderboard.map((row, i) => (
+                  <InviteRow key={row.userId || i} row={row} rank={i + 1} />
+                ))}
+              </div>
+            )}
+          </motion.div>
+        )}
+
+        {/* Milestone roles */}
+        <motion.div variants={rise} className="glass-card p-5">
+          <div className="flex items-center gap-3">
+            <span className="icon-tile icon-tile-amber h-9 w-9 rounded-[12px]">
+              <Award className="h-4 w-4" />
+            </span>
+            <div className="min-w-0">
+              <h3 className="card-title">Invite Milestone Role Rewards</h3>
+              <p className="card-sub mt-0.5">Granted the moment a member hits the threshold</p>
+            </div>
+          </div>
+
+          {milestones && milestones.length > 0 ? (
+            <div className="mt-4 space-y-1.5">
+              {milestones.map((m, i) => {
+                const info = m.roleId ? roleMap[m.roleId] : null;
+                const resolvedName =
+                  info && typeof info.name === "string" && info.name ? info.name : null;
+                const label = m.roleName || resolvedName;
+                const color = info ? roleDotColor(info.color) : m.color;
+                return (
+                  <div
+                    key={m.roleId || `${m.invites}-${i}`}
+                    className="list-row gap-3 px-3 py-2.5"
+                  >
+                    <div className="min-w-0">
+                      <div className="text-xs font-bold text-white">
+                        {m.invites
+                          ? `${m.invites} Invite${m.invites === 1 ? "" : "s"} Required`
+                          : "Invite milestone"}
+                      </div>
+                      <div className="mt-0.5 text-[10px] text-slate-500">
+                        Granted automatically when a member reaches the threshold
+                      </div>
                     </div>
-                    <div className="mt-0.5 text-[10px] text-slate-600">
-                      Granted automatically when a member reaches the threshold
+                    <span
+                      className="ml-auto shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold"
+                      style={{
+                        borderColor: `${color}40`,
+                        color,
+                        background: `${color}12`,
+                      }}
+                    >
+                      {label ? `@${label.replace(/^@/, "")}` : shortUserId(m.roleId)}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          ) : !isReal ? (
+            <div className="mt-4 space-y-1.5">
+              {MILESTONES.map((m) => (
+                <div key={m.invites} className="list-row gap-3 px-3 py-2.5">
+                  <div className="min-w-0">
+                    <div className="text-xs font-bold text-white">{m.invites} Invites Required</div>
+                    <div className="mt-0.5 text-[10px] text-slate-500">
+                      Granted to {m.granted} members
                     </div>
                   </div>
                   <span
-                    className="shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold"
+                    className="ml-auto shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold"
                     style={{
-                      borderColor: `${color}40`,
-                      color,
-                      background: `${color}12`,
+                      borderColor: `${m.color}40`,
+                      color: m.color,
+                      background: `${m.color}12`,
                     }}
                   >
-                    {label ? `@${label.replace(/^@/, "")}` : shortUserId(m.roleId)}
+                    {m.role}
                   </span>
                 </div>
-              );
-            })}
-          </div>
-        ) : !isReal ? (
-          <div className="mt-4 space-y-2">
-            {MILESTONES.map((m) => (
-              <div
-                key={m.invites}
-                className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3.5 py-3 transition-colors hover:bg-white/[0.04]"
-              >
-                <div className="min-w-0">
-                  <div className="text-xs font-bold text-white">{m.invites} Invites Required</div>
-                  <div className="mt-0.5 text-[10px] text-slate-600">
-                    Granted to {m.granted} members
-                  </div>
-                </div>
-                <span
-                  className="shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold"
-                  style={{
-                    borderColor: `${m.color}40`,
-                    color: m.color,
-                    background: `${m.color}12`,
-                  }}
-                >
-                  {m.role}
-                </span>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="mt-4 flex items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3.5 py-3">
-            <Award className="h-4 w-4 shrink-0 text-slate-700" />
-            <div className="min-w-0">
-              <div className="text-xs font-bold text-slate-400">
+              ))}
+            </div>
+          ) : (
+            <div className="empty-state mt-4">
+              <span className="empty-state-icon">
+                <Award className="h-4 w-4" />
+              </span>
+              <span className="empty-state-title">
                 {milestones === undefined
                   ? "Loading milestone roles…"
                   : milestones === null
                     ? "Couldn't load milestone roles right now"
                     : "No milestone roles configured yet"}
-              </div>
-              <div className="mt-0.5 text-[10px] text-slate-600">
+              </span>
+              <span>
                 {milestones === undefined
                   ? "Reading this server's invite configuration."
                   : milestones === null
                     ? "Reopen this page to retry — nothing here can be edited from the dashboard."
                     : "This server has no invite milestones saved — configure them from the bot."}
-              </div>
-            </div>
-          </div>
-        )}
-      </motion.div>
-
-      {/* Invite leaderboard — real mode only (no demo rows exist for this section) */}
-      {isReal && (
-        <motion.div variants={rise} className="panel p-5">
-          <div className="flex items-center gap-3">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#7C5CFF]/25 bg-[#7C5CFF]/10 text-[#7C5CFF]">
-              <Users className="h-4 w-4" />
-            </span>
-            <div className="min-w-0">
-              <h3 className="text-sm font-extrabold text-white">Top inviters</h3>
-              <p className="mt-1 text-xs text-slate-500">
-                Ranked by tracked invites — top {leaderboard.length}
-              </p>
-            </div>
-          </div>
-
-          {leaderboard.length === 0 ? (
-            <div className="mt-4 flex items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3.5 py-3">
-              <Users className="h-4 w-4 shrink-0 text-slate-700" />
-              <div className="min-w-0">
-                <div className="text-xs font-bold text-slate-400">No tracked invites yet</div>
-                <div className="mt-0.5 text-[10px] text-slate-600">
-                  Invites will appear here once members start inviting.
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="mt-4 space-y-2">
-              {leaderboard.map((row, i) => (
-                <InviteRow key={row.userId || i} row={row} rank={i + 1} />
-              ))}
+              </span>
             </div>
           )}
         </motion.div>
-      )}
+      </div>
     </motion.div>
   );
 }

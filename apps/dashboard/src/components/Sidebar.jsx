@@ -170,7 +170,7 @@ export default function Sidebar({
 
   return (
     <aside
-      className={`glass-rail sticky top-5 z-30 flex h-[calc(100vh-40px)] shrink-0 select-none flex-col transition-[width] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] md:top-[26px] md:h-[calc(100vh-52px)] ${
+      className={`glass-rail sticky top-5 z-30 flex h-[calc(100vh-40px)] shrink-0 select-none flex-col overflow-visible transition-[width] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] md:top-[26px] md:h-[calc(100vh-52px)] ${
         collapsed ? "w-[84px] px-3 py-4" : "w-[272px] px-4 py-5"
       }`}
     >
@@ -186,14 +186,18 @@ export default function Sidebar({
             transition={{ type: "spring", stiffness: 320, damping: 18 }}
             className="shrink-0"
           >
-            <AuraLogo size="md" showRing={false} />
+            <AuraLogo
+              size="md"
+              showRing={false}
+              className="drop-shadow-[0_0_16px_rgba(76,125,255,0.45)]"
+            />
           </motion.span>
           {!collapsed && (
             <span className="min-w-0 text-left leading-tight">
-              <span className="font-display block text-[15px] font-extrabold tracking-tight text-white">
-                AURA BOT
+              <span className="font-display block text-[13px] font-extrabold uppercase tracking-[0.22em] text-white">
+                AURA <span className="text-[#7C9BFF]">BOT</span>
               </span>
-              <span className="mt-0.5 block text-[9px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+              <span className="mt-1 block text-[9px] font-semibold uppercase tracking-[0.16em] text-slate-500">
                 More than just a bot
               </span>
             </span>
@@ -205,7 +209,7 @@ export default function Sidebar({
             onClick={() => setCollapsed(true)}
             title="Collapse sidebar"
             aria-label="Collapse sidebar"
-            className="btn-icon h-8 w-8 shrink-0 rounded-[10px]"
+            className="btn-icon h-8 w-8 shrink-0 rounded-full border border-white/[0.08] bg-white/[0.035]"
           >
             <ChevronLeft className="h-3.5 w-3.5" />
           </button>
@@ -217,7 +221,7 @@ export default function Sidebar({
           onClick={() => setCollapsed(false)}
           title="Expand sidebar"
           aria-label="Expand sidebar"
-          className="btn-icon mx-auto mb-3 h-8 w-8 rounded-[10px]"
+          className="btn-icon mx-auto mb-3 h-8 w-8 rounded-full border border-white/[0.08] bg-white/[0.035]"
         >
           <ChevronRight className="h-3.5 w-3.5" />
         </button>
@@ -228,11 +232,11 @@ export default function Sidebar({
         <button
           onClick={() => setServerDropdownOpen(!serverDropdownOpen)}
           title={selectedServer.name}
-          className={`group flex w-full cursor-pointer items-center gap-2.5 rounded-2xl border border-white/[0.08] bg-white/[0.035] transition-colors ${
+          className={`group flex w-full cursor-pointer items-center gap-2.5 rounded-2xl border border-white/[0.08] bg-white/[0.035] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] transition-colors ${
             collapsed ? "justify-center p-2" : "px-2.5 py-2"
-          } hover:border-[#4C7DFF]/40 hover:bg-white/[0.055] `}
+          } hover:border-[#4C7DFF]/40 hover:bg-white/[0.06] `}
         >
-          <span className="icon-tile-violet h-8 w-8 overflow-hidden rounded-xl text-sm">
+          <span className="icon-tile icon-tile-violet h-8 w-8 overflow-hidden rounded-[11px] text-sm">
             {selectedServer.icon ? (
               <img src={selectedServer.icon} alt="" className="h-full w-full object-cover" />
             ) : (
@@ -318,7 +322,9 @@ export default function Sidebar({
         {SECTIONS.map((section, si) => (
           <div key={si}>
             {section.title && !collapsed && (
-              <h3 className="micro-label mb-1.5 px-3">{section.title}</h3>
+              <h3 className="micro-label mb-2 px-3 text-[9.5px] tracking-[0.22em] text-slate-500">
+                {section.title}
+              </h3>
             )}
             {section.title && collapsed && si > 0 && (
               <div className="hairline mx-2 mb-2" />
@@ -340,7 +346,7 @@ export default function Sidebar({
                       collapsed ? "justify-center p-2.5" : "justify-between px-3 py-2.5"
                     } ${
                       isActive
-                        ? "text-white"
+                        ? "glow-pulse text-white"
                         : "text-slate-400 hover:bg-white/[0.05] hover:text-slate-100"
                     }`}
                   >
@@ -357,7 +363,7 @@ export default function Sidebar({
                       <Icon
                         className={`h-4 w-4 shrink-0 ${
                           isActive
-                            ? "text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.35)]"
+                            ? "text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.45)]"
                             : "text-slate-500"
                         }`}
                       />
@@ -397,29 +403,41 @@ export default function Sidebar({
           </div>
         )}
 
-        {/* Premium promo — links to the real premium tab, no fabricated status. */}
+        {/* Premium promo — mirrors the reference card; the plan itself is
+            managed in the Premium tab, which "Manage Plan" opens. */}
         {!collapsed ? (
           <div className="glass-card relative overflow-hidden rounded-[20px] p-3.5">
-            <span className="icon-tile icon-tile-violet h-9 w-9 rounded-[13px]">
-              <Crown className="h-4 w-4" />
-            </span>
-            <h4 className="card-title mt-2.5 text-[13px]">Unlock Premium</h4>
-            <p className="card-sub mt-1 font-body leading-relaxed">
-              Advanced modules, priority limits and custom branding for your server.
+            {/* Soft violet bloom behind the crown */}
+            <span className="pointer-events-none absolute -right-10 -top-12 h-28 w-28 rounded-full bg-[#7C5CFF]/20 blur-2xl" />
+            <div className="relative flex items-start justify-between gap-2">
+              <span className="icon-tile icon-tile-amber h-9 w-9 rounded-[13px]">
+                <Crown className="h-4 w-4" />
+              </span>
+              <span
+                className="chip chip-green mt-0.5"
+                title="Open the Premium tab to review your plan"
+              >
+                <span className="status-dot status-dot-online animate-pulse-dot h-1.5 w-1.5" />
+                Active
+              </span>
+            </div>
+            <h4 className="card-title relative mt-2.5 text-[13px]">Premium Plan</h4>
+            <p className="card-sub relative mt-1 font-body leading-relaxed">
+              Unlock more features and take your server to the next level.
             </p>
             <button
               onClick={() => handleTabSelect && handleTabSelect("premium")}
-              className="btn-glass mt-3 w-full text-[11px]"
+              className="btn-glass relative mt-3 w-full border-[#4C7DFF]/40 text-[11px] text-[#A9C2FF] transition-colors hover:border-[#4C7DFF]/70 hover:text-white"
             >
-              View Plans
+              Manage Plan
             </button>
           </div>
         ) : (
           <button
             onClick={() => handleTabSelect && handleTabSelect("premium")}
-            title="Premium"
-            aria-label="Premium"
-            className="icon-tile icon-tile-violet mx-auto h-10 w-10 cursor-pointer rounded-[14px]"
+            title="Premium Plan"
+            aria-label="Premium Plan"
+            className="icon-tile icon-tile-amber mx-auto h-10 w-10 cursor-pointer rounded-[14px]"
           >
             <Crown className="h-4 w-4" />
           </button>

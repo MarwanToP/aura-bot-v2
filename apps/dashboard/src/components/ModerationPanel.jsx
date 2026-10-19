@@ -2,7 +2,9 @@
 
 import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Shield, ShieldCheck, Ban, UserX, Clock, AlertTriangle, Search } from "lucide-react";
+import {
+  Shield, ShieldCheck, Ban, UserX, Clock, AlertTriangle, Search, SlidersHorizontal, Inbox
+} from "lucide-react";
 
 /* ────────────────────────────── motion helpers ────────────────────────────── */
 
@@ -74,6 +76,19 @@ const ACTION_CONFIG = {
   Note: { icon: ShieldCheck, color: "#8B93A7" },
 };
 
+/* Severity is derived from the action type — no extra data required. */
+const SEVERITY = {
+  Ban: { label: "Critical", cls: "chip chip-red" },
+  Softban: { label: "Critical", cls: "chip chip-red" },
+  Kick: { label: "High", cls: "chip chip-amber" },
+  Mute: { label: "High", cls: "chip chip-amber" },
+  Timeout: { label: "High", cls: "chip chip-amber" },
+  Warn: { label: "Medium", cls: "chip chip-blue" },
+  Note: { label: "Low", cls: "chip chip-cyan" },
+  Unban: { label: "Low", cls: "chip chip-green" },
+  "Timeout Removed": { label: "Low", cls: "chip chip-green" },
+};
+
 /* API case type (ModerationCase.type) → recent-action label. */
 const TYPE_LABELS = {
   warn: "Warn",
@@ -107,19 +122,19 @@ function normalizeAction(c) {
 /* Stat cards derived from the same cases payload. */
 function deriveStats(cases) {
   return [
-    { label: "Total bans", value: cases.filter((c) => c.type === "ban").length, note: "all time", color: "#FF5C7A", icon: Ban },
-    { label: "Active mutes", value: cases.filter((c) => c.type === "timeout" && c.active).length, note: "right now", color: "#5B8CFF", icon: Clock },
-    { label: "Kicks (30d)", value: cases.filter((c) => c.type === "kick" && c.minutesAgo <= 30 * 24 * 60).length, note: "last 30 days", color: "#58BFC5", icon: UserX },
-    { label: "Active warnings", value: cases.filter((c) => c.type === "warn" && c.active).length, note: "under review", color: "#FFB547", icon: AlertTriangle },
+    { label: "Total bans", value: cases.filter((c) => c.type === "ban").length, note: "all time", color: "#FF5C7A", icon: Ban, tone: "red" },
+    { label: "Active mutes", value: cases.filter((c) => c.type === "timeout" && c.active).length, note: "right now", color: "#5B8CFF", icon: Clock, tone: "blue" },
+    { label: "Kicks (30d)", value: cases.filter((c) => c.type === "kick" && c.minutesAgo <= 30 * 24 * 60).length, note: "last 30 days", color: "#58BFC5", icon: UserX, tone: "cyan" },
+    { label: "Active warnings", value: cases.filter((c) => c.type === "warn" && c.active).length, note: "under review", color: "#FFB547", icon: AlertTriangle, tone: "amber" },
   ];
 }
 
 /* Demo stat cards — fallback only, kept in sync with DEMO_ACTIONS. */
 const DEMO_STATS = [
-  { label: "Total bans", value: 186, note: "all time", color: "#FF5C7A", icon: Ban },
-  { label: "Active mutes", value: 4, note: "right now", color: "#5B8CFF", icon: Clock },
-  { label: "Kicks (30d)", value: 32, note: "last 30 days", color: "#58BFC5", icon: UserX },
-  { label: "Active warnings", value: 17, note: "under review", color: "#FFB547", icon: AlertTriangle },
+  { label: "Total bans", value: 186, note: "all time", color: "#FF5C7A", icon: Ban, tone: "red" },
+  { label: "Active mutes", value: 4, note: "right now", color: "#5B8CFF", icon: Clock, tone: "blue" },
+  { label: "Kicks (30d)", value: 32, note: "last 30 days", color: "#58BFC5", icon: UserX, tone: "cyan" },
+  { label: "Active warnings", value: 17, note: "under review", color: "#FFB547", icon: AlertTriangle, tone: "amber" },
 ];
 
 function StatCard({ s, index }) {
@@ -127,16 +142,30 @@ function StatCard({ s, index }) {
   const Icon = s.icon;
 
   return (
-    <motion.div variants={rise} className="panel panel-hover p-4">
-      <div className="flex items-center justify-between gap-2">
-        <span className="section-label">{s.label}</span>
-        <Icon className="h-3.5 w-3.5 shrink-0" style={{ color: s.color }} />
+    <motion.div variants={rise} className="kpi-tile flex flex-col justify-between gap-3">
+      <div className="flex items-start justify-between gap-3">
+        <span className="kpi-label">{s.label}</span>
+        <span className={`icon-tile icon-tile-${s.tone}`}>
+          <Icon className="h-4 w-4" />
+        </span>
       </div>
-      <div className="mt-2 text-2xl font-extrabold tracking-tight text-white tabular-nums">
-        {Math.round(count).toLocaleString("en-US")}
+      <div>
+        <div className="kpi-value tabular-nums">{Math.round(count).toLocaleString("en-US")}</div>
+        <div className="mt-1.5 text-[11px] font-semibold text-slate-500">{s.note}</div>
       </div>
-      <div className="mt-1 text-[11px] text-slate-500">{s.note}</div>
     </motion.div>
+  );
+}
+
+function EmptyState({ icon: Icon, title, body }) {
+  return (
+    <div className="empty-state">
+      <span className="empty-state-icon">
+        <Icon className="h-5 w-5" />
+      </span>
+      <p className="empty-state-title">{title}</p>
+      {body ? <p className="max-w-md text-[11px] text-slate-500">{body}</p> : null}
+    </div>
   );
 }
 
@@ -179,19 +208,34 @@ export default function ModerationPanel({ guildId }) {
       a.reason.toLowerCase().includes(search.toLowerCase())
   );
 
+  /* Case actions have no route behind them yet — the controls stay disabled and say so. */
+  const readOnlyHint = "Not manageable from the dashboard yet";
+
   return (
     <motion.div variants={stagger} initial="hidden" animate="show" className="space-y-5 text-white">
       {/* Header */}
-      <motion.div variants={rise}>
-        <h2 className="flex items-center gap-2.5 text-lg font-extrabold">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#7C5CFF]/25 bg-[#7C5CFF]/10 text-[#7C5CFF]">
-            <Shield className="h-4 w-4" />
-          </span>
-          Moderation
-        </h2>
-        <p className="mt-1.5 font-body text-xs text-slate-500">
-          Recent actions, quick bans, and server safety tools for Crystal Realm.
-        </p>
+      <motion.div variants={rise} className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <span className="section-label">Moderation</span>
+          <h2 className="card-title mt-1.5 flex items-center gap-2.5 text-lg">
+            <span className="icon-tile icon-tile-red h-9 w-9">
+              <Shield className="h-4 w-4" />
+            </span>
+            Moderation
+          </h2>
+          <p className="card-sub mt-1.5 max-w-2xl">
+            Recent actions, quick bans, and server safety tools for Crystal Realm.
+          </p>
+        </div>
+        <button
+          type="button"
+          disabled
+          title={readOnlyHint}
+          className="btn-glass px-3.5 py-2 text-xs disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          <SlidersHorizontal className="h-3.5 w-3.5" />
+          Case rules
+        </button>
       </motion.div>
 
       {/* Stats */}
@@ -202,55 +246,91 @@ export default function ModerationPanel({ guildId }) {
       </motion.div>
 
       {/* Action log */}
-      <motion.div variants={rise} className="panel divide-y divide-white/[0.04] overflow-hidden">
-        <div className="p-4">
+      <motion.div variants={rise} className="glass-card overflow-hidden">
+        <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3.5">
+          <div>
+            <span className="section-label">Case Log</span>
+            <h3 className="card-title mt-1">Recent Actions</h3>
+          </div>
+          <span className="chip chip-blue">{filtered.length} shown</span>
+        </div>
+
+        <div className="px-4 pb-3.5">
           <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-600" />
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" />
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search by user, moderator, or reason..."
-              className="w-full bg-white/[0.03] border border-white/[0.08] rounded-lg py-2 pl-9 pr-3 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-[#7C5CFF]/50 transition-colors"
+              className="glass-input py-2 pl-9 pr-3 text-xs"
             />
           </div>
         </div>
 
         {filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center gap-2 px-4 py-12 text-center">
-            <ShieldCheck className="h-7 w-7 text-slate-700" />
-            <p className="text-sm font-bold text-slate-400">No matching actions</p>
-            <p className="text-[11px] text-slate-600">Try a different user, moderator, or reason.</p>
+          <div className="px-4 pb-4">
+            <EmptyState
+              icon={Inbox}
+              title="No matching actions"
+              body="Try a different user, moderator, or reason."
+            />
           </div>
         ) : (
-          filtered.map((a) => {
-            const cfg = ACTION_CONFIG[a.action] || ACTION_CONFIG.Warn;
-            const Icon = cfg.icon;
-            return (
-              <div
-                key={a.id}
-                className="flex items-center gap-3 px-4 py-3.5 transition-colors hover:bg-white/[0.02]"
-              >
-                <span
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
-                  style={{ backgroundColor: `${cfg.color}1A`, color: cfg.color }}
-                >
-                  <Icon className="h-4 w-4" />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                    <span className="text-xs font-bold" style={{ color: cfg.color }}>
-                      {a.action}
+          <div className="px-2 pb-2">
+            {filtered.map((a, i) => {
+              const cfg = ACTION_CONFIG[a.action] || ACTION_CONFIG.Warn;
+              const Icon = cfg.icon;
+              const severity = SEVERITY[a.action] || SEVERITY.Warn;
+              return (
+                <React.Fragment key={a.id}>
+                  {i > 0 && <div className="hairline" />}
+                  <div className="flex flex-wrap items-center gap-3 px-2 py-3 transition-colors hover:bg-white/[0.03]">
+                    <span
+                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl"
+                      style={{ backgroundColor: `${cfg.color}1A`, color: cfg.color }}
+                    >
+                      <Icon className="h-4 w-4" />
                     </span>
-                    <span className="text-xs font-bold text-white">{a.user}</span>
-                    <span className="text-[10px] text-slate-500">by {a.mod}</span>
+
+                    <span className={`${severity.cls} shrink-0 uppercase tracking-wider`}>{severity.label}</span>
+
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                        <span className="text-xs font-bold" style={{ color: cfg.color }}>
+                          {a.action}
+                        </span>
+                        <span className="text-xs font-bold text-white">{a.user}</span>
+                        <span className="text-[10px] text-slate-500">by {a.mod}</span>
+                      </div>
+                      <p className="mt-0.5 truncate text-[11px] text-slate-400">{a.reason}</p>
+                    </div>
+
+                    <span className="shrink-0 font-mono text-[10px] text-slate-600">{a.time}</span>
+
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      <button
+                        type="button"
+                        disabled
+                        title={readOnlyHint}
+                        className="btn-glass px-2.5 py-1 text-[10px] font-bold rounded-xl disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        Details
+                      </button>
+                      <button
+                        type="button"
+                        disabled
+                        title={readOnlyHint}
+                        className="btn-danger px-2.5 py-1 text-[10px] font-bold rounded-xl disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        Delete
+                      </button>
+                    </div>
                   </div>
-                  <p className="mt-0.5 truncate text-[11px] text-slate-400">{a.reason}</p>
-                </div>
-                <span className="shrink-0 font-mono text-[10px] text-slate-600">{a.time}</span>
-              </div>
-            );
-          })
+                </React.Fragment>
+              );
+            })}
+          </div>
         )}
       </motion.div>
     </motion.div>

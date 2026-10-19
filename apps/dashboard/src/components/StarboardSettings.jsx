@@ -2,7 +2,17 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Star, TrendingUp, Save, Settings2, Hash, CheckCircle2, Inbox, User } from "lucide-react";
+import {
+  Star,
+  TrendingUp,
+  Save,
+  Settings2,
+  CheckCircle2,
+  Inbox,
+  User,
+  Minus,
+  Plus,
+} from "lucide-react";
 
 /* ────────────────────────────── motion helpers ────────────────────────────── */
 
@@ -108,23 +118,16 @@ function normalizeConfig(cfg) {
 
 /* ────────────────────────────── shared atoms ────────────────────────────── */
 
-function Toggle({ enabled, onChange }) {
+function Toggle({ enabled, onChange, title }) {
   return (
     <button
       type="button"
       onClick={() => onChange(!enabled)}
-      className={`relative h-6 w-11 shrink-0 rounded-full border transition-colors ${
-        enabled ? "border-[#7C5CFF]/50 bg-[#7C5CFF]/80" : "border-white/[0.08] bg-white/[0.05]"
-      }`}
+      title={title}
       aria-pressed={enabled}
+      className={`toggle-track ${enabled ? "toggle-track-on" : ""}`}
     >
-      <motion.span
-        layout
-        transition={{ type: "spring", stiffness: 500, damping: 32 }}
-        className={`absolute top-[3px] h-4 w-4 rounded-full bg-white shadow ${
-          enabled ? "left-[25px]" : "left-[3px]"
-        }`}
-      />
+      <span className="toggle-thumb" />
     </button>
   );
 }
@@ -227,6 +230,9 @@ export default function StarboardSettings({ guildId }) {
     }
   };
 
+  const starEmoji = (emoji || "⭐").trim() || "⭐";
+  const thresholdPct = Math.max(0, Math.min(100, (threshold / 20) * 100));
+
   return (
     <motion.div variants={stagger} initial="hidden" animate="show" className="space-y-5 text-white">
       {/* Toast */}
@@ -236,9 +242,9 @@ export default function StarboardSettings({ guildId }) {
             initial={{ opacity: 0, y: 12, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 8, scale: 0.99 }}
-            className="panel fixed bottom-6 right-6 z-[90] flex items-center gap-2.5 px-4 py-3 text-xs font-semibold shadow-2xl shadow-black/60"
+            className="glass-dropdown fixed bottom-6 right-6 z-[90] flex items-center gap-2.5 px-4 py-3 text-xs font-semibold"
           >
-            <CheckCircle2 className="h-4 w-4 text-[#39D98A]" />
+            <CheckCircle2 className="h-4 w-4 text-[#34D399]" />
             <span>{toast}</span>
           </motion.div>
         )}
@@ -246,48 +252,67 @@ export default function StarboardSettings({ guildId }) {
 
       {/* Header */}
       <motion.div variants={rise} className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h2 className="flex items-center gap-2.5 text-lg font-extrabold">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#7C5CFF]/25 bg-[#7C5CFF]/10 text-[#7C5CFF]">
-              <Star className="h-4 w-4" />
-            </span>
-            Starboard
-          </h2>
-          <p className="mt-1.5 font-body text-xs text-slate-500">
-            Highlight the best messages with a starboard channel.
-          </p>
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="icon-tile icon-tile-violet">
+            <Star className="h-5 w-5" />
+          </span>
+          <div className="min-w-0">
+            <h2 className="card-title text-[15px]">Starboard</h2>
+            <p className="card-sub mt-0.5">
+              Highlight the best messages with a starboard channel.
+            </p>
+          </div>
         </div>
-        <button
-          type="button"
-          onClick={saveConfig}
-          className="inline-flex items-center gap-2 rounded-lg bg-[#7C5CFF] px-3.5 py-2 text-xs font-semibold text-white shadow-[0_0_18px_rgba(124,92,255,0.35)] transition-colors hover:bg-[#6a4cf0]"
-        >
+        <button type="button" onClick={saveConfig} className="btn-primary">
           <Save className="h-3.5 w-3.5" /> Save
         </button>
       </motion.div>
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         {/* Settings */}
-        <motion.div variants={rise} className="panel p-5">
+        <motion.div variants={rise} className="glass-card p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#7C5CFF]/25 bg-[#7C5CFF]/10 text-[#7C5CFF]">
+            <div className="flex min-w-0 items-center gap-3">
+              <span className="icon-tile icon-tile-amber h-9 w-9 rounded-[12px]">
                 <Settings2 className="h-4 w-4" />
               </span>
               <div className="min-w-0">
-                <h3 className="text-sm font-extrabold text-white">Settings</h3>
-                <p className="mt-1 text-xs text-slate-500">Channel, threshold, and visibility</p>
+                <h3 className="card-title">Settings</h3>
+                <p className="card-sub mt-0.5">Channel, threshold, and visibility</p>
               </div>
             </div>
-            <Toggle enabled={enabled} onChange={setEnabled} />
+            <Toggle
+              enabled={enabled}
+              onChange={setEnabled}
+              title="Turn the starboard on or off for this server"
+            />
           </div>
 
           <div className="mt-5">
-            <div className="flex items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <span className="section-label">Star Threshold</span>
-              <span className="rounded-full border border-[#FFB547]/25 bg-[#FFB547]/10 px-2 py-0.5 text-[10px] font-bold text-[#FFB547] tabular-nums">
-                {threshold} stars
-              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setThreshold(Math.max(1, threshold - 1))}
+                  title="Lower the star threshold"
+                  className="btn-icon h-7 w-7 rounded-[9px]"
+                >
+                  <Minus className="h-3 w-3" />
+                </button>
+                <span className="chip chip-amber tabular-nums">{threshold} stars</span>
+                <button
+                  type="button"
+                  onClick={() => setThreshold(Math.min(20, threshold + 1))}
+                  title="Raise the star threshold"
+                  className="btn-icon h-7 w-7 rounded-[9px]"
+                >
+                  <Plus className="h-3 w-3" />
+                </button>
+              </div>
+            </div>
+            <div className="progress-track mt-3">
+              <div className="progress-fill" style={{ width: `${thresholdPct}%` }} />
             </div>
             <input
               type="range"
@@ -302,135 +327,135 @@ export default function StarboardSettings({ guildId }) {
             </p>
           </div>
 
-          <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3.5 py-3">
-            <span className="flex items-center gap-2 text-[11px] text-slate-400">
-              <Hash className="h-3.5 w-3.5 text-slate-600" /> Channel
-            </span>
+          <div className="mt-4">
+            <span className="section-label mb-1.5 block">Channel</span>
             {live ? (
               <input
                 type="text"
                 value={channelId}
                 onChange={(e) => setChannelId(e.target.value)}
                 placeholder="Channel ID"
-                className="w-40 min-w-0 rounded-lg border border-white/[0.08] bg-white/[0.03] px-2.5 py-1.5 font-mono text-xs text-white placeholder:text-slate-600 outline-none transition-colors focus:border-[#7C5CFF]/50"
+                className="glass-input font-mono"
               />
             ) : (
-              <span className="font-mono text-xs font-bold text-white">#starboard</span>
+              <select
+                value="#starboard"
+                disabled
+                title="Live mode edits the starboard channel by ID"
+                className="glass-select cursor-not-allowed opacity-70"
+              >
+                <option value="#starboard">#starboard</option>
+              </select>
             )}
           </div>
 
           {live && (
-            <div className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3.5 py-3">
-              <span className="flex items-center gap-2 text-[11px] text-slate-400">
-                <Star className="h-3.5 w-3.5 text-slate-600" /> Emoji
-              </span>
+            <div className="mt-4">
+              <span className="section-label mb-1.5 block">Emoji</span>
               <input
                 type="text"
                 value={emoji}
                 maxLength={50}
                 onChange={(e) => setEmoji(e.target.value)}
                 placeholder="⭐"
-                className="w-20 min-w-0 rounded-lg border border-white/[0.08] bg-white/[0.03] px-2.5 py-1.5 text-center text-xs text-white placeholder:text-slate-600 outline-none transition-colors focus:border-[#7C5CFF]/50"
+                className="glass-input text-center"
               />
             </div>
           )}
         </motion.div>
 
         {/* Top starred messages */}
-        <motion.div variants={rise} className="panel p-5 lg:col-span-2">
+        <motion.div variants={rise} className="glass-card p-5 lg:col-span-2">
           <div className="flex items-center gap-3">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#7C5CFF]/25 bg-[#7C5CFF]/10 text-[#7C5CFF]">
+            <span className="icon-tile icon-tile-cyan h-9 w-9 rounded-[12px]">
               <TrendingUp className="h-4 w-4" />
             </span>
             <div className="min-w-0">
-              <h3 className="text-sm font-extrabold text-white">Top Starred Messages</h3>
-              <p className="mt-1 text-xs text-slate-500">
+              <h3 className="card-title">Top Starred Messages</h3>
+              <p className="card-sub mt-0.5">
                 {live ? "Most starred posts in this server" : "Most starred posts in Crystal Realm"}
               </p>
             </div>
           </div>
 
-          <div className="mt-4 space-y-2.5">
+          <div className="mt-4 space-y-1.5">
             {live ? (
               entries.length === 0 ? (
-                <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-white/[0.08] bg-white/[0.02] py-10 text-center">
-                  <Inbox className="h-6 w-6 text-slate-700" />
-                  <p className="text-xs font-bold text-slate-400">No starred messages yet</p>
-                  <p className="text-[11px] text-slate-600">
-                    Messages that cross the star threshold will show up here.
-                  </p>
+                <div className="empty-state">
+                  <span className="empty-state-icon">
+                    <Inbox className="h-4 w-4" />
+                  </span>
+                  <span className="empty-state-title">No starred messages yet</span>
+                  <span>Messages that cross the star threshold will show up here.</span>
                 </div>
               ) : (
                 entries.map((entry) => {
                   const ago = timeAgo(entry.createdAt);
+                  const hue = hashHue(entry.authorId);
                   return (
-                    <div
-                      key={entry.messageId}
-                      className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 transition-colors hover:bg-white/[0.04]"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0 flex-1">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span
-                              className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-white"
-                              style={{
-                                background: `linear-gradient(135deg, hsl(${hashHue(entry.authorId)} 70% 55%), hsl(${hashHue(entry.authorId) + 40} 70% 45%))`,
-                              }}
-                            >
-                              <User className="h-3 w-3 opacity-80" />
-                            </span>
-                            <span
-                              className="font-mono text-xs font-bold text-slate-400"
-                              title={entry.authorId}
-                            >
-                              {shortId(entry.authorId)}
-                            </span>
-                            <span className="font-mono text-[10px] text-slate-500">
-                              {shortId(entry.channelId)}
-                            </span>
-                            {ago && <span className="text-[10px] text-slate-600">· {ago}</span>}
-                          </div>
-                          <p className="mt-1.5 font-mono text-[11px] text-slate-500">
-                            message {shortId(entry.messageId)}
-                          </p>
-                        </div>
-                        <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-[#FFB547]/25 bg-[#FFB547]/10 px-2 py-0.5 text-[10px] font-bold text-[#FFB547] tabular-nums">
-                          <Star className="h-3 w-3 fill-[#FFB547]" />
-                          {entry.starCount}
+                    <div key={entry.messageId} className="list-row items-start gap-3 px-3 py-3">
+                      <span className="avatar-ring mt-0.5 shrink-0">
+                        <span
+                          className="flex h-8 w-8 items-center justify-center rounded-full text-white"
+                          style={{
+                            background: `linear-gradient(135deg, hsl(${hue} 70% 55%), hsl(${hue + 40} 70% 45%))`,
+                          }}
+                        >
+                          <User className="h-3 w-3 opacity-80" />
                         </span>
+                      </span>
+
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span
+                            className="font-mono text-xs font-bold text-slate-400"
+                            title={entry.authorId}
+                          >
+                            {shortId(entry.authorId)}
+                          </span>
+                          <span className="chip chip-cyan font-mono">
+                            {shortId(entry.channelId)}
+                          </span>
+                          {ago ? <span className="text-[10px] text-slate-600">· {ago}</span> : null}
+                        </div>
+                        <p className="mt-1.5 font-mono text-[11px] text-slate-500">
+                          message {shortId(entry.messageId)}
+                        </p>
                       </div>
+
+                      <span className="chip chip-amber shrink-0 tabular-nums">
+                        {starEmoji} {entry.starCount}
+                      </span>
                     </div>
                   );
                 })
               )
             ) : (
               STARRED_MESSAGES.map((msg) => (
-                <div
-                  key={msg.id}
-                  className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 transition-colors hover:bg-white/[0.04]"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span
-                          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[9px] font-bold text-white"
-                          style={{
-                            background: `linear-gradient(135deg, hsl(${msg.hue} 70% 55%), hsl(${msg.hue + 40} 70% 45%))`,
-                          }}
-                        >
-                          {msg.author[0]}
-                        </span>
-                        <span className="text-xs font-bold text-white">{msg.author}</span>
-                        <span className="font-mono text-[10px] text-slate-500">{msg.channel}</span>
-                        <span className="text-[10px] text-slate-600">· {msg.time}</span>
-                      </div>
-                      <p className="mt-1.5 text-xs leading-relaxed text-slate-300">{msg.content}</p>
-                    </div>
-                    <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-[#FFB547]/25 bg-[#FFB547]/10 px-2 py-0.5 text-[10px] font-bold text-[#FFB547] tabular-nums">
-                      <Star className="h-3 w-3 fill-[#FFB547]" />
-                      {msg.stars}
+                <div key={msg.id} className="list-row items-start gap-3 px-3 py-3">
+                  <span className="avatar-ring mt-0.5 shrink-0">
+                    <span
+                      className="flex h-8 w-8 items-center justify-center rounded-full text-[10px] font-bold text-white"
+                      style={{
+                        background: `linear-gradient(135deg, hsl(${msg.hue} 70% 55%), hsl(${msg.hue + 40} 70% 45%))`,
+                      }}
+                    >
+                      {msg.author[0]}
                     </span>
+                  </span>
+
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-xs font-bold text-white">{msg.author}</span>
+                      <span className="chip chip-cyan">{msg.channel}</span>
+                      <span className="text-[10px] text-slate-600">· {msg.time}</span>
+                    </div>
+                    <p className="mt-1.5 text-xs leading-relaxed text-slate-300">{msg.content}</p>
                   </div>
+
+                  <span className="chip chip-amber shrink-0 tabular-nums">
+                    {starEmoji} {msg.stars}
+                  </span>
                 </div>
               ))
             )}

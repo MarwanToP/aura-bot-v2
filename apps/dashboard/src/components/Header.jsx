@@ -86,7 +86,7 @@ export default function Header({ onNavigate, title = "Overview" }) {
 
   return (
     <>
-      <header className="glass-bar sticky top-5 z-20 flex h-[76px] items-center gap-3 px-4 md:top-[26px] md:px-5">
+      <header className="glass-bar sticky top-5 z-20 flex h-[68px] items-center gap-3 rounded-[22px] border border-white/[0.08] px-3.5 shadow-[0_18px_50px_rgba(0,0,0,0.42),inset_0_1px_0_rgba(255,255,255,0.07)] md:top-[26px] md:h-[76px] md:px-5">
         {/* Left — page context. The search field collapses (lg) and the theme
             tile hides (xl) before this title is ever allowed to truncate. */}
         <div className="min-w-0 flex-1 pr-1">
@@ -120,13 +120,13 @@ export default function Header({ onNavigate, title = "Overview" }) {
             onClick={() => setPaletteOpen(true)}
             title="Search anything (⌘K)"
             aria-label="Search anything"
-            className="glass-pill group hidden cursor-pointer lg:flex lg:w-44 xl:w-64 2xl:w-80"
+            className="glass-pill group hidden h-10 cursor-pointer items-center gap-2.5 rounded-full border border-white/[0.09] bg-white/[0.045] px-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] transition-colors hover:border-white/[0.16] hover:bg-white/[0.07] md:h-11 lg:flex lg:w-56 xl:w-72 2xl:w-80"
           >
-            <Search className="h-4 w-4 shrink-0 text-slate-500 transition-colors group-hover:text-slate-300" />
-            <span className="flex-1 truncate text-left text-xs text-slate-500">
+            <Search className="h-4 w-4 shrink-0 text-slate-500 transition-colors group-hover:text-[#A9C2FF]" />
+            <span className="flex-1 truncate text-left text-xs text-slate-500 transition-colors group-hover:text-slate-400">
               Search anything...
             </span>
-            <kbd className="hidden shrink-0 rounded-md border border-white/10 bg-white/[0.05] px-1.5 py-0.5 font-mono text-[10px] font-semibold text-slate-400 xl:block">
+            <kbd className="hidden shrink-0 rounded-md border border-white/[0.08] bg-white/[0.05] px-1.5 py-0.5 font-mono text-[10px] font-semibold text-slate-400 xl:block">
               ⌘K
             </kbd>
           </button>
@@ -137,10 +137,14 @@ export default function Header({ onNavigate, title = "Overview" }) {
               onClick={() => setNotificationsOpen(!notificationsOpen)}
               aria-label="Notifications"
               title="Notifications"
-              className={`btn-icon relative ${notificationsOpen ? "border-[#4C7DFF]/45 bg-[#4C7DFF]/12 text-white" : ""}`}
+              className={`btn-icon relative h-10 w-10 rounded-full ${
+                notificationsOpen
+                  ? "border-[#4C7DFF]/50 bg-[#4C7DFF]/15 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_0_22px_rgba(76,125,255,0.35)]"
+                  : "bg-white/[0.04] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
+              }`}
             >
-              <Bell className="h-4 w-4" />
-              <span className="animate-pulse-dot absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-[#F87171]" />
+              <Bell className="h-[17px] w-[17px]" />
+              <span className="animate-pulse-dot absolute right-2.5 top-2.5 h-1.5 w-1.5 rounded-full bg-[#F87171] shadow-[0_0_8px_rgba(248,113,113,0.8)]" />
             </button>
 
             {notificationsOpen && (
@@ -193,9 +197,9 @@ export default function Header({ onNavigate, title = "Overview" }) {
           <span
             aria-hidden="true"
             title="Dark theme"
-            className="hidden h-10 w-10 cursor-default place-items-center rounded-[14px] border border-white/[0.08] bg-white/[0.035] text-slate-500 xl:grid"
+            className="hidden h-10 w-10 cursor-default place-items-center rounded-full border border-white/[0.09] bg-white/[0.04] text-slate-500 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] xl:grid"
           >
-            <Moon className="h-4 w-4" />
+            <Moon className="h-[17px] w-[17px]" />
           </span>
 
           {/* Profile */}
@@ -203,8 +207,10 @@ export default function Header({ onNavigate, title = "Overview" }) {
             <button
               onClick={() => setProfileOpen(!profileOpen)}
               aria-label="Account menu"
-              className={`glass-pill h-auto cursor-pointer py-1.5 pl-1.5 pr-2.5 ${
-                profileOpen ? "border-[#4C7DFF]/45 bg-[#4C7DFF]/10" : ""
+              className={`glass-pill h-auto cursor-pointer items-center gap-2.5 rounded-full py-1.5 pl-1.5 pr-3 transition-colors ${
+                profileOpen
+                  ? "border-[#4C7DFF]/50 bg-[#4C7DFF]/[0.12] shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_0_22px_rgba(76,125,255,0.28)]"
+                  : "bg-white/[0.045] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] hover:border-white/[0.16] hover:bg-white/[0.07]"
               }`}
             >
               <span className="relative shrink-0">
@@ -228,16 +234,20 @@ export default function Header({ onNavigate, title = "Overview" }) {
                 />
               </span>
 
-              <span className="hidden text-left md:block">
-                <span className="block text-xs font-bold leading-tight text-white">
+              <span className="hidden min-w-0 max-w-[140px] text-left md:block">
+                <span className="block truncate text-xs font-bold leading-tight text-white">
                   {isAuthenticated ? user?.username : loading ? "…" : "Guest"}
                 </span>
-                <span className="block text-[10px] font-medium leading-tight text-[#7C9BFF]">
+                <span className="block truncate text-[10px] font-medium leading-tight text-slate-400">
                   {isAuthenticated ? "Discord linked" : loading ? "Checking session" : "Not linked"}
                 </span>
               </span>
 
-              <ChevronDown className="hidden h-3.5 w-3.5 shrink-0 text-slate-500 md:block" />
+              <ChevronDown
+                className={`hidden h-3.5 w-3.5 shrink-0 text-slate-500 transition-transform md:block ${
+                  profileOpen ? "rotate-180" : ""
+                }`}
+              />
             </button>
 
             {profileOpen && (
@@ -284,7 +294,7 @@ export default function Header({ onNavigate, title = "Overview" }) {
                         setProfileOpen(false);
                         logout();
                       }}
-                      className="nav-item w-full text-left text-[#F87171] hover:bg-[#F87171]/12 hover:text-[#FCA5A5]"
+                      className="nav-item w-full text-left text-[#F87171] hover:bg-[#F87171]/[0.12] hover:text-[#FCA5A5]"
                     >
                       <LogOut className="h-3.5 w-3.5" />
                       Log out
@@ -295,7 +305,7 @@ export default function Header({ onNavigate, title = "Overview" }) {
                         setProfileOpen(false);
                         login();
                       }}
-                      className="nav-item w-full text-left text-[#7C9BFF] hover:bg-[#4C7DFF]/12 hover:text-white"
+                      className="nav-item w-full text-left text-[#7C9BFF] hover:bg-[#4C7DFF]/[0.12] hover:text-white"
                     >
                       <LogIn className="h-3.5 w-3.5" />
                       Sign in with Discord

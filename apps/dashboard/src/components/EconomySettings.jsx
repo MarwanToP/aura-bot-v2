@@ -10,6 +10,8 @@ import {
   DollarSign,
   Save,
   CheckCircle2,
+  Package,
+  Users,
 } from "lucide-react";
 
 /* ────────────────────────────── motion helpers ────────────────────────────── */
@@ -74,6 +76,24 @@ function mapShopItem(item) {
     enabled: item.enabled !== false,
   };
 }
+
+/* ────────────────────────────── shared atoms ────────────────────────────── */
+
+function KpiTile({ label, value, icon: Icon, tone = "violet", compact = false }) {
+  return (
+    <div className="kpi-tile">
+      <div className="flex items-start justify-between gap-3">
+        <span className="kpi-label">{label}</span>
+        <span className={`icon-tile icon-tile-${tone} h-9 w-9 rounded-[12px]`}>
+          <Icon className="h-4 w-4" />
+        </span>
+      </div>
+      <div className={`kpi-value mt-3 ${compact ? "text-[1.3rem]" : ""}`}>{value}</div>
+    </div>
+  );
+}
+
+const STAT_TONES = ["blue", "violet", "cyan", "green"];
 
 /* ══════════════════════════════════ main ══════════════════════════════ */
 
@@ -208,9 +228,9 @@ export default function EconomySettings({ guildId }) {
             initial={{ opacity: 0, y: 12, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 8, scale: 0.99 }}
-            className="panel fixed bottom-6 right-6 z-[90] flex items-center gap-2.5 px-4 py-3 text-xs font-semibold shadow-2xl shadow-black/60"
+            className="glass-dropdown fixed bottom-6 right-6 z-[90] flex items-center gap-2.5 px-4 py-3 text-xs font-semibold"
           >
-            <CheckCircle2 className="h-4 w-4 text-[#39D98A]" />
+            <CheckCircle2 className="h-4 w-4 text-[#34D399]" />
             <span>{toast}</span>
           </motion.div>
         )}
@@ -218,18 +238,18 @@ export default function EconomySettings({ guildId }) {
 
       {/* Header */}
       <motion.div variants={rise} className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h2 className="flex items-center gap-2.5 text-lg font-extrabold">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#7C5CFF]/25 bg-[#7C5CFF]/10 text-[#7C5CFF]">
-              <Coins className="h-4 w-4" />
-            </span>
-            Economy &amp; Shop
-          </h2>
-          <p className="mt-1.5 font-body text-xs text-slate-500">
-            {guildId
-              ? "Live economy totals and the role shop for this server. Currency, daily rewards, and multipliers are managed from the bot."
-              : "Server currency, daily rewards, and the role shop for Crystal Realm."}
-          </p>
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="icon-tile icon-tile-violet">
+            <Coins className="h-5 w-5" />
+          </span>
+          <div className="min-w-0">
+            <h2 className="card-title text-[15px]">Economy &amp; Shop</h2>
+            <p className="card-sub mt-0.5">
+              {guildId
+                ? "Live economy totals and the role shop for this server. Currency, daily rewards, and multipliers are managed from the bot."
+                : "Server currency, daily rewards, and the role shop for Crystal Realm."}
+            </p>
+          </div>
         </div>
         <button
           type="button"
@@ -245,100 +265,160 @@ export default function EconomySettings({ guildId }) {
               ? "Managed from the bot — currency, daily rewards, and multipliers aren't editable here"
               : undefined
           }
-          className={`inline-flex items-center gap-2 rounded-lg bg-[#7C5CFF] px-3.5 py-2 text-xs font-semibold text-white shadow-[0_0_18px_rgba(124,92,255,0.35)] transition-colors hover:bg-[#6a4cf0]${
-            guildId ? " cursor-not-allowed opacity-50" : ""
-          }`}
+          className="btn-primary"
         >
           <Save className="h-3.5 w-3.5" /> Save
         </button>
       </motion.div>
 
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
-        {/* Economy stats */}
-        <motion.div variants={rise} className="panel p-5">
-          <div className="flex items-center gap-3">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#7C5CFF]/25 bg-[#7C5CFF]/10 text-[#7C5CFF]">
-              <DollarSign className="h-4 w-4" />
+      {/* Stat tiles */}
+      <motion.div variants={rise} className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {stats.map((s, i) => (
+          <KpiTile
+            key={s.label}
+            label={s.label}
+            value={s.value}
+            icon={i === 0 ? Users : DollarSign}
+            tone={STAT_TONES[i % STAT_TONES.length]}
+            compact
+          />
+        ))}
+      </motion.div>
+
+      {/* Shop items */}
+      <motion.div variants={rise} className="glass-card p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="icon-tile icon-tile-amber h-9 w-9 rounded-[12px]">
+              <ShoppingBag className="h-4 w-4" />
             </span>
             <div className="min-w-0">
-              <h3 className="text-sm font-extrabold text-white">Economy Stats</h3>
-              <p className="mt-1 text-xs text-slate-500">Balances across all members</p>
+              <h3 className="card-title">Shop Items</h3>
+              <p className="card-sub mt-0.5">Roles and perks members can buy with ₳</p>
             </div>
           </div>
+          <span className="chip chip-cyan tabular-nums">{shopItems.length} items</span>
+        </div>
 
-          <div className="mt-4 space-y-2">
-            {stats.map((s) => (
-              <div
-                key={s.label}
-                className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3.5 py-3 transition-colors hover:bg-white/[0.04]"
-              >
-                <span className="text-[11px] text-slate-400">{s.label}</span>
-                <span className="shrink-0 text-xs font-bold text-white tabular-nums">
-                  {s.value}
-                </span>
-              </div>
-            ))}
+        {shopItems.length === 0 ? (
+          <div className="empty-state mt-4">
+            <span className="empty-state-icon">
+              <ShoppingBag className="h-4 w-4" />
+            </span>
+            <span className="empty-state-title">The shop is empty</span>
+            <span>Add an item to get started.</span>
           </div>
-        </motion.div>
+        ) : (
+          <div className="mt-4 overflow-hidden rounded-2xl border border-white/[0.06]">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Item</th>
+                  <th className="text-right">Price</th>
+                  <th>Stock</th>
+                  <th>Status</th>
+                  <th className="w-10" />
+                </tr>
+              </thead>
+              <tbody>
+                {shopItems.map((item) => (
+                  <tr key={item.id} className="data-row">
+                    <td>
+                      <div className="flex items-center gap-2.5">
+                        <span className="icon-tile icon-tile-violet h-8 w-8 rounded-[10px]">
+                          <Package className="h-3.5 w-3.5" />
+                        </span>
+                        <span className="text-xs font-bold text-white">{item.name}</span>
+                      </div>
+                    </td>
+                    <td className="text-right">
+                      <span className="chip chip-violet tabular-nums">
+                        ₳ {item.price.toLocaleString("en-US")}
+                      </span>
+                    </td>
+                    <td>
+                      <span className="chip tabular-nums">
+                        {item.stock == null || item.stock === -1 ? "∞" : item.stock}
+                      </span>
+                    </td>
+                    <td>
+                      <span
+                        className="toggle-track toggle-track-on cursor-not-allowed opacity-70"
+                        title="Enabled items are managed from the bot — this list is read-only here"
+                        aria-hidden="true"
+                      >
+                        <span className="toggle-thumb" />
+                      </span>
+                    </td>
+                    <td>
+                      <button
+                        type="button"
+                        onClick={() => removeItem(item.id)}
+                        title="Remove item"
+                        className="btn-icon h-8 w-8 rounded-[10px] hover:text-[#F87171] hover:border-[#F87171]/40 hover:bg-[#F87171]/10 hover:shadow-none"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
 
-        {/* Shop items */}
-        <motion.div variants={rise} className="panel p-5 lg:col-span-2">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#7C5CFF]/25 bg-[#7C5CFF]/10 text-[#7C5CFF]">
-                <ShoppingBag className="h-4 w-4" />
-              </span>
-              <div className="min-w-0">
-                <h3 className="text-sm font-extrabold text-white">Shop Items</h3>
-                <p className="mt-1 text-xs text-slate-500">
-                  Roles and perks members can buy with ₳
-                </p>
-              </div>
+        {/* Add item — the dashboard adds the standard starter item; item details live in the bot */}
+        <div className="mt-4 rounded-2xl border border-dashed border-white/[0.10] bg-white/[0.02] p-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0">
+              <span className="section-label">Add a shop item</span>
+              <p className="mt-1 text-[10px] text-slate-500">
+                Item names, prices, and stock are managed from the bot — this adds the standard
+                starter item.
+              </p>
             </div>
-            <button
-              type="button"
-              onClick={addItem}
-              className="inline-flex items-center gap-1 rounded-lg border border-white/[0.08] px-3 py-2 text-xs text-slate-400 transition-colors hover:bg-white/[0.04] hover:text-white"
-            >
+            <button type="button" onClick={addItem} className="btn-primary shrink-0">
               <Plus className="h-3.5 w-3.5" /> Add Item
             </button>
           </div>
 
-          <div className="mt-4 space-y-2">
-            {shopItems.map((item) => (
-              <div
-                key={item.id}
-                className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-3.5 transition-colors hover:bg-white/[0.04]"
+          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <label className="block min-w-0">
+              <span className="section-label mb-1.5 block">Item name</span>
+              <input
+                type="text"
+                value="Raffle Ticket"
+                readOnly
+                disabled
+                title="Fixed by the dashboard shortcut — rename shop items from the bot"
+                className="glass-input cursor-not-allowed opacity-70"
+              />
+            </label>
+            <label className="block min-w-0">
+              <span className="section-label mb-1.5 block">Price (₳)</span>
+              <input
+                type="text"
+                value="500"
+                readOnly
+                disabled
+                title="Fixed by the dashboard shortcut — set prices from the bot"
+                className="glass-input cursor-not-allowed opacity-70 tabular-nums"
+              />
+            </label>
+            <label className="block min-w-0">
+              <span className="section-label mb-1.5 block">Stock</span>
+              <select
+                value="100"
+                disabled
+                title="Fixed by the dashboard shortcut — set stock from the bot"
+                className="glass-select cursor-not-allowed opacity-70"
               >
-                <div className="min-w-0">
-                  <span className="text-xs font-bold text-white">{item.name}</span>
-                  <span className="ml-3 text-[10px] text-slate-500">
-                    Stock: {item.stock == null || item.stock === -1 ? "∞" : item.stock}
-                  </span>
-                </div>
-                <div className="flex shrink-0 items-center gap-3">
-                  <span className="text-xs font-bold text-[#7C5CFF] tabular-nums">
-                    ₳ {item.price.toLocaleString("en-US")}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => removeItem(item.id)}
-                    title="Remove item"
-                    className="rounded-lg p-1.5 text-slate-600 transition-colors hover:bg-[#FF5C7A]/10 hover:text-[#FF5C7A]"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              </div>
-            ))}
-            {shopItems.length === 0 && (
-              <div className="rounded-xl border border-dashed border-white/[0.08] px-4 py-8 text-center text-[11px] text-slate-600">
-                The shop is empty — add an item to get started.
-              </div>
-            )}
+                <option value="100">100 in stock</option>
+              </select>
+            </label>
           </div>
-        </motion.div>
-      </div>
+        </div>
+      </motion.div>
     </motion.div>
   );
 }

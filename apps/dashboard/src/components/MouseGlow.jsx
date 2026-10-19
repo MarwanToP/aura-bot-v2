@@ -8,7 +8,9 @@ import { useEffect, useRef } from "react";
  * Visual only: no state, no props, no data. The listener is skipped for
  * reduced-motion users and touch/coarse pointers, and the position is written
  * straight to the element transform (rAF-throttled) so it never re-renders
- * React. Size/colour live in the `.mouse-glow` recipe in globals.css.
+ * React. The layer is pointer-events-none and sits at z-1 — above the opaque
+ * aurora canvas (z-0) but below the app frame (z-10), so the cursor reads as
+ * a light source in the room rather than a decal on top of the UI.
  */
 export default function MouseGlow() {
   const glowRef = useRef(null);
@@ -46,7 +48,11 @@ export default function MouseGlow() {
     <div
       ref={glowRef}
       aria-hidden="true"
-      className="mouse-glow fixed top-0 left-0 pointer-events-none z-0"
+      className="mouse-glow fixed left-0 top-0 z-[1] pointer-events-none select-none"
+      style={{
+        background:
+          "radial-gradient(circle at center, rgba(76,125,255,0.17) 0%, rgba(124,92,255,0.085) 30%, rgba(124,92,255,0.03) 50%, rgba(124,92,255,0) 68%)",
+      }}
     />
   );
 }

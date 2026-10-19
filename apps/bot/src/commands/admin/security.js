@@ -25,6 +25,7 @@ export const securityCommand = {
         { name: 'Enable Lockdown', value: 'on' },
         { name: 'Disable Lockdown', value: 'off' }
       ))
+      .addBooleanOption(o => o.setName('force').setDescription('Force the unlock even if the lockdown tracker reports no active lockdown').setRequired(false))
     )
     .addSubcommand(s => s
       .setName('whitelist')
@@ -38,10 +39,9 @@ export const securityCommand = {
   cooldown: 5000,
 
   async execute(client, interaction) {
-    await interaction.deferReply({ flags: MessageFlags.Ephemeral }).catch(() => {});
-    const sub = interaction.options.getSubcommand();
-
     try {
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral }).catch(() => {});
+      const sub = interaction.options.getSubcommand();
       if (sub === 'status') {
         const { GuildSettings } = client.db.models;
         const settings = await GuildSettings.findOne({ where: { guildId: interaction.guildId } }).catch(() => null);
@@ -80,6 +80,7 @@ export const securityCommand = {
 
       if (sub === 'lockdown') {
         const action = interaction.options.getString('action');
+        const force = interaction.options.getBoolean('force') ?? false;
 
         if (action === 'on') {
           if (await isInLockdown(client, interaction.guildId)) {
@@ -102,7 +103,9 @@ export const securityCommand = {
           });
         }
 
-        if (!(await isInLockdown(client, interaction.guildId))) {
+        const active = await isInLockdown(client, interaction.guildId);
+
+        if (!active && !force) {
           return interaction.editReply({
             embeds: [buildEmbed({
               type: 'info',
@@ -116,8 +119,10 @@ export const securityCommand = {
         return interaction.editReply({
           embeds: [buildEmbed({
             type: 'success',
-            title: '🔓 Server Lockdown Lifted',
-            description: 'Public channel permissions restored to normal state.',
+            title: active ? '🔓 Server Lockdown Lifted' : '🔓 Server Lockdown Lifted (Forced)',
+            description: active
+              ? 'Public channel permissions restored to normal state.'
+              : 'The lockdown tracker had no active lockdown recorded, but a forced lift was requested.\nPublic channel permissions restored to normal state.',
           })],
         });
       }

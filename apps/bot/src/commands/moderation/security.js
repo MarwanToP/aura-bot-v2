@@ -22,6 +22,11 @@ export default {
           { name: '🔒 Enable Lockdown (Lock All Channels)', value: 'lock' },
           { name: '🔓 Disable Lockdown (Unlock All Channels)', value: 'unlock' }
         )
+    )
+    .addBooleanOption(option =>
+      option.setName('force')
+        .setDescription('Force the unlock even if the lockdown tracker reports no active lockdown')
+        .setRequired(false)
     ),
 
   guildOnly: true,
@@ -32,6 +37,7 @@ export default {
       await interaction.deferReply({ flags: MessageFlags.Ephemeral }).catch(() => {});
 
       const isLocking = interaction.options.getString('action') === 'lock';
+      const force = interaction.options.getBoolean('force') ?? false;
 
       if (isLocking) {
         if (await isInLockdown(client, interaction.guildId)) {
@@ -54,7 +60,9 @@ export default {
         });
       }
 
-      if (!(await isInLockdown(client, interaction.guildId))) {
+      const active = await isInLockdown(client, interaction.guildId);
+
+      if (!active && !force) {
         return interaction.editReply({
           embeds: [buildEmbed({
             type: 'info',
@@ -68,8 +76,10 @@ export default {
       return interaction.editReply({
         embeds: [buildEmbed({
           type: 'success',
-          title: '🔓 Server Lockdown Lifted',
-          description: 'Channel permissions have been restored to their normal state and the shared lockdown flag cleared.',
+          title: active ? '🔓 Server Lockdown Lifted' : '🔓 Server Lockdown Lifted (Forced)',
+          description: active
+            ? 'Channel permissions have been restored to their normal state and the shared lockdown flag cleared.'
+            : 'The lockdown tracker had no active lockdown recorded, but a forced lift was requested.\nChannel permissions have been restored to their normal state and the shared lockdown flag cleared.',
         })],
       });
     } catch {

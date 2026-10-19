@@ -2,7 +2,17 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Trophy, Award, Zap, TrendingUp, Crown, Save, CheckCircle2 } from "lucide-react";
+import {
+  Trophy,
+  Award,
+  Zap,
+  TrendingUp,
+  Crown,
+  Save,
+  CheckCircle2,
+  Users,
+  Sparkles,
+} from "lucide-react";
 
 /* ────────────────────────────── motion helpers ────────────────────────────── */
 
@@ -101,19 +111,26 @@ function Toggle({ enabled, onChange, title }) {
       type="button"
       onClick={() => onChange(!enabled)}
       title={title}
-      className={`relative h-6 w-11 shrink-0 rounded-full border transition-colors ${
-        enabled ? "border-[#7C5CFF]/50 bg-[#7C5CFF]/80" : "border-white/[0.08] bg-white/[0.05]"
-      }`}
       aria-pressed={enabled}
+      className={`toggle-track ${enabled ? "toggle-track-on" : ""}`}
     >
-      <motion.span
-        layout
-        transition={{ type: "spring", stiffness: 500, damping: 32 }}
-        className={`absolute top-[3px] h-4 w-4 rounded-full bg-white shadow ${
-          enabled ? "left-[25px]" : "left-[3px]"
-        }`}
-      />
+      <span className="toggle-thumb" />
     </button>
+  );
+}
+
+function KpiTile({ label, value, note, icon: Icon, tone = "violet", compact = false }) {
+  return (
+    <div className="kpi-tile">
+      <div className="flex items-start justify-between gap-3">
+        <span className="kpi-label">{label}</span>
+        <span className={`icon-tile icon-tile-${tone} h-9 w-9 rounded-[12px]`}>
+          <Icon className="h-4 w-4" />
+        </span>
+      </div>
+      <div className={`kpi-value mt-3 ${compact ? "text-[1.3rem]" : ""}`}>{value}</div>
+      {note ? <p className="mt-1 text-[10px] text-slate-500">{note}</p> : null}
+    </div>
   );
 }
 
@@ -260,6 +277,15 @@ export default function LevelingSettings({ guildId }) {
       ? "Saves the XP multiplier and the leveling toggle to this server"
       : "Couldn't load the current XP settings — reload the page before saving";
 
+  /* honest roll-ups from the rows we actually have */
+  const topXp = leaderboard.length
+    ? leaderboard.reduce((max, u) => Math.max(max, u.xp), 0)
+    : 0;
+  const topLevel = leaderboard.length
+    ? leaderboard.reduce((max, u) => Math.max(max, u.level), 0)
+    : 0;
+  const trackedXp = leaderboard.reduce((sum, u) => sum + u.xp, 0);
+
   return (
     <motion.div variants={stagger} initial="hidden" animate="show" className="space-y-5 text-white">
       {/* Toast */}
@@ -269,9 +295,9 @@ export default function LevelingSettings({ guildId }) {
             initial={{ opacity: 0, y: 12, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 8, scale: 0.99 }}
-            className="panel fixed bottom-6 right-6 z-[90] flex items-center gap-2.5 px-4 py-3 text-xs font-semibold shadow-2xl shadow-black/60"
+            className="glass-dropdown fixed bottom-6 right-6 z-[90] flex items-center gap-2.5 px-4 py-3 text-xs font-semibold"
           >
-            <CheckCircle2 className="h-4 w-4 text-[#39D98A]" />
+            <CheckCircle2 className="h-4 w-4 text-[#34D399]" />
             <span>{toast}</span>
           </motion.div>
         )}
@@ -279,56 +305,73 @@ export default function LevelingSettings({ guildId }) {
 
       {/* Header */}
       <motion.div variants={rise} className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h2 className="flex items-center gap-2.5 text-lg font-extrabold">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#7C5CFF]/25 bg-[#7C5CFF]/10 text-[#7C5CFF]">
-              <Trophy className="h-4 w-4" />
-            </span>
-            Leveling System
-          </h2>
-          <p className="mt-1.5 font-body text-xs text-slate-500">
-            XP multipliers, level-up rewards, and the Crystal Realm leaderboard.
-          </p>
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="icon-tile icon-tile-violet">
+            <Trophy className="h-5 w-5" />
+          </span>
+          <div className="min-w-0">
+            <h2 className="card-title text-[15px]">Leveling System</h2>
+            <p className="card-sub mt-0.5">
+              XP multipliers, level-up rewards, and the Crystal Realm leaderboard.
+            </p>
+          </div>
         </div>
         <div className="flex items-center gap-2.5">
-          <span className="rounded-full border border-[#FFB547]/25 bg-[#FFB547]/10 px-2 py-0.5 text-[10px] font-bold text-[#FFB547]">
-            PREMIUM
-          </span>
+          <span className="chip chip-amber">Premium</span>
           <button
             type="button"
             onClick={saveSettings}
             disabled={!canSave || saving}
             title={saveHint}
-            className={`inline-flex items-center gap-2 rounded-lg bg-[#7C5CFF] px-3.5 py-2 text-xs font-semibold text-white shadow-[0_0_18px_rgba(124,92,255,0.35)] transition-colors hover:bg-[#6a4cf0]${
-              saving ? " cursor-progress opacity-70" : ""
-            }${!canSave ? " cursor-not-allowed opacity-50" : ""}`}
+            className="btn-primary"
           >
             <Save className="h-3.5 w-3.5" /> {saving ? "Saving…" : "Save"}
           </button>
         </div>
       </motion.div>
 
+      {/* Stat tiles */}
+      <motion.div variants={rise} className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <KpiTile
+          label="Members ranked"
+          value={leaderboard.length.toLocaleString("en-US")}
+          note="rows in the leaderboard"
+          icon={Users}
+          tone="blue"
+        />
+        <KpiTile
+          label="Highest level"
+          value={topLevel.toLocaleString("en-US")}
+          note="top level in those rows"
+          icon={Trophy}
+          tone="amber"
+        />
+        <KpiTile
+          label="XP tracked"
+          value={trackedXp.toLocaleString("en-US")}
+          note="sum across those rows"
+          icon={Sparkles}
+          tone="violet"
+        />
+      </motion.div>
+
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <div className="space-y-5">
           {/* XP settings */}
-          <motion.div variants={rise} className="panel p-5">
+          <motion.div variants={rise} className="glass-card p-5">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#7C5CFF]/25 bg-[#7C5CFF]/10 text-[#7C5CFF]">
+              <div className="flex min-w-0 items-center gap-3">
+                <span className="icon-tile icon-tile-blue h-9 w-9 rounded-[12px]">
                   <Zap className="h-4 w-4" />
                 </span>
                 <div className="min-w-0">
-                  <h3 className="text-sm font-extrabold text-white">XP Settings</h3>
-                  <p className="mt-1 text-xs text-slate-500">
-                    Earned from messages and voice time
-                  </p>
+                  <h3 className="card-title">XP Settings</h3>
+                  <p className="card-sub mt-0.5">Earned from messages and voice time</p>
                 </div>
               </div>
               <div className="flex items-center gap-2.5">
                 <span
-                  className={`text-[10px] font-bold uppercase tracking-wider ${
-                    enabled ? "text-[#39D98A]" : "text-slate-600"
-                  }`}
+                  className={`micro-label ${enabled ? "text-[#34D399]" : "text-slate-600"}`}
                 >
                   {enabled ? "Active" : "Paused"}
                 </span>
@@ -343,9 +386,7 @@ export default function LevelingSettings({ guildId }) {
             <div className="mt-5">
               <div className="flex items-center justify-between gap-3">
                 <span className="section-label">XP Multiplier</span>
-                <span className="rounded-full border border-[#7C5CFF]/25 bg-[#7C5CFF]/10 px-2 py-0.5 text-[10px] font-bold text-[#7C5CFF] tabular-nums">
-                  {xpMultiplier.toFixed(1)}x
-                </span>
+                <span className="chip chip-violet tabular-nums">{xpMultiplier.toFixed(1)}x</span>
               </div>
               <input
                 type="range"
@@ -362,7 +403,7 @@ export default function LevelingSettings({ guildId }) {
               {guildId ? (
                 <p
                   className={`mt-1 text-[10px] ${
-                    settingsLoaded ? "text-slate-600" : "text-[#FFB547]"
+                    settingsLoaded ? "text-slate-600" : "text-[#FBBF24]"
                   }`}
                 >
                   {settingsLoaded
@@ -374,20 +415,18 @@ export default function LevelingSettings({ guildId }) {
           </motion.div>
 
           {/* Level rewards */}
-          <motion.div variants={rise} className="panel p-5">
+          <motion.div variants={rise} className="glass-card p-5">
             <div className="flex items-center gap-3">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#7C5CFF]/25 bg-[#7C5CFF]/10 text-[#7C5CFF]">
+              <span className="icon-tile icon-tile-amber h-9 w-9 rounded-[12px]">
                 <Award className="h-4 w-4" />
               </span>
               <div className="min-w-0">
-                <h3 className="text-sm font-extrabold text-white">Level Rewards</h3>
-                <p className="mt-1 text-xs text-slate-500">
-                  Roles granted automatically at each milestone
-                </p>
+                <h3 className="card-title">Level Rewards</h3>
+                <p className="card-sub mt-0.5">Roles granted automatically at each milestone</p>
               </div>
             </div>
 
-            <div className="mt-4 space-y-2">
+            <div className="mt-4 space-y-1.5">
               {rewards.map((r) => {
                 const info = r.roleId ? roleMap[r.roleId] : null;
                 const resolvedName =
@@ -397,13 +436,11 @@ export default function LevelingSettings({ guildId }) {
                 return (
                   <div
                     key={`${r.level}-${r.roleId || "demo"}`}
-                    className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3.5 py-3 transition-colors hover:bg-white/[0.04]"
+                    className="list-row gap-3 px-3 py-2.5"
                   >
-                    <span className="shrink-0 rounded-full border border-white/[0.08] bg-white/[0.03] px-2 py-0.5 text-[10px] font-bold text-slate-300">
-                      Level {r.level}
-                    </span>
+                    <span className="chip chip-violet shrink-0">Level {r.level}</span>
                     <span
-                      className={`flex min-w-0 items-center gap-2 text-xs font-bold ${
+                      className={`ml-auto flex min-w-0 items-center gap-2 text-xs font-bold ${
                         label ? "text-white" : "font-mono text-slate-500"
                       }`}
                     >
@@ -417,11 +454,13 @@ export default function LevelingSettings({ guildId }) {
                 );
               })}
               {rewards.length === 0 && (
-                <div className="flex items-center gap-2.5 rounded-xl border border-dashed border-white/[0.08] px-3.5 py-4 text-[11px] text-slate-600">
-                  <Award className="h-3.5 w-3.5 shrink-0 text-slate-700" />
+                <div className="empty-state">
+                  <span className="empty-state-icon">
+                    <Award className="h-4 w-4" />
+                  </span>
+                  <span className="empty-state-title">No level rewards yet</span>
                   <span>
-                    No level rewards yet — rewards appear here once role milestones are configured
-                    for this server.
+                    Rewards appear here once role milestones are configured for this server.
                   </span>
                 </div>
               )}
@@ -430,67 +469,87 @@ export default function LevelingSettings({ guildId }) {
         </div>
 
         {/* Leaderboard */}
-        <motion.div variants={rise} className="panel p-5">
+        <motion.div variants={rise} className="glass-card p-5">
           <div className="flex items-center gap-3">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#7C5CFF]/25 bg-[#7C5CFF]/10 text-[#7C5CFF]">
+            <span className="icon-tile icon-tile-cyan h-9 w-9 rounded-[12px]">
               <TrendingUp className="h-4 w-4" />
             </span>
             <div className="min-w-0">
-              <h3 className="text-sm font-extrabold text-white">Leaderboard</h3>
-              <p className="mt-1 text-xs text-slate-500">
+              <h3 className="card-title">Leaderboard</h3>
+              <p className="card-sub mt-0.5">
                 {guildId ? "Top members by XP" : "Top 5 members by XP this week"}
               </p>
             </div>
           </div>
 
-          <div className="mt-4 space-y-2">
-            {leaderboard.map((u) => (
-              <div
-                key={u.userId || `rank-${u.rank}`}
-                className="flex items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3.5 py-3 transition-colors hover:bg-white/[0.04]"
-              >
-                <span
-                  className={`flex h-6 w-6 shrink-0 items-center justify-center text-xs font-black ${
-                    u.rank <= 3 ? "text-[#FFB547]" : "text-slate-500"
-                  }`}
+          <div className="mt-4 space-y-1.5">
+            {leaderboard.map((u) => {
+              const pct = topXp > 0 ? Math.min(100, (u.xp / topXp) * 100) : 0;
+              return (
+                <div
+                  key={u.userId || `rank-${u.rank}`}
+                  className="list-row items-start gap-3 px-3 py-2.5"
                 >
-                  {u.rank <= 3 ? <Crown className="h-4 w-4" /> : `#${u.rank}`}
-                </span>
-                {safeAvatar(u.avatarUrl) ? (
-                  <img
-                    src={u.avatarUrl}
-                    alt=""
-                    className="h-8 w-8 shrink-0 rounded-full object-cover"
-                  />
-                ) : (
                   <span
-                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white"
-                    style={{
-                      background: `linear-gradient(135deg, hsl(${u.hue} 70% 55%), hsl(${u.hue + 40} 70% 45%))`,
-                    }}
+                    className={`mt-1 w-5 shrink-0 text-center text-xs font-black ${
+                      u.rank <= 3 ? "text-[#FBBF24]" : "text-slate-600"
+                    }`}
                   >
-                    {(u.name?.[0] || "?").toUpperCase()}
+                    {u.rank <= 3 ? <Crown className="h-4 w-4" /> : `#${u.rank}`}
                   </span>
-                )}
-                <span
-                  className={`min-w-0 flex-1 truncate text-xs font-bold ${
-                    u.name ? "text-white" : "font-mono text-slate-500"
-                  }`}
-                >
-                  {u.name || shortId(u.userId)}
-                </span>
-                <span className="shrink-0 rounded-full border border-[#7C5CFF]/25 bg-[#7C5CFF]/10 px-2 py-0.5 text-[10px] font-bold text-[#7C5CFF] tabular-nums">
-                  Lvl {u.level}
-                </span>
-                <span className="hidden shrink-0 font-mono text-[10px] text-slate-500 tabular-nums sm:block">
-                  {u.xp.toLocaleString("en-US")} XP
-                </span>
-              </div>
-            ))}
+
+                  <span className="avatar-ring mt-0.5 shrink-0">
+                    {safeAvatar(u.avatarUrl) ? (
+                      <img
+                        src={u.avatarUrl}
+                        alt=""
+                        className="h-8 w-8 rounded-full object-cover"
+                      />
+                    ) : (
+                      <span
+                        className="flex h-8 w-8 items-center justify-center rounded-full text-[11px] font-bold text-white"
+                        style={{
+                          background: `linear-gradient(135deg, hsl(${u.hue} 70% 55%), hsl(${u.hue + 40} 70% 45%))`,
+                        }}
+                      >
+                        {(u.name?.[0] || "?").toUpperCase()}
+                      </span>
+                    )}
+                  </span>
+
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span
+                        className={`truncate text-xs font-bold ${
+                          u.name ? "text-white" : "font-mono text-slate-500"
+                        }`}
+                      >
+                        {u.name || shortId(u.userId)}
+                      </span>
+                      <span className="chip chip-violet shrink-0 tabular-nums">Lvl {u.level}</span>
+                    </div>
+                    <div className="mt-1.5 flex items-center gap-2.5">
+                      <div
+                        className="progress-track h-1.5 flex-1"
+                        title={`${u.xp.toLocaleString("en-US")} XP — ${Math.round(pct)}% of the leader's XP`}
+                      >
+                        <div className="progress-fill" style={{ width: `${pct}%` }} />
+                      </div>
+                      <span className="shrink-0 text-[10px] font-semibold text-slate-500 tabular-nums">
+                        {u.xp.toLocaleString("en-US")} XP
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
             {leaderboard.length === 0 && (
-              <div className="flex items-center gap-2.5 rounded-xl border border-dashed border-white/[0.08] px-3.5 py-4 text-[11px] text-slate-600">
-                <TrendingUp className="h-3.5 w-3.5 shrink-0 text-slate-700" />
-                <span>No XP activity yet — members earn XP from chatting and voice time.</span>
+              <div className="empty-state">
+                <span className="empty-state-icon">
+                  <TrendingUp className="h-4 w-4" />
+                </span>
+                <span className="empty-state-title">No XP activity yet</span>
+                <span>Members earn XP from chatting and voice time.</span>
               </div>
             )}
           </div>

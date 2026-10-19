@@ -18,11 +18,6 @@ const rise = {
   show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: EASE } },
 };
 
-/* ────────────────────────────── shared styles ────────────────────────────── */
-
-const btnPrimary =
-  "inline-flex items-center gap-2 bg-[#7C5CFF] hover:bg-[#6a4cf0] text-white text-xs font-semibold rounded-lg px-3.5 py-2 transition-colors shadow-[0_0_18px_rgba(124,92,255,0.35)] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer";
-
 /* ────────────────────────────── helpers ────────────────────────────── */
 
 function timeAgo(ms) {
@@ -103,6 +98,8 @@ export default function BackupSettings() {
     }, 1600);
   };
 
+  const lastBackup = backups[0];
+
   return (
     <motion.div variants={stagger} initial="hidden" animate="show" className="space-y-5 text-white">
       {/* Toast */}
@@ -112,32 +109,33 @@ export default function BackupSettings() {
             initial={{ opacity: 0, y: 12, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 8, scale: 0.99 }}
-            className="panel fixed bottom-6 right-6 z-[90] flex items-center gap-2.5 px-4 py-3 text-xs font-semibold shadow-2xl shadow-black/60"
+            className="glass-dropdown fixed bottom-6 right-6 z-[90] flex items-center gap-2.5 px-4 py-3 text-xs font-semibold text-white shadow-2xl shadow-black/60"
           >
-            <CheckCircle2 className="h-4 w-4 text-[#39D98A]" />
+            <CheckCircle2 className="h-4 w-4 text-[#34D399]" />
             <span>{toast}</span>
           </motion.div>
         )}
       </AnimatePresence>
 
       {/* Header */}
-      <motion.div variants={rise} className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h2 className="flex items-center gap-2.5 text-lg font-extrabold">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#7C5CFF]/25 bg-[#7C5CFF]/10 text-[#7C5CFF]">
-              <HardDrive className="h-4 w-4" />
-            </span>
-            Server Backups
-          </h2>
-          <p className="mt-1.5 font-body text-xs text-slate-500">
-            Full snapshots of Crystal Realm — channels, roles, permissions, and settings, restorable in one click.
-          </p>
-        </div>
-        <div className="flex items-center gap-2.5">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-[#FFB547]/25 bg-[#FFB547]/10 px-2.5 py-1 text-[10px] font-bold text-[#FFB547]">
-            <Shield className="h-3 w-3" /> PREMIUM
+      <motion.div variants={rise} className="flex flex-wrap items-start justify-between gap-4">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="icon-tile icon-tile-violet h-10 w-10 rounded-[14px]">
+            <HardDrive className="h-[18px] w-[18px]" />
           </span>
-          <button type="button" onClick={createBackup} disabled={creating} className={btnPrimary}>
+          <div className="min-w-0">
+            <h2 className="card-title text-[17px]">Server Backups</h2>
+            <p className="card-sub mt-1 max-w-xl">
+              Full snapshots of Crystal Realm — channels, roles, permissions, and settings, restorable
+              in one click.
+            </p>
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-2.5">
+          <span className="chip chip-amber">
+            <Shield className="h-3 w-3" /> Premium
+          </span>
+          <button type="button" onClick={createBackup} disabled={creating} className="btn-primary">
             {creating ? (
               <RotateCcw className="h-3.5 w-3.5 animate-spin" />
             ) : (
@@ -148,28 +146,35 @@ export default function BackupSettings() {
         </div>
       </motion.div>
 
-      <motion.div variants={rise} className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+      <motion.div variants={rise} className="grid gap-4 lg:grid-cols-3">
         {/* Backup info */}
-        <section className="panel panel-hover p-5">
-          <div className="flex items-center gap-2.5">
-            <Shield className="h-4 w-4 text-[#7C5CFF]" />
-            <h3 className="text-sm font-bold text-white">Backup Info</h3>
+        <section className="glass-card rounded-[20px] p-5">
+          <div className="flex items-center gap-3">
+            <span className="icon-tile icon-tile-blue h-10 w-10 rounded-[14px]">
+              <Shield className="h-4 w-4" />
+            </span>
+            <div className="min-w-0">
+              <h3 className="card-title">Backup Info</h3>
+              <p className="card-sub mt-0.5">Retention and restore limits.</p>
+            </div>
           </div>
 
-          <div className="mt-4 space-y-2.5">
-            <div className="flex items-center justify-between rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
+          <div className="mt-4 space-y-1">
+            <div className="flex items-center justify-between gap-3 rounded-2xl border border-white/[0.06] bg-white/[0.02] px-3.5 py-3">
               <span className="text-[11px] text-slate-400">Total backups</span>
               <span className="text-xs font-bold text-white tabular-nums">{backups.length}</span>
             </div>
-            <div className="flex items-center justify-between rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
+            <div className="flex items-center justify-between gap-3 rounded-2xl border border-white/[0.06] bg-white/[0.02] px-3.5 py-3">
               <span className="text-[11px] text-slate-400">Last backup</span>
-              <span className="text-xs font-bold text-white">{timeAgo(backups[0].created)}</span>
+              <span className="text-xs font-bold text-white">
+                {lastBackup ? timeAgo(lastBackup.created) : "—"}
+              </span>
             </div>
-            <div className="flex items-center justify-between rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
+            <div className="flex items-center justify-between gap-3 rounded-2xl border border-white/[0.06] bg-white/[0.02] px-3.5 py-3">
               <span className="text-[11px] text-slate-400">Restore limit</span>
               <span className="text-xs font-bold text-white">5/day</span>
             </div>
-            <div className="flex items-center justify-between rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
+            <div className="flex items-center justify-between gap-3 rounded-2xl border border-white/[0.06] bg-white/[0.02] px-3.5 py-3">
               <span className="text-[11px] text-slate-400">Retention</span>
               <span className="text-xs font-bold text-white">30 days</span>
             </div>
@@ -177,49 +182,82 @@ export default function BackupSettings() {
         </section>
 
         {/* Backup history */}
-        <section className="panel panel-hover overflow-hidden lg:col-span-2">
-          <div className="flex items-center justify-between gap-3 px-5 pt-5">
-            <div className="flex items-center gap-2.5">
-              <Clock className="h-4 w-4 text-[#7C5CFF]" />
-              <h3 className="text-sm font-bold text-white">Backup History</h3>
+        <section className="glass-card overflow-hidden rounded-[20px] lg:col-span-2">
+          <div className="flex flex-wrap items-center justify-between gap-3 px-5 pt-5">
+            <div className="flex items-center gap-3">
+              <span className="icon-tile icon-tile-violet h-10 w-10 rounded-[14px]">
+                <Clock className="h-4 w-4" />
+              </span>
+              <div className="min-w-0">
+                <h3 className="card-title">Backup History</h3>
+                <p className="card-sub mt-0.5">Restore or grab an archive of any snapshot.</p>
+              </div>
             </div>
-            <span className="section-label">{backups.length} snapshots</span>
+            <span className="chip chip-blue">{backups.length} snapshots</span>
           </div>
 
-          <div className="mt-3 divide-y divide-white/[0.04]">
-            {backups.map((b) => (
-              <div
-                key={b.id}
-                className="flex items-center justify-between gap-3 px-5 py-3.5 transition-colors hover:bg-white/[0.02]"
-              >
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="truncate text-xs font-bold text-white">{b.name}</span>
-                    <span className="rounded-full border border-white/[0.08] bg-white/[0.03] px-2 py-0.5 text-[9px] font-bold text-slate-500 font-mono">
-                      #{b.id}
-                    </span>
-                    <span className="text-[10px] font-mono text-slate-600">{b.size}</span>
+          {backups.length === 0 ? (
+            <div className="p-5">
+              <div className="empty-state">
+                <span className="empty-state-icon">
+                  <HardDrive className="h-5 w-5" />
+                </span>
+                <p className="empty-state-title">No backups yet</p>
+                <p className="text-[11px] text-slate-500">
+                  Create a snapshot to protect channels, roles, and settings.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="mt-4 divide-y divide-white/[0.04]">
+              {backups.map((b) => (
+                <div
+                  key={b.id}
+                  className="flex items-center justify-between gap-3 px-5 py-3.5 transition-colors hover:bg-white/[0.03]"
+                >
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="truncate text-xs font-bold text-white">{b.name}</span>
+                      <span className="chip font-mono">#{b.id}</span>
+                      <span className="text-[10px] font-mono text-slate-500">{b.size}</span>
+                    </div>
+                    <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+                      <span className="inline-flex items-center gap-1 text-[10px] text-slate-500">
+                        <Clock className="h-3 w-3" />
+                        {timeAgo(b.created)}
+                      </span>
+                      <span className="text-[10px] text-slate-500">{b.channels} channels</span>
+                      <span className="text-[10px] text-slate-500">{b.roles} roles</span>
+                      <span className="text-[10px] text-slate-600">by {b.by}</span>
+                    </div>
                   </div>
-                  <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5">
-                    <span className="inline-flex items-center gap-1 text-[10px] text-slate-500">
-                      <Clock className="h-3 w-3" />
-                      {timeAgo(b.created)}
+
+                  <div className="flex shrink-0 items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => showToast(`Restore queued — ${b.name} rolling back Crystal Realm`)}
+                      className="inline-flex items-center gap-1.5 rounded-full border border-[#34D399]/30 bg-[#34D399]/10 px-3 py-1.5 text-[10px] font-bold text-[#6EE7B7] transition-colors hover:bg-[#34D399]/20 cursor-pointer"
+                    >
+                      <RotateCcw className="h-3 w-3" /> Restore
+                    </button>
+                    <span
+                      title="Archive files are stored by the bot — restore is what this panel offers"
+                      className="inline-flex"
+                    >
+                      <button
+                        type="button"
+                        disabled
+                        aria-label="Download archive (unavailable)"
+                        className="btn-icon h-8 w-8 cursor-not-allowed opacity-40"
+                      >
+                        <Download className="h-3.5 w-3.5" />
+                      </button>
                     </span>
-                    <span className="text-[10px] text-slate-500">{b.channels} channels</span>
-                    <span className="text-[10px] text-slate-500">{b.roles} roles</span>
-                    <span className="text-[10px] text-slate-600">by {b.by}</span>
                   </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => showToast(`Restore queued — ${b.name} rolling back Crystal Realm`)}
-                  className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-[#39D98A]/25 bg-[#39D98A]/10 px-3 py-1.5 text-[10px] font-bold text-[#39D98A] transition-colors hover:bg-[#39D98A]/20 cursor-pointer"
-                >
-                  <Download className="h-3 w-3" /> Restore
-                </button>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </section>
       </motion.div>
     </motion.div>

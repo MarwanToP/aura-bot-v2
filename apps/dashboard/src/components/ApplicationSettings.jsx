@@ -326,24 +326,24 @@ const INITIAL_SUBMISSIONS = [
 
 /* ────────────────────────────── shared UI atoms ────────────────────────────── */
 
-const inputCls =
-  "w-full rounded-xl border border-white/[0.07] bg-white/[0.03] px-3.5 py-2.5 text-sm text-white placeholder:text-slate-600 outline-none transition-colors focus:border-[#7C5CFF]/60 focus:bg-white/[0.05]";
+const inputCls = "glass-input";
 
-const selectCls =
-  "rounded-lg border border-white/[0.07] bg-white/[0.03] px-2.5 py-1.5 text-[11px] font-semibold text-slate-300 outline-none transition-colors focus:border-[#7C5CFF]/60 cursor-pointer [&>option]:bg-[#12141B] [&>option]:text-slate-200";
+const selectCls = "glass-select";
 
-const btnPrimary =
-  "inline-flex items-center gap-2 rounded-xl bg-[#7C5CFF] px-4 py-2.5 text-xs font-bold text-white shadow-lg shadow-[#7C5CFF]/25 transition-all hover:bg-[#6a4bf0] active:scale-[0.98]";
+const btnPrimary = "btn-primary";
 
-const btnGhost =
-  "inline-flex items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-2.5 text-xs font-semibold text-slate-300 transition-colors hover:bg-white/[0.06]";
+const btnGhost = "btn-glass";
+
+/* status → shared chip tone */
+const statusChip = (status) =>
+  status === "approved" ? "chip-green" : status === "rejected" ? "chip-red" : "chip-amber";
 
 function Field({ label, hint, children, className = "" }) {
   return (
     <label className={`block min-w-0 ${className}`}>
       <span className="section-label mb-1.5 block">{label}</span>
       {children}
-      {hint && <span className="mt-1.5 block text-[10px] text-slate-600">{hint}</span>}
+      {hint && <span className="mt-1.5 block text-[10px] text-slate-500">{hint}</span>}
     </label>
   );
 }
@@ -353,7 +353,7 @@ function RoleSelect({ value, onChange }) {
     <select
       value={value || ""}
       onChange={(e) => onChange(e.target.value || null)}
-      className={`${selectCls} w-full py-2.5 text-xs`}
+      className={`${selectCls} w-full text-xs`}
     >
       <option value="">— None —</option>
       {value && !ROLE_PRESETS.includes(value) && <option value={value}>{value}</option>}
@@ -371,18 +371,11 @@ function Toggle({ enabled, onChange }) {
     <button
       type="button"
       onClick={() => onChange(!enabled)}
-      className={`relative h-6 w-11 shrink-0 rounded-full border transition-colors ${
-        enabled ? "border-[#7C5CFF]/50 bg-[#7C5CFF]/80" : "border-white/[0.08] bg-white/[0.05]"
-      }`}
       aria-pressed={enabled}
+      aria-label={enabled ? "Disable" : "Enable"}
+      className={`toggle-track ${enabled ? "toggle-track-on" : ""}`}
     >
-      <motion.span
-        layout
-        transition={{ type: "spring", stiffness: 500, damping: 32 }}
-        className={`absolute top-[3px] h-4 w-4 rounded-full bg-white shadow ${
-          enabled ? "left-[25px]" : "left-[3px]"
-        }`}
-      />
+      <span className="toggle-thumb" />
     </button>
   );
 }
@@ -394,7 +387,7 @@ function IconBtn({ onClick, disabled, title, children }) {
       onClick={onClick}
       disabled={disabled}
       title={title}
-      className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-1.5 text-slate-500 transition-colors hover:border-[#7C5CFF]/30 hover:text-white disabled:pointer-events-none disabled:opacity-30"
+      className="btn-icon h-8 w-8 rounded-lg disabled:pointer-events-none disabled:opacity-30"
     >
       {children}
     </button>
@@ -404,12 +397,12 @@ function IconBtn({ onClick, disabled, title, children }) {
 function MiniStat({ label, value, suffix = "", format, color, icon: Icon, index }) {
   const count = useCountUp(value, { duration: 700 + index * 90 });
   return (
-    <div className="panel panel-hover p-3.5">
+    <div className="glass-card glass-card-hover p-3.5">
       <div className="flex items-center justify-between gap-2">
         <span className="section-label">{label}</span>
         <Icon className="h-3.5 w-3.5 shrink-0" style={{ color }} />
       </div>
-      <div className="mt-2 text-xl font-extrabold text-white">
+      <div className="kpi-value mt-2 text-xl">
         {format ? format(count) : `${Math.round(count)}${suffix}`}
       </div>
     </div>
@@ -427,7 +420,7 @@ function SubmissionRow({ s, formName, expanded, onToggle, onReview }) {
       <button
         type="button"
         onClick={onToggle}
-        className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-white/[0.02]"
+        className="list-row w-full items-center gap-3 px-4 py-3.5 text-left"
       >
         <span
           className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white"
@@ -446,10 +439,7 @@ function SubmissionRow({ s, formName, expanded, onToggle, onReview }) {
         <span className="hidden text-[10px] text-slate-500 sm:block">
           {s.reviewMinutes != null ? `reviewed in ${fmtReview(s.reviewMinutes)}` : "awaiting review"}
         </span>
-        <span
-          className="inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-bold"
-          style={{ borderColor: `${meta.color}40`, color: meta.color, background: `${meta.color}12` }}
-        >
+        <span className={`chip shrink-0 ${statusChip(s.status)}`}>
           <StatusIcon className="h-3 w-3" />
           {meta.label}
         </span>
@@ -468,7 +458,7 @@ function SubmissionRow({ s, formName, expanded, onToggle, onReview }) {
             className="overflow-hidden"
           >
             <div className="px-4 pb-4">
-              <div className="space-y-2.5 rounded-xl border border-white/[0.05] bg-white/[0.02] p-3.5">
+              <div className="space-y-2.5 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3.5">
                 {s.answers.map((a) => (
                   <div key={a.q}>
                     <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
@@ -485,18 +475,18 @@ function SubmissionRow({ s, formName, expanded, onToggle, onReview }) {
                     <button
                       type="button"
                       onClick={() => onReview(s.id, "approved")}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-[#39D98A]/30 bg-[#39D98A]/10 px-3 py-1.5 text-[11px] font-bold text-[#39D98A] transition-colors hover:bg-[#39D98A]/20"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-[#34D399]/30 bg-[#34D399]/10 px-3 py-1.5 text-[11px] font-bold text-[#6EE7B7] transition-colors hover:bg-[#34D399]/20"
                     >
                       <CheckCircle2 className="h-3.5 w-3.5" /> Approve & grant role
                     </button>
                     <button
                       type="button"
                       onClick={() => onReview(s.id, "rejected")}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-[#FF5C7A]/30 bg-[#FF5C7A]/10 px-3 py-1.5 text-[11px] font-bold text-[#FF5C7A] transition-colors hover:bg-[#FF5C7A]/20"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-[#F87171]/30 bg-[#F87171]/10 px-3 py-1.5 text-[11px] font-bold text-[#FCA5A5] transition-colors hover:bg-[#F87171]/20"
                     >
                       <XCircle className="h-3.5 w-3.5" /> Reject
                     </button>
-                    <span className="ml-auto text-[10px] text-slate-600">
+                    <span className="ml-auto text-[10px] text-slate-500">
                       Role automation runs on review
                     </span>
                   </>
@@ -553,16 +543,14 @@ function BuilderView({
               key={f.id}
               type="button"
               onClick={() => setActiveFormId(f.id)}
-              className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-bold transition-all ${
+              className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-bold transition-colors ${
                 f.id === activeForm.id
-                  ? "border-[#7C5CFF]/40 bg-[#7C5CFF]/10 text-white"
-                  : "border-white/[0.06] bg-white/[0.02] text-slate-500 hover:text-slate-300"
+                  ? "border-[#4C7DFF]/45 bg-[#4C7DFF]/[0.14] text-white shadow-[0_8px_22px_rgba(76,125,255,0.18)]"
+                  : "border-white/[0.07] bg-white/[0.02] text-slate-500 hover:text-slate-300"
               }`}
             >
               <span
-                className={`h-1.5 w-1.5 rounded-full ${
-                  f.enabled ? "bg-[#39D98A]" : "bg-slate-600"
-                }`}
+                className={`status-dot ${f.enabled ? "status-dot-online" : "status-dot-offline"}`}
               />
               {f.name}
             </button>
@@ -570,18 +558,16 @@ function BuilderView({
         </div>
 
         {/* form details */}
-        <section className="panel p-5">
+        <section className="glass-card p-5">
           <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2.5">
-              <PenLine className="h-4 w-4 text-[#7C5CFF]" />
-              <h3 className="text-sm font-bold">Form details</h3>
+            <div className="flex min-w-0 items-center gap-3">
+              <span className="icon-tile icon-tile-violet h-8 w-8 rounded-lg">
+                <PenLine className="h-4 w-4" />
+              </span>
+              <h3 className="card-title">Form details</h3>
             </div>
-            <div className="flex items-center gap-2.5">
-              <span
-                className={`text-[10px] font-bold uppercase tracking-wider ${
-                  activeForm.enabled ? "text-[#39D98A]" : "text-slate-600"
-                }`}
-              >
+            <div className="flex shrink-0 items-center gap-2.5">
+              <span className={`chip ${activeForm.enabled ? "chip-green" : ""}`}>
                 {activeForm.enabled ? "Open" : "Closed"}
               </span>
               <Toggle enabled={activeForm.enabled} onChange={onToggleEnabled} />
@@ -600,7 +586,7 @@ function BuilderView({
             <Field label="Description" hint="Shown on the apply panel and above the form.">
               <textarea
                 rows={2}
-                className={`${inputCls} resize-none`}
+                className="glass-textarea min-h-[4.5rem] resize-none"
                 value={activeForm.description || ""}
                 onChange={(e) => patchForm({ description: e.target.value })}
                 placeholder="Tell applicants what this role involves..."
@@ -610,14 +596,14 @@ function BuilderView({
         </section>
 
         {/* questions */}
-        <section className="panel p-5">
+        <section className="glass-card p-5">
           <div className="flex flex-wrap items-center gap-2.5">
-            <FileText className="h-4 w-4 text-[#7C5CFF]" />
-            <h3 className="text-sm font-bold">Questions</h3>
-            <span className="rounded-full border border-white/[0.08] bg-white/[0.03] px-2 py-0.5 text-[10px] font-bold text-slate-400">
-              {activeForm.questions.length}/5
+            <span className="icon-tile icon-tile-blue h-8 w-8 rounded-lg">
+              <FileText className="h-4 w-4" />
             </span>
-            <span className="ml-auto text-[10px] text-slate-600">
+            <h3 className="card-title">Questions</h3>
+            <span className="chip">{activeForm.questions.length}/5</span>
+            <span className="ml-auto text-[10px] text-slate-500">
               Discord modals support up to 5 questions
             </span>
           </div>
@@ -626,12 +612,12 @@ function BuilderView({
             {activeForm.questions.map((q, i) => (
               <div
                 key={q.id}
-                className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3 transition-colors hover:border-white/[0.1]"
+                className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3 transition-colors hover:border-white/[0.14]"
               >
                 <div className="flex items-center gap-2.5">
-                  <GripVertical className="h-4 w-4 shrink-0 text-slate-700" />
+                  <GripVertical className="h-4 w-4 shrink-0 text-slate-600" />
                   <input
-                    className={`${inputCls} flex-1 text-xs`}
+                    className="glass-input flex-1 px-3 py-2 text-xs"
                     value={q.label}
                     onChange={(e) => patchQuestion(q.id, { label: e.target.value })}
                     placeholder={`Question ${i + 1}`}
@@ -650,7 +636,7 @@ function BuilderView({
                   <select
                     value={q.type}
                     onChange={(e) => patchQuestion(q.id, { type: e.target.value })}
-                    className={selectCls}
+                    className="glass-select w-auto py-1.5 text-[11px] font-semibold"
                   >
                     <option value="short">Short text</option>
                     <option value="paragraph">Paragraph</option>
@@ -659,17 +645,15 @@ function BuilderView({
                   <button
                     type="button"
                     onClick={() => patchQuestion(q.id, { required: !q.required })}
-                    className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider transition-colors ${
-                      q.required
-                        ? "border-[#7C5CFF]/40 bg-[#7C5CFF]/10 text-[#B9A6FF]"
-                        : "border-white/[0.08] bg-white/[0.03] text-slate-500"
+                    className={`chip uppercase tracking-wider transition-colors ${
+                      q.required ? "chip-violet" : ""
                     }`}
                   >
                     <BadgeCheck className="h-3 w-3" />
                     {q.required ? "Required" : "Optional"}
                   </button>
 
-                  <span className="hidden text-[10px] text-slate-600 sm:block">
+                  <span className="hidden text-[10px] text-slate-500 sm:block">
                     {q.type === "short" ? "Single line input" : "Multi-line input"}
                   </span>
 
@@ -701,7 +685,7 @@ function BuilderView({
             className={`mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-dashed py-2.5 text-xs font-bold transition-colors ${
               atMax
                 ? "cursor-not-allowed border-white/[0.05] text-slate-700"
-                : "border-white/[0.12] text-slate-400 hover:border-[#7C5CFF]/40 hover:text-[#B9A6FF]"
+                : "border-white/[0.12] text-slate-400 hover:border-[#4C7DFF]/45 hover:text-[#A9C2FF]"
             }`}
           >
             <Plus className="h-3.5 w-3.5" />
@@ -710,11 +694,13 @@ function BuilderView({
         </section>
 
         {/* role automation */}
-        <section className="panel p-5">
+        <section className="glass-card p-5">
           <div className="flex flex-wrap items-center gap-2.5">
-            <ShieldCheck className="h-4 w-4 text-[#7C5CFF]" />
-            <h3 className="text-sm font-bold">Role automation</h3>
-            <span className="ml-auto text-[10px] text-slate-600">
+            <span className="icon-tile icon-tile-green h-8 w-8 rounded-lg">
+              <ShieldCheck className="h-4 w-4" />
+            </span>
+            <h3 className="card-title">Role automation</h3>
+            <span className="ml-auto text-[10px] text-slate-500">
               Applied automatically when a reviewer decides
             </span>
           </div>
@@ -748,10 +734,12 @@ function BuilderView({
         </section>
 
         {/* workflow */}
-        <section className="panel p-5">
-          <div className="flex items-center gap-2.5">
-            <Timer className="h-4 w-4 text-[#7C5CFF]" />
-            <h3 className="text-sm font-bold">Review workflow</h3>
+        <section className="glass-card p-5">
+          <div className="flex items-center gap-3">
+            <span className="icon-tile icon-tile-amber h-8 w-8 rounded-lg">
+              <Timer className="h-4 w-4" />
+            </span>
+            <h3 className="card-title">Review workflow</h3>
           </div>
           <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field label="Review channel" hint="Where new submissions are posted with Approve / Reject buttons">
@@ -777,20 +765,16 @@ function BuilderView({
         </section>
 
         {/* save bar */}
-        <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-white/[0.06] bg-white/[0.02] px-4 py-3">
-          <span
-            className={`text-[11px] font-semibold ${
-              dirty ? "text-[#FFB547]" : "text-slate-600"
-            }`}
-          >
-            {dirty ? "● Unsaved changes" : "✓ All changes saved"}
+        <div className="glass-card flex flex-wrap items-center gap-3 px-4 py-3">
+          <span className={`chip ${dirty ? "chip-amber" : "chip-green"}`}>
+            {dirty ? "Unsaved changes" : "All changes saved"}
           </span>
           <div className="ml-auto flex items-center gap-2">
             {forms.length > 1 && (
               <button
                 type="button"
                 onClick={deleteForm}
-                className="px-2 text-[11px] font-semibold text-slate-600 transition-colors hover:text-[#FF5C7A]"
+                className="px-2 text-[11px] font-semibold text-slate-500 transition-colors hover:text-[#FCA5A5]"
               >
                 Delete form
               </button>
@@ -799,7 +783,7 @@ function BuilderView({
               type="button"
               onClick={resetForm}
               disabled={!dirty}
-              className={`${btnGhost} ${!dirty ? "pointer-events-none opacity-40" : ""}`}
+              className={btnGhost}
             >
               Reset
             </button>
@@ -807,7 +791,7 @@ function BuilderView({
               type="button"
               onClick={saveForm}
               disabled={!dirty}
-              className={`${btnPrimary} ${!dirty ? "pointer-events-none opacity-40" : ""}`}
+              className={btnPrimary}
             >
               <CheckCircle2 className="h-3.5 w-3.5" /> Save form
             </button>
@@ -817,15 +801,15 @@ function BuilderView({
 
       {/* ── right: live preview ── */}
       <div className="min-w-0 space-y-4 xl:sticky xl:top-5 xl:self-start">
-        <div className="panel p-5">
+        <div className="glass-card p-5">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Eye className="h-4 w-4 text-[#7C5CFF]" />
-              <h3 className="text-sm font-bold">Live preview</h3>
+            <div className="flex items-center gap-3">
+              <span className="icon-tile icon-tile-cyan h-8 w-8 rounded-lg">
+                <Eye className="h-4 w-4" />
+              </span>
+              <h3 className="card-title">Live preview</h3>
             </div>
-            <span className="rounded-full border border-white/[0.08] bg-white/[0.03] px-2 py-0.5 text-[10px] font-bold text-slate-500">
-              Discord
-            </span>
+            <span className="chip">Discord</span>
           </div>
 
           {/* apply panel */}
@@ -920,9 +904,9 @@ function BuilderView({
           </div>
         </div>
 
-        <div className="panel p-4">
-          <div className="flex items-center gap-2 text-[11px] text-slate-500">
-            <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-[#39D98A]" />
+        <div className="glass-card p-4">
+          <div className="flex items-center gap-2.5 text-[11px] text-slate-500">
+            <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-[#34D399]" />
             <span>
               Submissions are reviewed with <b className="text-slate-300">/apply</b> flow — members
               run <b className="text-slate-300">/apply start</b> to open this modal.
@@ -988,10 +972,8 @@ function SubmissionsView({
             key={c.id}
             type="button"
             onClick={() => setFilter(c.id)}
-            className={`rounded-full border px-3 py-1.5 text-[11px] font-bold transition-colors ${
-              filter === c.id
-                ? "border-[#7C5CFF]/40 bg-[#7C5CFF]/10 text-[#B9A6FF]"
-                : "border-white/[0.07] bg-white/[0.02] text-slate-500 hover:text-slate-300"
+            className={`chip transition-colors hover:text-slate-200 ${
+              filter === c.id ? "chip-blue" : ""
             }`}
           >
             {c.label} <span className="opacity-60">{counts[c.id]}</span>
@@ -1004,21 +986,23 @@ function SubmissionsView({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search applicants or forms…"
-            className={`${inputCls} py-2 pl-9 text-xs`}
+            className="glass-input py-2 pl-9 text-xs"
           />
         </div>
       </div>
 
       {filtered.length === 0 ? (
-        <div className="panel flex flex-col items-center justify-center gap-2 py-14 text-center">
-          <Inbox className="h-8 w-8 text-slate-700" />
-          <p className="text-sm font-bold text-slate-400">No submissions found</p>
-          <p className="text-[11px] text-slate-600">
+        <div className="empty-state">
+          <span className="empty-state-icon">
+            <Inbox className="h-5 w-5" />
+          </span>
+          <p className="empty-state-title">No submissions found</p>
+          <p className="text-[11px] text-slate-500">
             {query ? "Try a different search." : "Applications will appear here the moment they arrive."}
           </p>
         </div>
       ) : (
-        <div className="panel divide-y divide-white/[0.04] overflow-hidden">
+        <div className="glass-card divide-y divide-white/[0.05] overflow-hidden p-1.5">
           {filtered.map((s) => (
             <SubmissionRow
               key={s.id}
@@ -1359,9 +1343,9 @@ export default function ApplicationSettings({ guildId }) {
             initial={{ opacity: 0, y: 12, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 8, scale: 0.99 }}
-            className="panel fixed bottom-6 right-6 z-[90] flex items-center gap-2.5 px-4 py-3 text-xs font-semibold shadow-2xl shadow-black/60"
+            className="glass-dropdown pointer-events-none fixed bottom-6 right-6 z-[90] flex items-center gap-2.5 px-4 py-3 text-xs font-semibold text-white"
           >
-            <CheckCircle2 className="h-4 w-4 text-[#39D98A]" />
+            <CheckCircle2 className="h-4 w-4 text-[#34D399]" />
             <span>{toast}</span>
           </motion.div>
         )}
@@ -1372,16 +1356,17 @@ export default function ApplicationSettings({ guildId }) {
         variants={rise}
         className="flex flex-wrap items-center justify-between gap-4"
       >
-        <div>
-          <h2 className="flex items-center gap-2.5 text-lg font-extrabold">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#7C5CFF]/25 bg-[#7C5CFF]/10 text-[#7C5CFF]">
-              <ClipboardList className="h-4 w-4" />
-            </span>
-            Applications
-          </h2>
-          <p className="mt-1.5 font-body text-xs text-slate-500">
-            Appy-grade form builder — staff intake, role automation, and a review inbox in one place.
-          </p>
+        <div className="flex min-w-0 items-center gap-3.5">
+          <span className="icon-tile icon-tile-violet h-9 w-9 rounded-xl">
+            <ClipboardList className="h-4 w-4" />
+          </span>
+          <div className="min-w-0">
+            <h2 className="card-title">Applications</h2>
+            <p className="card-sub mt-0.5">
+              App-grade form builder — staff intake, role automation, and a review inbox in one
+              place.
+            </p>
+          </div>
         </div>
         <button type="button" onClick={createForm} className={btnPrimary}>
           <Plus className="h-3.5 w-3.5" /> New form
@@ -1393,10 +1378,10 @@ export default function ApplicationSettings({ guildId }) {
         variants={rise}
         className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6"
       >
-        <MiniStat label="Total submissions" value={total} icon={Inbox} color="#5B8CFF" index={0} />
-        <MiniStat label="Pending review" value={pending} icon={Clock} color="#FFB547" index={1} />
-        <MiniStat label="Approved" value={approved} icon={CheckCircle2} color="#39D98A" index={2} />
-        <MiniStat label="Rejected" value={rejected} icon={XCircle} color="#FF5C7A" index={3} />
+        <MiniStat label="Total submissions" value={total} icon={Inbox} color="#4C7DFF" index={0} />
+        <MiniStat label="Pending review" value={pending} icon={Clock} color="#FBBF24" index={1} />
+        <MiniStat label="Approved" value={approved} icon={CheckCircle2} color="#34D399" index={2} />
+        <MiniStat label="Rejected" value={rejected} icon={XCircle} color="#F87171" index={3} />
         <MiniStat
           label="Approval rate"
           value={approvalRate}
@@ -1410,13 +1395,13 @@ export default function ApplicationSettings({ guildId }) {
           value={avgReview}
           format={fmtReview}
           icon={Timer}
-          color="#58BFC5"
+          color="#22D3EE"
           index={5}
         />
       </motion.div>
 
       {/* Segmented control */}
-      <motion.div variants={rise} className="panel inline-flex items-center gap-1 p-1">
+      <motion.div variants={rise} className="glass-card inline-flex items-center gap-1 p-1">
         {[
           { id: "builder", label: "Form builder", icon: Settings2, badge: 0 },
           { id: "submissions", label: "Submissions", icon: Inbox, badge: pending },
@@ -1427,21 +1412,19 @@ export default function ApplicationSettings({ guildId }) {
               key={t.id}
               type="button"
               onClick={() => setView(t.id)}
-              className={`relative inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-colors ${
-                view === t.id ? "text-white" : "text-slate-500 hover:text-slate-300"
-              }`}
+              className={`seg-tab relative ${view === t.id ? "text-white" : ""}`}
             >
               {view === t.id && (
                 <motion.span
                   layoutId="app-seg"
-                  className="absolute inset-0 rounded-xl border border-[#7C5CFF]/30 bg-[#7C5CFF]/15"
+                  className="absolute inset-0 rounded-xl border border-[#4C7DFF]/45 bg-[#4C7DFF]/[0.16] shadow-[0_8px_22px_rgba(76,125,255,0.18)]"
                   transition={{ type: "spring", stiffness: 420, damping: 34 }}
                 />
               )}
               <TabIcon className="relative z-10 h-3.5 w-3.5" />
               <span className="relative z-10">{t.label}</span>
               {t.badge > 0 && (
-                <span className="relative z-10 rounded-full border border-[#FFB547]/30 bg-[#FFB547]/15 px-1.5 py-0.5 text-[9px] font-extrabold text-[#FFB547]">
+                <span className="relative z-10 rounded-full border border-[#FBBF24]/30 bg-[#FBBF24]/15 px-1.5 py-0.5 text-[9px] font-extrabold text-[#FCD34D]">
                   {t.badge}
                 </span>
               )}
@@ -1477,11 +1460,13 @@ export default function ApplicationSettings({ guildId }) {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
               transition={{ duration: 0.22, ease: EASE }}
-              className="panel flex flex-col items-center justify-center gap-2 py-14 text-center"
+              className="empty-state"
             >
-              <ClipboardList className="h-8 w-8 text-slate-700" />
-              <p className="text-sm font-bold text-slate-400">No forms yet</p>
-              <p className="text-[11px] text-slate-600">
+              <span className="empty-state-icon">
+                <ClipboardList className="h-5 w-5" />
+              </span>
+              <p className="empty-state-title">No forms yet</p>
+              <p className="text-[11px] text-slate-500">
                 Create your first application form to get started.
               </p>
             </motion.div>

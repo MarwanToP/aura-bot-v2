@@ -11,6 +11,8 @@ import {
   Trash2,
   CheckCircle2,
   XCircle,
+  Sparkles,
+  Clock,
 } from "lucide-react";
 
 /* ────────────────────────────── motion helpers ────────────────────────────── */
@@ -95,43 +97,33 @@ const mapResponder = (r) => ({
   real: true,
 });
 
-const inputCls =
-  "w-full bg-white/[0.03] border border-white/[0.08] rounded-lg px-3 py-2 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-[#7C5CFF]/50 transition-colors";
-
 /* ────────────────────────────── atoms ────────────────────────────── */
 
-function StatCard({ label, value, icon: Icon, color, index }) {
+function StatCard({ label, value, icon: Icon, tone = "violet", index }) {
   const count = useCountUp(value, { duration: 700 + index * 90 });
   return (
-    <div className="panel panel-hover p-3.5">
-      <div className="flex items-center justify-between gap-2">
-        <span className="section-label">{label}</span>
-        <Icon className="h-3.5 w-3.5 shrink-0" style={{ color }} />
+    <div className="kpi-tile">
+      <div className="flex items-start justify-between gap-3">
+        <span className="kpi-label">{label}</span>
+        <span className={`icon-tile icon-tile-${tone} h-9 w-9 rounded-[12px]`}>
+          <Icon className="h-4 w-4" />
+        </span>
       </div>
-      <div className="mt-2 text-xl font-extrabold text-white tabular-nums">
-        {Math.round(count).toLocaleString("en-US")}
-      </div>
+      <div className="kpi-value mt-3">{Math.round(count).toLocaleString("en-US")}</div>
     </div>
   );
 }
 
-function Toggle({ enabled, onChange }) {
+function Toggle({ enabled, onChange, title }) {
   return (
     <button
       type="button"
       onClick={() => onChange(!enabled)}
-      className={`relative h-6 w-11 shrink-0 rounded-full border transition-colors cursor-pointer ${
-        enabled ? "border-[#7C5CFF]/50 bg-[#7C5CFF]/80" : "border-white/[0.08] bg-white/[0.05]"
-      }`}
+      title={title}
       aria-pressed={enabled}
+      className={`toggle-track ${enabled ? "toggle-track-on" : ""}`}
     >
-      <motion.span
-        layout
-        transition={{ type: "spring", stiffness: 500, damping: 32 }}
-        className={`absolute top-[3px] h-4 w-4 rounded-full bg-white shadow ${
-          enabled ? "left-[25px]" : "left-[3px]"
-        }`}
-      />
+      <span className="toggle-thumb" />
     </button>
   );
 }
@@ -282,9 +274,9 @@ export default function AutoResponderSettings({ guildId }) {
             initial={{ opacity: 0, y: 12, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 8, scale: 0.99 }}
-            className="fixed bottom-6 right-6 z-[90] panel px-4 py-3 flex items-center gap-2.5 text-xs font-semibold shadow-2xl shadow-black/60"
+            className="glass-dropdown fixed bottom-6 right-6 z-[90] flex items-center gap-2.5 px-4 py-3 text-xs font-semibold"
           >
-            <CheckCircle2 className="w-4 h-4 text-[#39D98A]" />
+            <CheckCircle2 className="h-4 w-4 text-[#34D399]" />
             <span>{toast}</span>
           </motion.div>
         )}
@@ -292,39 +284,35 @@ export default function AutoResponderSettings({ guildId }) {
 
       {/* Header */}
       <motion.div variants={rise} className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h2 className="flex items-center gap-2.5 text-lg font-extrabold">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#7C5CFF]/25 bg-[#7C5CFF]/10 text-[#7C5CFF]">
-              <MessageSquare className="h-4 w-4" />
-            </span>
-            Auto Responder
-          </h2>
-          <p className="mt-1.5 font-body text-xs text-slate-500">
-            Automatic replies when members send specific words or phrases.
-          </p>
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="icon-tile icon-tile-violet">
+            <MessageSquare className="h-5 w-5" />
+          </span>
+          <div className="min-w-0">
+            <h2 className="card-title text-[15px]">Auto Responder</h2>
+            <p className="card-sub mt-0.5">
+              Automatic replies when members send specific words or phrases.
+            </p>
+          </div>
         </div>
         <button
           type="button"
           onClick={() => setShowCreator(!showCreator)}
-          className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-semibold transition-colors cursor-pointer ${
-            showCreator
-              ? "text-slate-400 hover:text-white hover:bg-white/[0.04] border border-white/[0.08]"
-              : "bg-[#7C5CFF] hover:bg-[#6a4cf0] text-white shadow-[0_0_18px_rgba(124,92,255,0.35)]"
-          }`}
+          className={showCreator ? "btn-glass" : "btn-primary"}
         >
-          {showCreator ? <XCircle className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
+          {showCreator ? <XCircle className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
           {showCreator ? "Cancel" : "New responder"}
         </button>
       </motion.div>
 
       {/* Stats — usage/enabled cards render only when the data actually carries those fields */}
-      <motion.div variants={rise} className="grid grid-cols-2 gap-3 md:grid-cols-3">
-        <StatCard label="Responders" value={responders.length} icon={MessageSquare} color="#7C5CFF" index={0} />
+      <motion.div variants={rise} className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <StatCard label="Responders" value={responders.length} icon={MessageSquare} tone="violet" index={0} />
         {hasEnabledState && (
-          <StatCard label="Active now" value={activeCount} icon={Zap} color="#39D98A" index={1} />
+          <StatCard label="Active now" value={activeCount} icon={Zap} tone="green" index={1} />
         )}
         {hasUsageState && (
-          <StatCard label="Replies sent" value={totalReplies} icon={MessageCircle} color="#5B8CFF" index={2} />
+          <StatCard label="Replies sent" value={totalReplies} icon={MessageCircle} tone="blue" index={2} />
         )}
       </motion.div>
 
@@ -337,75 +325,73 @@ export default function AutoResponderSettings({ guildId }) {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.35, ease: EASE }}
-            className="panel p-5 space-y-5"
+            className="glass-card p-5"
           >
-            <div className="flex items-center gap-2.5">
-              <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#7C5CFF]/25 bg-[#7C5CFF]/10 text-[#7C5CFF]">
+            <div className="flex items-center gap-3">
+              <span className="icon-tile icon-tile-cyan h-9 w-9 rounded-[12px]">
                 <Plus className="h-4 w-4" />
               </span>
-              <div>
-                <h3 className="text-sm font-extrabold text-white">New auto responder</h3>
-                <p className="text-xs text-slate-500 mt-0.5">
+              <div className="min-w-0">
+                <h3 className="card-title">New auto responder</h3>
+                <p className="card-sub mt-0.5">
                   Pick a trigger phrase and the reply Aura should send.
                 </p>
               </div>
             </div>
 
-            <label className="block min-w-0">
-              <span className="section-label mb-1.5 block">Trigger</span>
-              <input
-                type="text"
-                value={newTrigger}
-                onChange={(e) => setNewTrigger(e.target.value)}
-                placeholder="e.g. server invite"
-                className={inputCls}
-              />
-            </label>
+            <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
+              <label className="block min-w-0">
+                <span className="section-label mb-1.5 block">Trigger</span>
+                <input
+                  type="text"
+                  value={newTrigger}
+                  onChange={(e) => setNewTrigger(e.target.value)}
+                  placeholder="e.g. server invite"
+                  className="glass-input"
+                />
+              </label>
 
-            <div className="min-w-0">
-              <span className="section-label mb-1.5 block">Match type</span>
-              <div className="flex flex-wrap gap-2">
-                {[
-                  { id: "contains", label: "Contains" },
-                  { id: "exact", label: "Exact match" },
-                ].map((opt) => (
-                  <button
-                    key={opt.id}
-                    type="button"
-                    onClick={() => setNewMatchType(opt.id)}
-                    className={`rounded-lg border px-3 py-1.5 text-[10px] font-bold transition-colors cursor-pointer ${
-                      newMatchType === opt.id
-                        ? "border-[#7C5CFF]/40 bg-[#7C5CFF]/10 text-[#B9A6FF]"
-                        : "border-white/[0.07] bg-white/[0.02] text-slate-500 hover:text-slate-300"
-                    }`}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
+              <div className="min-w-0">
+                <span className="section-label mb-1.5 block">Match type</span>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { id: "contains", label: "Contains" },
+                    { id: "exact", label: "Exact match" },
+                  ].map((opt) => (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => setNewMatchType(opt.id)}
+                      className={`seg-tab ${
+                        newMatchType === opt.id ? "seg-tab-active" : ""
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
               </div>
+
+              <label className="block min-w-0 md:col-span-2">
+                <span className="section-label mb-1.5 block">Response</span>
+                <textarea
+                  value={newResponse}
+                  onChange={(e) => setNewResponse(e.target.value)}
+                  rows={2}
+                  placeholder="The reply Aura should send…"
+                  className="glass-textarea"
+                />
+              </label>
             </div>
 
-            <label className="block min-w-0">
-              <span className="section-label mb-1.5 block">Response</span>
-              <textarea
-                value={newResponse}
-                onChange={(e) => setNewResponse(e.target.value)}
-                rows={2}
-                placeholder="The reply Aura should send…"
-                className={`${inputCls} resize-none`}
-              />
-            </label>
-
-            <div className="flex justify-end">
+            <div className="mt-5 flex justify-end">
               <button
                 type="button"
                 onClick={addResponder}
                 disabled={!newTrigger.trim() || !newResponse.trim()}
-                className={`inline-flex items-center gap-1.5 bg-[#7C5CFF] hover:bg-[#6a4cf0] text-white text-xs font-semibold rounded-lg px-3.5 py-2 transition-colors shadow-[0_0_18px_rgba(124,92,255,0.35)] cursor-pointer ${
-                  !newTrigger.trim() || !newResponse.trim() ? "opacity-50" : ""
-                }`}
+                className="btn-primary"
               >
-                <Send className="w-3.5 h-3.5" />
+                <Send className="h-3.5 w-3.5" />
                 Add responder
               </button>
             </div>
@@ -415,28 +401,20 @@ export default function AutoResponderSettings({ guildId }) {
 
       {/* Responders list */}
       {responders.length === 0 ? (
-        <motion.div
-          variants={rise}
-          className="panel flex flex-col items-center justify-center gap-2 py-14 text-center"
-        >
-          <MessageSquare className="h-8 w-8 text-slate-700" />
-          <p className="text-sm font-bold text-slate-400">No auto responders yet</p>
-          <p className="text-[11px] text-slate-600">
-            Add one above and Aura will start replying instantly.
-          </p>
+        <motion.div variants={rise} className="empty-state">
+          <span className="empty-state-icon">
+            <MessageSquare className="h-4 w-4" />
+          </span>
+          <span className="empty-state-title">No auto responders yet</span>
+          <span>Add one above and Aura will start replying instantly.</span>
         </motion.div>
       ) : (
-        <motion.div variants={rise} className="panel divide-y divide-white/[0.04] overflow-hidden">
+        <motion.div variants={rise} className="glass-card p-2">
           {responders.map((r) => (
-            <div
-              key={r.id}
-              className="flex flex-wrap items-center gap-3 px-4 py-3.5 transition-colors hover:bg-white/[0.02]"
-            >
+            <div key={r.id} className="list-row items-start gap-3 px-3 py-3">
               <span
-                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border ${
-                  r.enabled === false
-                    ? "border-white/[0.06] bg-white/[0.02] text-slate-600"
-                    : "border-[#7C5CFF]/25 bg-[#7C5CFF]/10 text-[#7C5CFF]"
+                className={`icon-tile mt-0.5 h-9 w-9 rounded-[12px] ${
+                  r.enabled === false ? "icon-tile-blue" : "icon-tile-violet"
                 }`}
               >
                 <MessageSquare className="h-4 w-4" />
@@ -447,22 +425,26 @@ export default function AutoResponderSettings({ guildId }) {
                   <span className="text-xs font-bold text-white">
                     Trigger · <span className="font-mono">"{r.trigger}"</span>
                   </span>
-                  <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border border-[#7C5CFF]/25 bg-[#7C5CFF]/10 text-[#7C5CFF]">
-                    {r.matchType}
-                  </span>
+                  <span className="chip chip-violet uppercase">{r.matchType}</span>
+                  {r.useAI ? (
+                    <span className="chip chip-cyan">
+                      <Sparkles className="h-3 w-3" />
+                      AI
+                    </span>
+                  ) : null}
+                  {r.cooldown > 0 ? (
+                    <span className="chip">
+                      <Clock className="h-3 w-3" />
+                      Cooldown {r.cooldown}s
+                    </span>
+                  ) : null}
                   {typeof r.enabled === "boolean" && (
-                    <span
-                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                        r.enabled
-                          ? "bg-[#39D98A]/10 border-[#39D98A]/25 text-[#39D98A]"
-                          : "bg-white/[0.04] border-white/[0.08] text-slate-500"
-                      }`}
-                    >
-                      {r.enabled ? "ACTIVE" : "PAUSED"}
+                    <span className={`chip ${r.enabled ? "chip-green" : ""}`}>
+                      {r.enabled ? "Active" : "Paused"}
                     </span>
                   )}
                 </div>
-                <p className="mt-1.5 truncate text-xs text-slate-300">
+                <p className="mt-2 truncate text-xs text-slate-300">
                   <span className="text-slate-600">→</span> {r.response}
                 </p>
                 {Number.isFinite(r.uses) && (
@@ -472,17 +454,21 @@ export default function AutoResponderSettings({ guildId }) {
                 )}
               </div>
 
-              <div className="flex items-center gap-2.5 shrink-0">
+              <div className="flex shrink-0 items-center gap-2.5">
                 {typeof r.enabled === "boolean" && (
-                  <Toggle enabled={r.enabled} onChange={() => toggleResponder(r.id)} />
+                  <Toggle
+                    enabled={r.enabled}
+                    onChange={() => toggleResponder(r.id)}
+                    title="Pause or resume this responder"
+                  />
                 )}
                 <button
                   type="button"
                   onClick={() => deleteResponder(r.id)}
                   title="Delete responder"
-                  className="p-2 rounded-lg text-slate-500 hover:text-[#FF5C7A] hover:bg-[#FF5C7A]/10 transition-colors cursor-pointer"
+                  className="btn-icon h-8 w-8 rounded-[10px] hover:text-[#F87171] hover:border-[#F87171]/40 hover:bg-[#F87171]/10 hover:shadow-none"
                 >
-                  <Trash2 className="h-4 w-4" />
+                  <Trash2 className="h-3.5 w-3.5" />
                 </button>
               </div>
             </div>

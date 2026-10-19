@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { Mic, Settings, Lock, Volume2, Users } from "lucide-react";
+import { Mic, Settings, Lock, Volume2, Users, Hash, Clock, UserPlus } from "lucide-react";
 
 /* ────────────────────────────── motion helpers ────────────────────────────── */
 
@@ -17,11 +17,6 @@ const rise = {
   hidden: { opacity: 0, y: 12 },
   show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: EASE } },
 };
-
-/* ────────────────────────────── shared styles ────────────────────────────── */
-
-const inputCls =
-  "w-full bg-white/[0.03] border border-white/[0.08] rounded-lg px-3 py-2 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-[#7C5CFF]/50 transition-colors";
 
 /* ────────────────────────────── world data ────────────────────────────── */
 
@@ -51,40 +46,55 @@ export default function TempVoiceSettings() {
   return (
     <motion.div variants={stagger} initial="hidden" animate="show" className="space-y-5 text-white">
       {/* Header */}
-      <motion.div variants={rise}>
-        <h2 className="flex items-center gap-2.5 text-lg font-extrabold">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#7C5CFF]/25 bg-[#7C5CFF]/10 text-[#7C5CFF]">
-            <Mic className="h-4 w-4" />
+      <motion.div variants={rise} className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="icon-tile icon-tile-violet">
+            <Mic className="h-5 w-5" />
           </span>
-          Temporary Voice Rooms
-        </h2>
-        <p className="mt-1.5 font-body text-xs text-slate-500">
-          Join to Create voice channels with control panels for locking, renaming, and bitrate — cleaned up automatically when empty.
-        </p>
+          <div className="min-w-0">
+            <h2 className="card-title text-[15px]">Temporary Voice Rooms</h2>
+            <p className="card-sub mt-0.5">
+              Join to Create voice channels with control panels for locking, renaming, and bitrate
+              — cleaned up automatically when empty.
+            </p>
+          </div>
+        </div>
+        <span className="chip chip-green">
+          <span className="h-1.5 w-1.5 rounded-full bg-[#34D399]" />
+          {LIVE_ROOMS.length} rooms live
+        </span>
       </motion.div>
 
       <motion.div variants={rise} className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         {/* Hub configuration */}
-        <section className="panel panel-hover p-5 lg:col-span-2">
-          <div className="flex items-center gap-2.5">
-            <Settings className="h-4 w-4 text-[#7C5CFF]" />
-            <h3 className="text-sm font-bold text-white">Voice Hub Configuration</h3>
+        <section className="glass-card p-5 lg:col-span-2">
+          <div className="flex items-center gap-3">
+            <span className="icon-tile icon-tile-blue h-9 w-9 rounded-[12px]">
+              <Settings className="h-4 w-4" />
+            </span>
+            <div className="min-w-0">
+              <h3 className="card-title">Voice Hub Configuration</h3>
+              <p className="card-sub mt-0.5">Where rooms are created and how they are named</p>
+            </div>
           </div>
 
-          <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
-            <Field label="Hub Channel Name" htmlFor="hub-channel-name">
-              <input
-                id="hub-channel-name"
-                name="hubChannelName"
-                type="text"
-                value={hubChannel}
-                onChange={(e) => setHubChannel(e.target.value)}
-                className={`${inputCls} font-mono`}
-              />
+          <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
+            <Field label="Voice category (hub channel)" htmlFor="hub-channel-name">
+              <span className="relative block">
+                <Hash className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-600" />
+                <input
+                  id="hub-channel-name"
+                  name="hubChannelName"
+                  type="text"
+                  value={hubChannel}
+                  onChange={(e) => setHubChannel(e.target.value)}
+                  className="glass-input pl-8 font-mono"
+                />
+              </span>
             </Field>
 
             <Field
-              label="Created Channel Template"
+              label="Created channel template"
               htmlFor="channel-prefix-template"
               hint="Use {user} for the member's name — e.g. 🔊 NovaStar's Room."
             >
@@ -94,43 +104,78 @@ export default function TempVoiceSettings() {
                 type="text"
                 value={channelPrefix}
                 onChange={(e) => setChannelPrefix(e.target.value)}
-                className={`${inputCls} font-mono text-[#B9A6FF]`}
+                className="glass-input font-mono text-[#B9A6FF]"
               />
             </Field>
           </div>
 
-          <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3.5">
-            <label htmlFor="temp-voice-user-limit" className="text-xs font-bold text-slate-300">
-              Default User Limit
-            </label>
-            <input
-              id="temp-voice-user-limit"
-              name="tempVoiceUserLimit"
-              type="number"
-              value={defaultLimit}
-              onChange={(e) => setDefaultLimit(Number(e.target.value))}
-              className="w-16 rounded-lg border border-white/[0.08] bg-white/[0.03] px-2.5 py-1 text-center text-xs text-white font-mono focus:outline-none focus:border-[#7C5CFF]/50 transition-colors"
-            />
+          <div className="mt-5">
+            <span className="section-label mb-1.5 block">Room defaults</span>
+            <div className="grid grid-cols-1 gap-3 rounded-2xl border border-dashed border-white/[0.10] bg-white/[0.02] p-4 md:grid-cols-3">
+              <Field label="Default user limit" htmlFor="temp-voice-user-limit">
+                <input
+                  id="temp-voice-user-limit"
+                  name="tempVoiceUserLimit"
+                  type="number"
+                  value={defaultLimit}
+                  onChange={(e) => setDefaultLimit(Number(e.target.value))}
+                  className="glass-input text-center font-mono tabular-nums"
+                />
+              </Field>
+
+              <Field
+                label="Default duration"
+                htmlFor="temp-voice-duration"
+                hint="Set with /tempvoice in Discord."
+              >
+                <input
+                  id="temp-voice-duration"
+                  name="tempVoiceDuration"
+                  type="text"
+                  defaultValue="30 minutes"
+                  disabled
+                  readOnly
+                  title="The default room duration is configured from the bot with /tempvoice"
+                  className="glass-input cursor-not-allowed opacity-70"
+                />
+              </Field>
+
+              <div className="min-w-0">
+                <span className="section-label mb-1.5 block">Human joins</span>
+                <div className="flex items-center gap-2.5">
+                  <span
+                    className="toggle-track cursor-not-allowed opacity-60"
+                    title="Human-join handling is configured from the bot with /tempvoice"
+                    aria-hidden="true"
+                  >
+                    <span className="toggle-thumb" />
+                  </span>
+                  <span className="flex min-w-0 items-center gap-1.5 text-[10px] text-slate-500">
+                    <UserPlus className="h-3 w-3 shrink-0" />
+                    Move humans when a room empties
+                  </span>
+                </div>
+              </div>
+            </div>
           </div>
         </section>
 
         {/* Live rooms */}
-        <section className="panel panel-hover overflow-hidden">
-          <div className="flex items-center justify-between gap-3 px-5 pt-5">
-            <div className="flex items-center gap-2.5">
-              <Volume2 className="h-4 w-4 text-[#7C5CFF]" />
-              <h3 className="text-sm font-bold text-white">Live Now</h3>
+        <section className="glass-card p-5">
+          <div className="flex items-center gap-3">
+            <span className="icon-tile icon-tile-cyan h-9 w-9 rounded-[12px]">
+              <Volume2 className="h-4 w-4" />
+            </span>
+            <div className="min-w-0">
+              <h3 className="card-title">Live Now</h3>
+              <p className="card-sub mt-0.5">Rooms currently open on the server</p>
             </div>
-            <span className="section-label">{LIVE_ROOMS.length} rooms</span>
           </div>
 
-          <div className="mt-3 divide-y divide-white/[0.04]">
+          <div className="mt-4 space-y-1.5">
             {LIVE_ROOMS.map((room) => (
-              <div
-                key={room.id}
-                className="flex items-center gap-3 px-5 py-3 transition-colors hover:bg-white/[0.02]"
-              >
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[#7C5CFF]/20 bg-[#7C5CFF]/10 text-[#7C5CFF]">
+              <div key={room.id} className="list-row gap-3 px-3 py-2.5">
+                <span className="icon-tile icon-tile-cyan h-8 w-8 rounded-[10px]">
                   <Volume2 className="h-3.5 w-3.5" />
                 </span>
                 <div className="min-w-0 flex-1">
@@ -141,12 +186,16 @@ export default function TempVoiceSettings() {
                       {room.members}
                     </span>
                     <span>·</span>
-                    <span>created {room.created}</span>
+                    <span className="inline-flex items-center gap-1">
+                      <Clock className="h-3 w-3" />
+                      created {room.created}
+                    </span>
                   </div>
                 </div>
                 {room.locked && (
-                  <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[#FFB547]/25 bg-[#FFB547]/10 px-2 py-0.5 text-[9px] font-bold text-[#FFB547]">
-                    <Lock className="h-2.5 w-2.5" /> Locked
+                  <span className="chip chip-amber shrink-0">
+                    <Lock className="h-3 w-3" />
+                    Locked
                   </span>
                 )}
               </div>

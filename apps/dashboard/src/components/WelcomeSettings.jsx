@@ -2,7 +2,16 @@
 
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { UserCheck, LogOut, Palette, Type, Eye, Save, CheckCircle2 } from "lucide-react";
+import {
+  UserCheck,
+  LogOut,
+  Palette,
+  Type,
+  Eye,
+  Save,
+  CheckCircle2,
+  Hash,
+} from "lucide-react";
 
 /* ────────────────────────────── motion helpers ────────────────────────────── */
 
@@ -18,34 +27,18 @@ const rise = {
   show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: EASE } },
 };
 
-/* ────────────────────────────── shared styles ────────────────────────────── */
+/* ────────────────────────────── shared atoms ────────────────────────────── */
 
-const inputCls =
-  "w-full bg-white/[0.03] border border-white/[0.08] rounded-lg px-3 py-2 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-[#7C5CFF]/50 transition-colors";
-
-const compactInputCls =
-  "bg-white/[0.03] border border-white/[0.08] rounded-lg px-3 py-1.5 text-[11px] text-white placeholder:text-slate-600 focus:outline-none focus:border-[#7C5CFF]/50 transition-colors";
-
-const btnPrimary =
-  "inline-flex items-center gap-2 bg-[#7C5CFF] hover:bg-[#6a4cf0] text-white text-xs font-semibold rounded-lg px-3.5 py-2 transition-colors shadow-[0_0_18px_rgba(124,92,255,0.35)] cursor-pointer";
-
-function Toggle({ enabled, onChange }) {
+function Toggle({ enabled, onChange, title }) {
   return (
     <button
       type="button"
       onClick={() => onChange(!enabled)}
-      className={`relative h-6 w-11 shrink-0 cursor-pointer rounded-full border transition-colors ${
-        enabled ? "border-[#7C5CFF]/50 bg-[#7C5CFF]/80" : "border-white/[0.08] bg-white/[0.05]"
-      }`}
+      title={title}
       aria-pressed={enabled}
+      className={`toggle-track ${enabled ? "toggle-track-on" : ""}`}
     >
-      <motion.span
-        layout
-        transition={{ type: "spring", stiffness: 500, damping: 32 }}
-        className={`absolute top-[3px] h-4 w-4 rounded-full bg-white shadow ${
-          enabled ? "left-[25px]" : "left-[3px]"
-        }`}
-      />
+      <span className="toggle-thumb" />
     </button>
   );
 }
@@ -101,9 +94,9 @@ export default function WelcomeSettings() {
             initial={{ opacity: 0, y: 12, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 8, scale: 0.99 }}
-            className="fixed bottom-6 right-6 z-[90] panel px-4 py-3 flex items-center gap-2.5 text-xs font-semibold shadow-2xl shadow-black/60"
+            className="glass-dropdown fixed bottom-6 right-6 z-[90] flex items-center gap-2.5 px-4 py-3 text-xs font-semibold"
           >
-            <CheckCircle2 className="w-4 h-4 text-[#39D98A]" />
+            <CheckCircle2 className="h-4 w-4 text-[#34D399]" />
             <span>{toast}</span>
           </motion.div>
         )}
@@ -111,22 +104,23 @@ export default function WelcomeSettings() {
 
       {/* Header */}
       <motion.div variants={rise} className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h2 className="flex items-center gap-2.5 text-lg font-extrabold">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#7C5CFF]/25 bg-[#7C5CFF]/10 text-[#7C5CFF]">
-              <UserCheck className="h-4 w-4" />
-            </span>
-            Welcome & Goodbye Designer
-          </h2>
-          <p className="mt-1.5 font-body text-xs text-slate-500">
-            Design animated welcome cards, customize messages, and set farewell embeds for Crystal Realm.
-          </p>
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="icon-tile icon-tile-violet">
+            <UserCheck className="h-5 w-5" />
+          </span>
+          <div className="min-w-0">
+            <h2 className="card-title text-[15px]">Welcome &amp; Goodbye Designer</h2>
+            <p className="card-sub mt-0.5">
+              Design animated welcome cards, customize messages, and set farewell embeds for
+              Crystal Realm.
+            </p>
+          </div>
         </div>
         <motion.button
           type="button"
           whileTap={{ scale: 0.98 }}
           onClick={() => showToast("Welcome & goodbye settings saved")}
-          className={btnPrimary}
+          className="btn-primary"
         >
           <Save className="h-3.5 w-3.5" />
           Save Settings
@@ -137,32 +131,37 @@ export default function WelcomeSettings() {
         {/* Left: settings */}
         <div className="space-y-5">
           {/* Welcome messages */}
-          <motion.section variants={rise} className="panel panel-hover p-5">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2.5">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#7C5CFF]/25 bg-[#7C5CFF]/10 text-[#7C5CFF]">
+          <motion.section variants={rise} className="glass-card p-5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-3">
+                <span className="icon-tile icon-tile-green h-9 w-9 rounded-[12px]">
                   <UserCheck className="h-4 w-4" />
                 </span>
-                <div>
-                  <h3 className="text-sm font-extrabold text-white">Welcome Messages</h3>
-                  <p className="mt-1 text-xs text-slate-500">
-                    Greet every new member the moment they join.
-                  </p>
+                <div className="min-w-0">
+                  <h3 className="card-title">Welcome Messages</h3>
+                  <p className="card-sub mt-0.5">Greet every new member the moment they join.</p>
                 </div>
               </div>
-              <Toggle enabled={welcomeEnabled} onChange={setWelcomeEnabled} />
+              <Toggle
+                enabled={welcomeEnabled}
+                onChange={setWelcomeEnabled}
+                title="Turn welcome messages on or off"
+              />
             </div>
 
             {welcomeEnabled && (
-              <div className="mt-4 space-y-3">
+              <div className="mt-5 space-y-4">
                 <label className="block">
                   <span className="section-label mb-1.5 block">Channel</span>
-                  <input
-                    type="text"
-                    value={welcomeChannel}
-                    onChange={(e) => setWelcomeChannel(e.target.value)}
-                    className={inputCls}
-                  />
+                  <span className="relative block">
+                    <Hash className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-600" />
+                    <input
+                      type="text"
+                      value={welcomeChannel}
+                      onChange={(e) => setWelcomeChannel(e.target.value)}
+                      className="glass-input pl-8"
+                    />
+                  </span>
                 </label>
                 <label className="block">
                   <span className="section-label mb-1.5 block">
@@ -172,44 +171,53 @@ export default function WelcomeSettings() {
                     value={welcomeMsg}
                     onChange={(e) => setWelcomeMsg(e.target.value)}
                     rows={3}
-                    className={`${inputCls} resize-none`}
+                    className="glass-textarea"
                   />
                 </label>
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-xs text-slate-300">Show welcome card</span>
-                  <Toggle enabled={showCard} onChange={setShowCard} />
+                  <Toggle
+                    enabled={showCard}
+                    onChange={setShowCard}
+                    title="Show the animated welcome card alongside the message"
+                  />
                 </div>
               </div>
             )}
           </motion.section>
 
           {/* Farewell messages */}
-          <motion.section variants={rise} className="panel panel-hover p-5">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2.5">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#5B8CFF]/25 bg-[#5B8CFF]/10 text-[#5B8CFF]">
+          <motion.section variants={rise} className="glass-card p-5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-3">
+                <span className="icon-tile icon-tile-blue h-9 w-9 rounded-[12px]">
                   <LogOut className="h-4 w-4" />
                 </span>
-                <div>
-                  <h3 className="text-sm font-extrabold text-white">Goodbye / Farewell Messages</h3>
-                  <p className="mt-1 text-xs text-slate-500">
-                    Send a warm send-off when members leave.
-                  </p>
+                <div className="min-w-0">
+                  <h3 className="card-title">Goodbye / Farewell Messages</h3>
+                  <p className="card-sub mt-0.5">Send a warm send-off when members leave.</p>
                 </div>
               </div>
-              <Toggle enabled={farewellEnabled} onChange={setFarewellEnabled} />
+              <Toggle
+                enabled={farewellEnabled}
+                onChange={setFarewellEnabled}
+                title="Turn farewell messages on or off"
+              />
             </div>
 
             {farewellEnabled && (
-              <div className="mt-4 space-y-3">
+              <div className="mt-5 space-y-4">
                 <label className="block">
                   <span className="section-label mb-1.5 block">Channel</span>
-                  <input
-                    type="text"
-                    value={farewellChannel}
-                    onChange={(e) => setFarewellChannel(e.target.value)}
-                    className={inputCls}
-                  />
+                  <span className="relative block">
+                    <Hash className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-600" />
+                    <input
+                      type="text"
+                      value={farewellChannel}
+                      onChange={(e) => setFarewellChannel(e.target.value)}
+                      className="glass-input pl-8"
+                    />
+                  </span>
                 </label>
                 <label className="block">
                   <span className="section-label mb-1.5 block">Farewell message</span>
@@ -217,7 +225,7 @@ export default function WelcomeSettings() {
                     value={farewellMsg}
                     onChange={(e) => setFarewellMsg(e.target.value)}
                     rows={3}
-                    className={`${inputCls} resize-none`}
+                    className="glass-textarea"
                   />
                 </label>
               </div>
@@ -225,20 +233,20 @@ export default function WelcomeSettings() {
           </motion.section>
 
           {/* Card designer */}
-          <motion.section variants={rise} className="panel panel-hover p-5">
-            <div className="flex items-center gap-2.5">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#7C5CFF]/25 bg-[#7C5CFF]/10 text-[#7C5CFF]">
+          <motion.section variants={rise} className="glass-card p-5">
+            <div className="flex items-center gap-3">
+              <span className="icon-tile icon-tile-pink h-9 w-9 rounded-[12px]">
                 <Palette className="h-4 w-4" />
               </span>
-              <div>
-                <h3 className="text-sm font-extrabold text-white">Welcome Card Designer</h3>
-                <p className="mt-1 text-xs text-slate-500">
+              <div className="min-w-0">
+                <h3 className="card-title">Welcome Card Designer</h3>
+                <p className="card-sub mt-0.5">
                   Pick a template and position the avatar and username.
                 </p>
               </div>
             </div>
 
-            <div className="mt-4">
+            <div className="mt-5">
               <span className="section-label mb-1.5 block">Card template</span>
               <div className="mt-2 grid grid-cols-3 gap-2">
                 {CARD_TEMPLATES.map((t) => (
@@ -246,9 +254,9 @@ export default function WelcomeSettings() {
                     key={t.id}
                     type="button"
                     onClick={() => setSelectedTemplate(t.id)}
-                    className={`rounded-xl bg-gradient-to-br ${t.gradient} px-3 py-2 text-[10px] font-bold text-white transition-all cursor-pointer ${
+                    className={`rounded-xl bg-gradient-to-br ${t.gradient} px-3 py-2 text-[10px] font-bold text-white transition-all ${
                       selectedTemplate === t.id
-                        ? "ring-2 ring-[#7C5CFF] scale-[1.03]"
+                        ? "scale-[1.03] ring-2 ring-[#7C5CFF]"
                         : "opacity-70 hover:opacity-100"
                     }`}
                   >
@@ -258,7 +266,7 @@ export default function WelcomeSettings() {
               </div>
             </div>
 
-            <div className="mt-4">
+            <div className="mt-5">
               <span className="section-label mb-1.5 block">Text color</span>
               <div className="mt-1 flex items-center gap-3">
                 <input
@@ -271,7 +279,7 @@ export default function WelcomeSettings() {
               </div>
             </div>
 
-            <div className="mt-4 grid grid-cols-2 gap-4">
+            <div className="mt-5 grid grid-cols-2 gap-4">
               <div>
                 <span className="section-label mb-1.5 block">Avatar X</span>
                 <input
@@ -326,75 +334,86 @@ export default function WelcomeSettings() {
 
         {/* Right: live preview */}
         <div className="space-y-5">
-          <motion.div variants={rise} className="flex flex-wrap items-center justify-between gap-3">
-            <h3 className="flex items-center gap-2 text-sm font-extrabold text-white">
-              <Eye className="h-4 w-4 text-[#7C5CFF]" />
-              Live Card Preview
-            </h3>
-            <div className="flex items-center gap-2">
-              <input
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="Username"
-                className={`${compactInputCls} w-28`}
-              />
-              <input
-                type="text"
-                value={serverName}
-                onChange={(e) => setServerName(e.target.value)}
-                placeholder="Server"
-                className={`${compactInputCls} w-28`}
-              />
+          <motion.section variants={rise} className="glass-card p-5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-3">
+                <span className="icon-tile icon-tile-cyan h-9 w-9 rounded-[12px]">
+                  <Eye className="h-4 w-4" />
+                </span>
+                <div className="min-w-0">
+                  <h3 className="card-title">Live Card Preview</h3>
+                  <p className="card-sub mt-0.5">Exactly what a new member sees</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="Username"
+                  className="glass-input h-9 w-28 py-0"
+                />
+                <input
+                  type="text"
+                  value={serverName}
+                  onChange={(e) => setServerName(e.target.value)}
+                  placeholder="Server"
+                  className="glass-input h-9 w-28 py-0"
+                />
+              </div>
             </div>
-          </motion.div>
 
-          <motion.div
-            variants={rise}
-            className={`relative h-64 w-full overflow-hidden rounded-2xl border border-white/[0.08] bg-gradient-to-br ${template.gradient} shadow-2xl`}
-          >
-            {/* Decorative circles */}
-            <div className="absolute -top-10 -right-10 h-40 w-40 rounded-full bg-white/5 blur-xl" />
-            <div className="absolute -bottom-10 -left-10 h-40 w-40 rounded-full bg-white/5 blur-xl" />
-
-            {/* Avatar */}
             <div
-              className="absolute overflow-hidden rounded-full border-4 border-white/30 shadow-xl"
-              style={{ left: `${avatarX}px`, top: `${avatarY}px`, width: 64, height: 64 }}
+              className={`relative mt-5 h-64 w-full overflow-hidden rounded-2xl border border-white/[0.08] bg-gradient-to-br ${template.gradient} shadow-2xl`}
             >
-              <img src={PLACEHOLDER_AVATAR} alt="Avatar" className="h-full w-full object-cover" />
-            </div>
+              {/* Decorative circles */}
+              <div className="absolute -top-10 -right-10 h-40 w-40 rounded-full bg-white/5 blur-xl" />
+              <div className="absolute -bottom-10 -left-10 h-40 w-40 rounded-full bg-white/5 blur-xl" />
 
-            {/* Username */}
-            <div
-              className="absolute text-lg font-extrabold drop-shadow-lg"
-              style={{ left: `${textX}px`, top: `${textY}px`, color: cardColor }}
-            >
-              {username}
-            </div>
-
-            {/* Welcome text */}
-            <div className="absolute bottom-6 left-0 right-0 text-center">
-              <span
-                className="text-xs font-semibold uppercase tracking-wider text-white/80"
-                style={{ color: cardColor }}
+              {/* Avatar */}
+              <div
+                className="absolute overflow-hidden rounded-full border-4 border-white/30 shadow-xl"
+                style={{ left: `${avatarX}px`, top: `${avatarY}px`, width: 64, height: 64 }}
               >
-                Welcome to {serverName}
+                <img src={PLACEHOLDER_AVATAR} alt="Avatar" className="h-full w-full object-cover" />
+              </div>
+
+              {/* Username */}
+              <div
+                className="absolute text-lg font-extrabold drop-shadow-lg"
+                style={{ left: `${textX}px`, top: `${textY}px`, color: cardColor }}
+              >
+                {username}
+              </div>
+
+              {/* Welcome text */}
+              <div className="absolute bottom-6 left-0 right-0 text-center">
+                <span
+                  className="text-xs font-semibold uppercase tracking-wider text-white/80"
+                  style={{ color: cardColor }}
+                >
+                  Welcome to {serverName}
+                </span>
+              </div>
+
+              {/* Member count badge */}
+              <div className="absolute top-4 right-4 rounded-full bg-black/20 px-3 py-1 font-mono text-[10px] font-bold text-white backdrop-blur-sm">
+                Member #{MEMBER_COUNT}
+              </div>
+            </div>
+          </motion.section>
+
+          <motion.section variants={rise} className="glass-card p-5">
+            <div className="flex items-center gap-3">
+              <span className="icon-tile icon-tile-violet h-9 w-9 rounded-[12px]">
+                <Type className="h-4 w-4" />
               </span>
+              <div className="min-w-0">
+                <h3 className="card-title">Message Preview</h3>
+                <p className="card-sub mt-0.5">How the welcome text reads in channel</p>
+              </div>
             </div>
-
-            {/* Member count badge */}
-            <div className="absolute top-4 right-4 rounded-full bg-black/20 px-3 py-1 font-mono text-[10px] font-bold text-white backdrop-blur-sm">
-              Member #{MEMBER_COUNT}
-            </div>
-          </motion.div>
-
-          <motion.section variants={rise} className="panel p-4">
-            <h4 className="flex items-center gap-2 text-xs font-bold text-white">
-              <Type className="h-3.5 w-3.5 text-[#7C5CFF]" />
-              Message Preview
-            </h4>
-            <div className="mt-2 rounded-xl border border-white/[0.05] bg-white/[0.02] p-3">
+            <div className="mt-4 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
               <p className="text-xs leading-relaxed text-slate-300">
                 {welcomeMsg
                   .replace("{user}", `<@${username}>`)
@@ -407,9 +426,17 @@ export default function WelcomeSettings() {
       </div>
 
       {/* Variables reference */}
-      <motion.section variants={rise} className="panel p-5">
-        <h3 className="text-sm font-extrabold text-white">Available Variables</h3>
-        <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-4">
+      <motion.section variants={rise} className="glass-card p-5">
+        <div className="flex items-center gap-3">
+          <span className="icon-tile icon-tile-amber h-9 w-9 rounded-[12px]">
+            <Type className="h-4 w-4" />
+          </span>
+          <div className="min-w-0">
+            <h3 className="card-title">Available Variables</h3>
+            <p className="card-sub mt-0.5">Drop these into any welcome or farewell message</p>
+          </div>
+        </div>
+        <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
           {[
             ["{user}", "@mentions the new member"],
             ["{username}", "The member's username"],
@@ -422,9 +449,9 @@ export default function WelcomeSettings() {
           ].map(([varName, desc]) => (
             <div
               key={varName}
-              className="flex items-center gap-2 rounded-lg border border-white/[0.05] bg-white/[0.02] p-2"
+              className="flex items-center gap-2 rounded-xl border border-white/[0.06] bg-white/[0.02] p-2.5"
             >
-              <code className="rounded bg-[#7C5CFF]/10 px-1.5 py-0.5 text-[11px] font-bold text-[#7C5CFF]">
+              <code className="rounded bg-[#7C5CFF]/10 px-1.5 py-0.5 text-[11px] font-bold text-[#B9A6FF]">
                 {varName}
               </code>
               <span className="text-[10px] text-slate-500">{desc}</span>

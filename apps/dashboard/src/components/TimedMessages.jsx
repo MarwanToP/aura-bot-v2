@@ -12,6 +12,7 @@ import {
   XCircle,
   CalendarClock,
   PauseCircle,
+  Hash,
 } from "lucide-react";
 
 /* ────────────────────────────── motion helpers ────────────────────────────── */
@@ -76,7 +77,7 @@ const intervalToMs = (value) => {
 
 /* The bot's /timedmessage command and the API schema both enforce 300..604800 s
    (5 min .. 7 days). Clamp here so a legacy sub-5-minute (or over-long) row can still
-   be re-saved from the toggle instead of bouncing a 400 back at the user. */
+   be re-saved from the toggle instead of bouncing a 400 back to the user. */
 const MIN_INTERVAL_SEC = 300;
 const MAX_INTERVAL_SEC = 604800;
 const intervalToSec = (ms) =>
@@ -181,43 +182,33 @@ const mapMessage = (m) => ({
   real: true,
 });
 
-const inputCls =
-  "w-full bg-white/[0.03] border border-white/[0.08] rounded-lg px-3 py-2 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-[#7C5CFF]/50 transition-colors";
-
-const selectCls = `${inputCls} cursor-pointer [&>option]:bg-[#0B0D12] [&>option]:text-white`;
-
 /* ────────────────────────────── atoms ────────────────────────────── */
 
-function StatCard({ label, value, icon: Icon, color, index }) {
+function StatCard({ label, value, icon: Icon, tone = "violet", index }) {
   const count = useCountUp(value, { duration: 700 + index * 90 });
   return (
-    <div className="panel panel-hover p-3.5">
-      <div className="flex items-center justify-between gap-2">
-        <span className="section-label">{label}</span>
-        <Icon className="h-3.5 w-3.5 shrink-0" style={{ color }} />
+    <div className="kpi-tile">
+      <div className="flex items-start justify-between gap-3">
+        <span className="kpi-label">{label}</span>
+        <span className={`icon-tile icon-tile-${tone} h-9 w-9 rounded-[12px]`}>
+          <Icon className="h-4 w-4" />
+        </span>
       </div>
-      <div className="mt-2 text-xl font-extrabold text-white tabular-nums">{Math.round(count)}</div>
+      <div className="kpi-value mt-3">{Math.round(count)}</div>
     </div>
   );
 }
 
-function Toggle({ enabled, onChange }) {
+function Toggle({ enabled, onChange, title }) {
   return (
     <button
       type="button"
       onClick={() => onChange(!enabled)}
-      className={`relative h-6 w-11 shrink-0 rounded-full border transition-colors cursor-pointer ${
-        enabled ? "border-[#7C5CFF]/50 bg-[#7C5CFF]/80" : "border-white/[0.08] bg-white/[0.05]"
-      }`}
+      title={title}
       aria-pressed={enabled}
+      className={`toggle-track ${enabled ? "toggle-track-on" : ""}`}
     >
-      <motion.span
-        layout
-        transition={{ type: "spring", stiffness: 500, damping: 32 }}
-        className={`absolute top-[3px] h-4 w-4 rounded-full bg-white shadow ${
-          enabled ? "left-[25px]" : "left-[3px]"
-        }`}
-      />
+      <span className="toggle-thumb" />
     </button>
   );
 }
@@ -442,9 +433,9 @@ export default function TimedMessages({ guildId }) {
             initial={{ opacity: 0, y: 12, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 8, scale: 0.99 }}
-            className="fixed bottom-6 right-6 z-[90] panel px-4 py-3 flex items-center gap-2.5 text-xs font-semibold shadow-2xl shadow-black/60"
+            className="glass-dropdown fixed bottom-6 right-6 z-[90] flex items-center gap-2.5 px-4 py-3 text-xs font-semibold"
           >
-            <CheckCircle2 className="w-4 h-4 text-[#39D98A]" />
+            <CheckCircle2 className="h-4 w-4 text-[#34D399]" />
             <span>{toast}</span>
           </motion.div>
         )}
@@ -452,36 +443,32 @@ export default function TimedMessages({ guildId }) {
 
       {/* Header */}
       <motion.div variants={rise} className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h2 className="flex items-center gap-2.5 text-lg font-extrabold">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#7C5CFF]/25 bg-[#7C5CFF]/10 text-[#7C5CFF]">
-              <Clock className="h-4 w-4" />
-            </span>
-            Timed Messages
-          </h2>
-          <p className="mt-1.5 font-body text-xs text-slate-500">
-            Schedule messages to automatically repeat in your channels at set intervals.
-          </p>
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="icon-tile icon-tile-violet">
+            <Clock className="h-5 w-5" />
+          </span>
+          <div className="min-w-0">
+            <h2 className="card-title text-[15px]">Timed Messages</h2>
+            <p className="card-sub mt-0.5">
+              Schedule messages to automatically repeat in your channels at set intervals.
+            </p>
+          </div>
         </div>
         <button
           type="button"
           onClick={() => setShowCreator(!showCreator)}
-          className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-semibold transition-colors cursor-pointer ${
-            showCreator
-              ? "text-slate-400 hover:text-white hover:bg-white/[0.04] border border-white/[0.08]"
-              : "bg-[#7C5CFF] hover:bg-[#6a4cf0] text-white shadow-[0_0_18px_rgba(124,92,255,0.35)]"
-          }`}
+          className={showCreator ? "btn-glass" : "btn-primary"}
         >
-          {showCreator ? <XCircle className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
+          {showCreator ? <XCircle className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
           {showCreator ? "Cancel" : "New message"}
         </button>
       </motion.div>
 
       {/* Stats */}
-      <motion.div variants={rise} className="grid grid-cols-2 gap-3 md:grid-cols-3">
-        <StatCard label="Scheduled messages" value={messages.length} icon={CalendarClock} color="#7C5CFF" index={0} />
-        <StatCard label="Active now" value={activeCount} icon={RefreshCw} color="#39D98A" index={1} />
-        <StatCard label="Paused" value={pausedCount} icon={PauseCircle} color="#FFB547" index={2} />
+      <motion.div variants={rise} className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <StatCard label="Scheduled messages" value={messages.length} icon={CalendarClock} tone="violet" index={0} />
+        <StatCard label="Active now" value={activeCount} icon={RefreshCw} tone="green" index={1} />
+        <StatCard label="Paused" value={pausedCount} icon={PauseCircle} tone="amber" index={2} />
       </motion.div>
 
       {/* Creator form */}
@@ -493,91 +480,89 @@ export default function TimedMessages({ guildId }) {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.35, ease: EASE }}
-            className="panel p-5 space-y-5"
+            className="glass-card p-5"
           >
-            <div className="flex items-center gap-2.5">
-              <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#7C5CFF]/25 bg-[#7C5CFF]/10 text-[#7C5CFF]">
+            <div className="flex items-center gap-3">
+              <span className="icon-tile icon-tile-cyan h-9 w-9 rounded-[12px]">
                 <Plus className="h-4 w-4" />
               </span>
-              <div>
-                <h3 className="text-sm font-extrabold text-white">Schedule repeating message</h3>
-                <p className="text-xs text-slate-500 mt-0.5">
+              <div className="min-w-0">
+                <h3 className="card-title">Schedule repeating message</h3>
+                <p className="card-sub mt-0.5">
                   Pick a channel, write the message, and choose how often it repeats.
                 </p>
               </div>
             </div>
 
-            <label className="block min-w-0">
-              <span className="section-label mb-1.5 block">Target channel</span>
-              {channels ? (
+            <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
+              <label className="block min-w-0">
+                <span className="section-label mb-1.5 block">Target channel</span>
+                {channels ? (
+                  <select
+                    value={newChannel}
+                    onChange={(e) => setNewChannel(e.target.value)}
+                    className="glass-select"
+                  >
+                    {channels.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        #{c.name}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    value={newChannel}
+                    onChange={(e) => setNewChannel(e.target.value)}
+                    placeholder={guildId ? "Channel ID" : "#announcements"}
+                    className="glass-input"
+                  />
+                )}
+                {channels ? (
+                  <span className="mt-1.5 block text-[10px] text-slate-500">
+                    Live text channels from this server — the bot posts to the one you pick.
+                  </span>
+                ) : null}
+              </label>
+
+              <label className="block min-w-0">
+                <span className="section-label mb-1.5 block">Repeat interval</span>
                 <select
-                  value={newChannel}
-                  onChange={(e) => setNewChannel(e.target.value)}
-                  className={selectCls}
+                  value={newInterval}
+                  onChange={(e) => setNewInterval(Number(e.target.value))}
+                  className="glass-select"
                 >
-                  {channels.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      #{c.name}
+                  {INTERVAL_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
                     </option>
                   ))}
                 </select>
-              ) : (
-                <input
-                  type="text"
-                  value={newChannel}
-                  onChange={(e) => setNewChannel(e.target.value)}
-                  placeholder={guildId ? "Channel ID" : "#announcements"}
-                  className={inputCls}
-                />
-              )}
-              {channels ? (
-                <span className="mt-1.5 block text-[10px] text-slate-600">
-                  Live text channels from this server — the bot posts to the one you pick.
+                <span className="mt-1.5 block text-[10px] text-slate-500">
+                  Repeats every {formatInterval(newInterval)} — from 5 minutes up to 7 days.
                 </span>
-              ) : null}
-            </label>
+              </label>
 
-            <label className="block min-w-0">
-              <span className="section-label mb-1.5 block">Message content</span>
-              <textarea
-                value={newContent}
-                onChange={(e) => setNewContent(e.target.value)}
-                rows={3}
-                placeholder="Enter the message content to repeat…"
-                className={`${inputCls} resize-none`}
-              />
-            </label>
-
-            <div className="min-w-0">
-              <span className="section-label mb-1.5 block">Repeat interval</span>
-              <div className="flex flex-wrap gap-2">
-                {INTERVAL_OPTIONS.map((opt) => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => setNewInterval(opt.value)}
-                    className={`rounded-lg border px-3 py-1.5 text-[10px] font-bold transition-colors cursor-pointer ${
-                      newInterval === opt.value
-                        ? "border-[#7C5CFF]/40 bg-[#7C5CFF]/10 text-[#B9A6FF]"
-                        : "border-white/[0.07] bg-white/[0.02] text-slate-500 hover:text-slate-300"
-                    }`}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
+              <label className="block min-w-0 md:col-span-2">
+                <span className="section-label mb-1.5 block">Message content</span>
+                <textarea
+                  value={newContent}
+                  onChange={(e) => setNewContent(e.target.value)}
+                  rows={3}
+                  placeholder="Enter the message content to repeat…"
+                  className="glass-textarea"
+                />
+              </label>
             </div>
 
-            <div className="flex justify-end">
+            <div className="mt-5 flex justify-end">
               <button
                 type="button"
                 onClick={createMessage}
                 disabled={!newContent.trim() || !newChannel.trim()}
-                className={`inline-flex items-center gap-1.5 bg-[#7C5CFF] hover:bg-[#6a4cf0] text-white text-xs font-semibold rounded-lg px-3.5 py-2 transition-colors shadow-[0_0_18px_rgba(124,92,255,0.35)] cursor-pointer ${
-                  !newContent.trim() || !newChannel.trim() ? "opacity-50" : ""
-                }`}
+                className="btn-primary"
               >
-                <Send className="w-3.5 h-3.5" />
+                <Send className="h-3.5 w-3.5" />
                 Schedule message
               </button>
             </div>
@@ -587,28 +572,23 @@ export default function TimedMessages({ guildId }) {
 
       {/* Messages list */}
       {messages.length === 0 ? (
-        <motion.div
-          variants={rise}
-          className="panel flex flex-col items-center justify-center gap-2 py-14 text-center"
-        >
-          <Clock className="h-8 w-8 text-slate-700" />
-          <p className="text-sm font-bold text-slate-400">No timed messages scheduled</p>
-          <p className="text-[11px] text-slate-600">
-            Create one above to keep your channels on a rhythm.
-          </p>
+        <motion.div variants={rise} className="empty-state">
+          <span className="empty-state-icon">
+            <Clock className="h-4 w-4" />
+          </span>
+          <span className="empty-state-title">No timed messages scheduled</span>
+          <span>Create one above to keep your channels on a rhythm.</span>
         </motion.div>
       ) : (
-        <motion.div variants={rise} className="panel divide-y divide-white/[0.04] overflow-hidden">
+        <motion.div variants={rise} className="glass-card p-2">
           {messages.map((msg) => (
             <div
               key={msg.id}
-              className="flex flex-wrap items-center gap-3 px-4 py-3.5 transition-colors hover:bg-white/[0.02]"
+              className="list-row items-start gap-3 px-3 py-3"
             >
               <span
-                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border ${
-                  msg.enabled
-                    ? "border-[#7C5CFF]/25 bg-[#7C5CFF]/10 text-[#7C5CFF]"
-                    : "border-white/[0.06] bg-white/[0.02] text-slate-600"
+                className={`icon-tile mt-0.5 h-9 w-9 rounded-[12px] ${
+                  msg.enabled ? "icon-tile-cyan" : "icon-tile-blue"
                 }`}
               >
                 <RefreshCw className="h-4 w-4" />
@@ -616,21 +596,16 @@ export default function TimedMessages({ guildId }) {
 
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-xs font-bold text-white font-mono">{channelLabel(msg.channelId)}</span>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border border-white/[0.08] bg-white/[0.03] text-slate-400">
-                    Every {formatInterval(msg.interval)}
+                  <span className="chip chip-cyan font-mono">
+                    <Hash className="h-3 w-3" />
+                    {channelLabel(msg.channelId)}
                   </span>
-                  <span
-                    className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                      msg.enabled
-                        ? "bg-[#39D98A]/10 border-[#39D98A]/25 text-[#39D98A]"
-                        : "bg-white/[0.04] border-white/[0.08] text-slate-500"
-                    }`}
-                  >
-                    {msg.enabled ? "ACTIVE" : "PAUSED"}
+                  <span className="chip">Every {formatInterval(msg.interval)}</span>
+                  <span className={`chip ${msg.enabled ? "chip-green" : ""}`}>
+                    {msg.enabled ? "Active" : "Paused"}
                   </span>
                 </div>
-                <p className="mt-1.5 truncate text-xs text-slate-300">{msg.content}</p>
+                <p className="mt-2 truncate text-xs text-slate-300">{msg.content}</p>
                 <p className="mt-1 text-[10px] text-slate-500">
                   {msg.lastSentAt
                     ? `Last sent ${timeAgo(msg.lastSentAt)} · next ${nextIn(msg)}`
@@ -640,15 +615,19 @@ export default function TimedMessages({ guildId }) {
                 </p>
               </div>
 
-              <div className="flex items-center gap-2.5 shrink-0">
-                <Toggle enabled={msg.enabled} onChange={() => toggleMessage(msg.id)} />
+              <div className="flex shrink-0 items-center gap-2.5">
+                <Toggle
+                  enabled={msg.enabled}
+                  onChange={() => toggleMessage(msg.id)}
+                  title="Pause or resume this message"
+                />
                 <button
                   type="button"
                   onClick={() => deleteMessage(msg.id)}
                   title="Delete message"
-                  className="p-2 rounded-lg text-slate-500 hover:text-[#FF5C7A] hover:bg-[#FF5C7A]/10 transition-colors cursor-pointer"
+                  className="btn-icon h-8 w-8 rounded-[10px] hover:text-[#F87171] hover:border-[#F87171]/40 hover:bg-[#F87171]/10 hover:shadow-none"
                 >
-                  <Trash2 className="h-4 w-4" />
+                  <Trash2 className="h-3.5 w-3.5" />
                 </button>
               </div>
             </div>

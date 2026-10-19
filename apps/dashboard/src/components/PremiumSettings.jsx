@@ -2,7 +2,18 @@
 
 import React, { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Crown, Sparkles, Shield, Zap, Gift, CheckCircle2, Rocket, Star } from "lucide-react";
+import {
+  Crown,
+  Sparkles,
+  Shield,
+  Zap,
+  Gift,
+  CheckCircle2,
+  Rocket,
+  Star,
+  ArrowRight,
+  Minus,
+} from "lucide-react";
 
 /* ────────────────────────────── motion helpers ────────────────────────────── */
 
@@ -18,14 +29,6 @@ const rise = {
   show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: EASE } },
 };
 
-/* ────────────────────────────── shared styles ────────────────────────────── */
-
-const inputCls =
-  "w-full bg-white/[0.03] border border-white/[0.08] rounded-lg px-3 py-2 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-[#7C5CFF]/50 transition-colors";
-
-const btnPrimary =
-  "inline-flex items-center gap-2 bg-[#7C5CFF] hover:bg-[#6a4cf0] text-white text-xs font-semibold rounded-lg px-3.5 py-2 transition-colors shadow-[0_0_18px_rgba(124,92,255,0.35)] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer";
-
 /* ────────────────────────────── world data ────────────────────────────── */
 
 const FEATURES = [
@@ -34,6 +37,14 @@ const FEATURES = [
   { icon: Star, name: "Custom Welcome Cards", desc: "Animated welcome cards with your server's branding." },
   { icon: Gift, name: "Exclusive Giveaway Tools", desc: "Multi-winner, role-restricted giveaways with rerolls." },
   { icon: Rocket, name: "Higher Rate Limits", desc: "No daily caps on AI, economy, or commands." },
+];
+
+/* What the current (free) plan actually allows — taken from the plan copy. */
+const FREE_INCLUDES = [
+  "1x XP multiplier",
+  "50 AI calls per day",
+  "3 server snapshots",
+  "Daily caps on AI, economy, and commands",
 ];
 
 export default function PremiumSettings() {
@@ -56,58 +67,163 @@ export default function PremiumSettings() {
             initial={{ opacity: 0, y: 12, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 8, scale: 0.99 }}
-            className="panel fixed bottom-6 right-6 z-[90] flex items-center gap-2.5 px-4 py-3 text-xs font-semibold shadow-2xl shadow-black/60"
+            className="glass-dropdown fixed bottom-6 right-6 z-[90] flex items-center gap-2.5 px-4 py-3 text-xs font-semibold text-white shadow-2xl shadow-black/60"
           >
-            <CheckCircle2 className="h-4 w-4 text-[#39D98A]" />
+            <CheckCircle2 className="h-4 w-4 text-[#34D399]" />
             <span>{toast}</span>
           </motion.div>
         )}
       </AnimatePresence>
 
       {/* Header */}
-      <motion.div variants={rise}>
-        <h2 className="flex items-center gap-2.5 text-lg font-extrabold">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#FFB547]/25 bg-[#FFB547]/10 text-[#FFB547]">
-            <Crown className="h-4 w-4" />
+      <motion.div variants={rise} className="flex flex-wrap items-start justify-between gap-4">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="icon-tile icon-tile-violet h-10 w-10 rounded-[14px]">
+            <Crown className="h-[18px] w-[18px]" />
           </span>
-          Premium
-        </h2>
-        <p className="mt-1.5 font-body text-xs text-slate-500">
-          Unlock 10x XP, anti-nuke protection, and uncapped limits for Crystal Realm.
-        </p>
+          <div className="min-w-0">
+            <h2 className="card-title text-[17px]">Premium</h2>
+            <p className="card-sub mt-1 max-w-xl">
+              Unlock 10x XP, anti-nuke protection, and uncapped limits for Crystal Realm.
+            </p>
+          </div>
+        </div>
+        <span className="chip chip-amber">
+          <Crown className="h-3 w-3" /> Aura Premium
+        </span>
       </motion.div>
 
-      <motion.div variants={rise} className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-        {/* Features */}
-        <section className="panel panel-hover p-5">
-          <div className="flex items-center gap-2.5">
-            <Sparkles className="h-4 w-4 text-[#FFB547]" />
-            <h3 className="text-sm font-bold text-white">Premium Features</h3>
+      {/* Status card */}
+      <motion.section variants={rise} className="glass-card relative overflow-hidden rounded-[20px] p-5">
+        <div className="pointer-events-none absolute -right-24 -top-28 h-56 w-56 rounded-full bg-[#7C5CFF]/20 blur-3xl" />
+        <div className="relative flex flex-wrap items-center gap-5">
+          <span className="icon-tile icon-tile-amber h-12 w-12 rounded-2xl">
+            <Crown className="h-5 w-5" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="card-title text-[15px]">Crystal Realm</h3>
+              <span className="chip chip-amber">Free Tier</span>
+              <span className="chip">
+                <span className="status-dot status-dot-online" /> Active
+              </span>
+            </div>
+            <p className="card-sub mt-1.5 max-w-xl">
+              1x XP · 50 AI calls/day · 3 server snapshots. Premium removes every cap.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-5">
+            <div className="text-right">
+              <div className="micro-label">Expiry</div>
+              <div
+                className="mt-1 text-xs font-bold text-white"
+                title="Expiry appears once a license key is activated"
+              >
+                —
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() =>
+                showToast("Premium is managed from Discord — open Aura Bot in Crystal Realm to change your plan")
+              }
+              className="btn-primary"
+            >
+              Manage Plan <ArrowRight className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        </div>
+      </motion.section>
+
+      {/* Plan comparison */}
+      <motion.div variants={rise} className="grid gap-4 lg:grid-cols-2">
+        {/* Current plan — highlighted by the gradient accent */}
+        <section className="glass-card relative flex h-full flex-col overflow-hidden rounded-[20px] p-5 ring-1 ring-[#7C5CFF]/45 shadow-[0_18px_60px_rgba(124,92,255,0.22)]">
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-[3px] bg-accent-gradient" />
+          <div className="pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full bg-[#7C5CFF]/20 blur-3xl" />
+          <div className="relative flex items-center gap-3">
+            <span className="icon-tile icon-tile-violet h-10 w-10 rounded-[14px]">
+              <Sparkles className="h-4 w-4" />
+            </span>
+            <div className="min-w-0">
+              <h3 className="card-title">Free Tier</h3>
+              <p className="card-sub mt-0.5">The plan Crystal Realm runs on today.</p>
+            </div>
+            <span className="chip chip-violet ml-auto">Current plan</span>
           </div>
 
-          <div className="mt-4 space-y-4">
-            {FEATURES.map((f) => {
-              const Icon = f.icon;
-              return (
-                <div key={f.name} className="flex items-start gap-3">
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#FFB547]/25 bg-[#FFB547]/10 text-[#FFB547]">
-                    <Icon className="h-4 w-4" />
-                  </span>
-                  <div className="min-w-0">
-                    <h4 className="text-xs font-bold text-white">{f.name}</h4>
-                    <p className="mt-0.5 text-[11px] leading-relaxed text-slate-400">{f.desc}</p>
-                  </div>
-                </div>
-              );
-            })}
+          <div className="hairline my-4" />
+
+          <ul className="space-y-2.5">
+            {FREE_INCLUDES.map((item) => (
+              <li key={item} className="flex items-center gap-2.5">
+                <span className="icon-tile h-6 w-6 shrink-0 rounded-lg text-slate-500">
+                  <Minus className="h-3 w-3" />
+                </span>
+                <span className="text-xs text-slate-400">{item}</span>
+              </li>
+            ))}
+          </ul>
+
+          <div className="mt-auto flex items-center gap-2 pt-5">
+            <span className="status-dot status-dot-online" />
+            <span className="text-[11px] text-slate-400">Active on Crystal Realm</span>
           </div>
         </section>
 
-        {/* Redeem */}
-        <section className="panel panel-hover p-5">
-          <div className="flex items-center gap-2.5">
-            <Gift className="h-4 w-4 text-[#FFB547]" />
-            <h3 className="text-sm font-bold text-white">Redeem License Key</h3>
+        {/* Premium plan */}
+        <section className="glass-card relative flex h-full flex-col overflow-hidden rounded-[20px] p-5">
+          <div className="pointer-events-none absolute -left-16 -bottom-20 h-44 w-44 rounded-full bg-[#4C7DFF]/15 blur-3xl" />
+          <div className="relative flex items-center gap-3">
+            <span className="icon-tile icon-tile-amber h-10 w-10 rounded-[14px]">
+              <Crown className="h-4 w-4" />
+            </span>
+            <div className="min-w-0">
+              <h3 className="card-title">Premium</h3>
+              <p className="card-sub mt-0.5">Every premium feature, with no caps.</p>
+            </div>
+            <span className="chip chip-amber ml-auto">All features</span>
+          </div>
+
+          <div className="hairline my-4" />
+
+          <ul className="space-y-3">
+            {FEATURES.map((f) => {
+              const Icon = f.icon;
+              return (
+                <li key={f.name} className="flex items-start gap-3">
+                  <span className="icon-tile icon-tile-violet h-8 w-8 shrink-0 rounded-[11px]">
+                    <Icon className="h-3.5 w-3.5" />
+                  </span>
+                  <div className="min-w-0">
+                    <div className="text-xs font-bold text-white">{f.name}</div>
+                    <p className="mt-0.5 text-[11px] leading-relaxed text-slate-500">{f.desc}</p>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+
+          <a
+            href="#"
+            className="mt-auto inline-flex items-center gap-1.5 pt-5 text-xs font-bold text-[#A9C2FF] transition-colors hover:text-white"
+          >
+            Purchase a license key <ArrowRight className="h-3.5 w-3.5" />
+          </a>
+        </section>
+      </motion.div>
+
+      {/* Redeem + network */}
+      <motion.div variants={rise} className="grid gap-4 lg:grid-cols-3">
+        <section className="glass-card rounded-[20px] p-5">
+          <div className="flex items-center gap-3">
+            <span className="icon-tile icon-tile-blue h-10 w-10 rounded-[14px]">
+              <Gift className="h-4 w-4" />
+            </span>
+            <div className="min-w-0">
+              <h3 className="card-title">Redeem License Key</h3>
+              <p className="card-sub mt-0.5">Unlock premium instantly.</p>
+            </div>
           </div>
 
           <div className="mt-4 space-y-3.5">
@@ -118,7 +234,7 @@ export default function PremiumSettings() {
                 value={key}
                 onChange={(e) => setKey(e.target.value)}
                 placeholder="AURA-XXXX-XXXX-XXXX"
-                className={`${inputCls} text-center font-mono tracking-[0.25em] uppercase`}
+                className="glass-input text-center font-mono uppercase tracking-[0.25em]"
               />
             </label>
 
@@ -126,48 +242,28 @@ export default function PremiumSettings() {
               type="button"
               onClick={() => showToast("License activated — Premium unlocked for Crystal Realm")}
               disabled={key.length < 19}
-              className={`${btnPrimary} w-full justify-center py-3`}
+              className="btn-primary w-full"
             >
               <Rocket className="h-3.5 w-3.5" /> Activate Premium
             </button>
-
-            <div className="text-center">
-              <a
-                href="#"
-                className="text-xs font-semibold text-[#7C5CFF] transition-colors hover:text-[#B9A6FF]"
-              >
-                Purchase a license key →
-              </a>
-            </div>
           </div>
+        </section>
 
-          <div className="mt-4 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3.5">
-            <div className="flex items-center justify-between">
-              <span className="section-label">Current Plan</span>
-              <span className="rounded-full border border-[#FFB547]/25 bg-[#FFB547]/10 px-2 py-0.5 text-[9px] font-bold text-[#FFB547]">
-                ACTIVE
-              </span>
+        <section className="glass-card relative overflow-hidden rounded-[20px] p-5 lg:col-span-2">
+          <div className="pointer-events-none absolute -right-20 -top-24 h-52 w-52 rounded-full bg-[#4C7DFF]/20 blur-3xl" />
+          <div className="relative flex flex-wrap items-center gap-6">
+            <div>
+              <span className="section-label">Premium Network</span>
+              <div className="mt-2 flex flex-wrap items-baseline gap-2">
+                <span className="kpi-value text-3xl">1,248</span>
+                <span className="text-xs text-slate-400">communities run Aura Premium</span>
+              </div>
             </div>
-            <div className="mt-2 text-xs font-bold text-white">Free Tier · Crystal Realm</div>
-            <p className="mt-1 text-[10px] leading-relaxed text-slate-500">
-              1x XP · 50 AI calls/day · 3 server snapshots. Premium removes every cap.
+            <p className="card-sub ml-auto max-w-sm">
+              Crystal Realm is on the <span className="font-semibold text-[#FCD34D]">Free Tier</span>.
             </p>
           </div>
         </section>
-      </motion.div>
-
-      {/* Premium network strip */}
-      <motion.div variants={rise} className="panel flex flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3">
-        <span className="inline-flex items-center gap-2">
-          <Crown className="h-3.5 w-3.5 text-[#FFB547]" />
-          <span className="section-label">Premium Network</span>
-        </span>
-        <span className="text-[11px] text-slate-400">
-          <span className="font-bold text-white tabular-nums">1,248</span> communities run Aura Premium
-        </span>
-        <span className="ml-auto hidden text-[11px] text-slate-500 font-body md:block">
-          Crystal Realm is on the <span className="font-semibold text-[#FFB547]">Free Tier</span>.
-        </span>
       </motion.div>
     </motion.div>
   );

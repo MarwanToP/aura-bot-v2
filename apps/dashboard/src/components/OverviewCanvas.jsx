@@ -20,8 +20,16 @@ import {
   ChevronRight,
   Gem,
   CheckCircle2,
+  Server,
+  Users,
+  Activity,
+  Hand,
+  ExternalLink,
+  Rocket,
 } from "lucide-react";
 import QuickActionModal from "./QuickActionModal.jsx";
+import AuraLogo from "./AuraLogo";
+import { useAuth } from "../context/AuthContext";
 
 /* ────────────────────────────── motion helpers ────────────────────────────── */
 
@@ -72,8 +80,10 @@ const METRICS = [
     value: 24,
     suffix: "",
     change: "+12%",
-    note: "this week",
-    color: "#7C5CFF",
+    note: "vs. last 7 days",
+    icon: Server,
+    tile: "blue",
+    color: "#4C7DFF",
     spark: [3, 4.1, 3.5, 5, 4.6, 6, 7.4],
   },
   {
@@ -82,8 +92,10 @@ const METRICS = [
     decimals: 1,
     suffix: "K",
     change: "+8%",
-    note: "this week",
-    color: "#5B8CFF",
+    note: "vs. last 7 days",
+    icon: Users,
+    tile: "violet",
+    color: "#7C5CFF",
     spark: [4, 4.4, 3.9, 5.6, 5, 6.8, 7.8],
   },
   {
@@ -92,8 +104,10 @@ const METRICS = [
     decimals: 1,
     suffix: "M",
     change: "+11%",
-    note: "this week",
-    color: "#7C5CFF",
+    note: "vs. last 7 days",
+    icon: Terminal,
+    tile: "cyan",
+    color: "#22D3EE",
     spark: [3.6, 4, 4.6, 4.2, 5.6, 6, 7],
   },
   {
@@ -103,7 +117,9 @@ const METRICS = [
     suffix: "%",
     change: "30d average",
     neutral: true,
-    color: "#39D98A",
+    icon: Activity,
+    tile: "green",
+    color: "#34D399",
     spark: [6, 6.2, 6, 6.4, 6.2, 6.5, 6.4],
   },
 ];
@@ -130,39 +146,57 @@ const ACTIVITY = {
 };
 
 const SERIES_META = [
-  { key: "members", label: "Members", color: "#7C5CFF", area: true, dots: true },
-  { key: "commands", label: "Commands", color: "#5B8CFF", area: true, dots: true },
-  { key: "messages", label: "Messages", color: "#58BFC5", area: false, dots: false },
+  { key: "members", label: "Members", color: "#4C7DFF", area: true, dots: true },
+  { key: "commands", label: "Commands", color: "#7C5CFF", area: true, dots: true },
+  { key: "messages", label: "Messages", color: "#22D3EE", area: false, dots: false },
 ];
 
+/* Per-series line recipe (blue → violet → cyan, as in the reference chart). */
+const SERIES_CLASS = {
+  members: "chart-line-blue",
+  commands: "chart-line-violet",
+  messages: "chart-line-cyan",
+};
+
 const HEALTH_ROWS = [
-  { label: "Security", value: 98, color: "#39D98A" },
-  { label: "Performance", value: 91, color: "#5B8CFF" },
+  { label: "Security", value: 98, color: "#34D399" },
+  { label: "Performance", value: 91, color: "#4C7DFF" },
   { label: "Moderation", value: 96, color: "#7C5CFF" },
-  { label: "Activity", value: 89, color: "#FF5C7A" },
+  { label: "Activity", value: 89, color: "#22D3EE" },
 ];
 
 const EVENTS = [
-  { icon: UserPlus, color: "#39D98A", title: "New member joined", actor: "@CrystalWolf", time: "2 min ago" },
-  { icon: Ticket, color: "#5B8CFF", title: "Ticket created", actor: "@Passport", time: "8 min ago" },
-  { icon: AlertTriangle, color: "#FF5C7A", title: "Warning issued to user", actor: "@theSauerkraut", time: "14 min ago" },
+  { icon: UserPlus, color: "#34D399", title: "New member joined", actor: "@CrystalWolf", time: "2 min ago" },
+  { icon: Ticket, color: "#4C7DFF", title: "Ticket created", actor: "@Passport", time: "8 min ago" },
+  { icon: AlertTriangle, color: "#F87171", title: "Warning issued to user", actor: "@theSauerkraut", time: "14 min ago" },
   { icon: Sparkles, color: "#7C5CFF", title: "Server boosted", actor: "@polymorphicServer", time: "21 min ago" },
 ];
 
 const COMMANDS = [
   { name: "/verify", uses: "6.42M", icon: BadgeCheck, color: "#7C5CFF", pct: 100 },
-  { name: "/help", uses: "5.11M", icon: HelpCircle, color: "#5B8CFF", pct: 80 },
-  { name: "/giveaway", uses: "4.21M", icon: Gift, color: "#39D98A", pct: 66 },
-  { name: "/ticket", uses: "3.56M", icon: Ticket, color: "#FFB547", pct: 55 },
-  { name: "/ban", uses: "2.91M", icon: Ban, color: "#FF5C7A", pct: 45 },
+  { name: "/help", uses: "5.11M", icon: HelpCircle, color: "#4C7DFF", pct: 80 },
+  { name: "/giveaway", uses: "4.21M", icon: Gift, color: "#34D399", pct: 66 },
+  { name: "/ticket", uses: "3.56M", icon: Ticket, color: "#FBBF24", pct: 55 },
+  { name: "/ban", uses: "2.91M", icon: Ban, color: "#F87171", pct: 45 },
 ];
 
 const PULSE = [
-  { label: "Member growth", value: "+8.3%", up: true, good: true },
-  { label: "Commands", value: "+11.2%", up: true, good: true },
-  { label: "Boosts", value: "+15.7%", up: true, good: true },
-  { label: "Reports", value: "−4.2%", up: false, good: true },
+  { label: "Member growth", value: "+8.3%", up: true, good: true, icon: Users, tile: "blue" },
+  { label: "Commands", value: "+11.2%", up: true, good: true, icon: Terminal, tile: "violet" },
+  { label: "Boosts", value: "+15.7%", up: true, good: true, icon: Rocket, tile: "amber" },
+  { label: "Reports", value: "−4.2%", up: false, good: true, icon: AlertTriangle, tile: "red" },
 ];
+
+/* The Aura Discord invite (same link the bot itself ships with). */
+const AURA_INVITE_URL = "https://discord.gg/aura";
+
+/* ────────────────────────────── helpers ────────────────────────────── */
+
+function formatMetricValue(m) {
+  if (!m || typeof m.value !== "number" || !Number.isFinite(m.value)) return "—";
+  const v = m.decimals > 0 ? m.value.toFixed(m.decimals) : Math.round(m.value).toLocaleString("en-US");
+  return `${v}${m.suffix || ""}`;
+}
 
 /* ────────────────────────────── pieces ────────────────────────────── */
 
@@ -185,7 +219,7 @@ function Sparkline({ data, color, id }) {
     <svg viewBox="0 0 100 30" preserveAspectRatio="none" className="w-full h-full overflow-visible">
       <defs>
         <linearGradient id={`spark-${id}`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity="0.22" />
+          <stop offset="0%" stopColor={color} stopOpacity="0.32" />
           <stop offset="100%" stopColor={color} stopOpacity="0" />
         </linearGradient>
       </defs>
@@ -203,6 +237,7 @@ function Sparkline({ data, color, id }) {
         strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
+        style={{ filter: `drop-shadow(0 0 4px ${color}80)` }}
         initial={{ pathLength: 0 }}
         animate={{ pathLength: 1 }}
         transition={{ duration: 0.9, ease: "easeOut", delay: 0.2 }}
@@ -211,38 +246,79 @@ function Sparkline({ data, color, id }) {
   );
 }
 
-function MetricCard({ m, index }) {
+/* ── KPI tile ───────────────────────────────────────────────────────── */
+
+function KpiTile({ m, index }) {
   const count = useCountUp(m.value, { duration: 900 + index * 120 });
-  const display =
-    m.decimals > 0 ? count.toFixed(m.decimals) : Math.round(count).toLocaleString("en-US");
+  const safe = Number.isFinite(count) ? count : 0;
+  const display = m.decimals > 0 ? safe.toFixed(m.decimals) : Math.round(safe).toLocaleString("en-US");
+  const Icon = m.icon;
 
   return (
-    <motion.div variants={rise} className="panel panel-hover relative p-4 flex items-center justify-between gap-3 min-h-[104px] overflow-hidden">
-      <div className="flex flex-col">
-        <span className="text-[11px] font-semibold tracking-wide text-slate-400">{m.label}</span>
-        <span className="mt-1 text-2xl font-extrabold tracking-tight text-white tabular-nums">
-          {display}
-          {m.suffix}
+    <motion.div variants={rise} className="kpi-tile group flex flex-col gap-3.5">
+      <div className="flex items-center gap-3">
+        <span className={`icon-tile icon-tile-${m.tile}`}>
+          <Icon className="h-5 w-5" />
         </span>
-        {m.change && (
-          <span
-            className={`mt-1.5 inline-flex items-center gap-1 text-[11px] font-semibold whitespace-nowrap ${
-              m.neutral ? "text-slate-500" : "text-[#39D98A]"
-            }`}
-          >
-            {!m.neutral && <ArrowUpRight className="w-3 h-3 shrink-0" />}
-            {m.change}
-            {!m.neutral && (
-              <span className="hidden 2xl:inline text-slate-600 font-medium">· {m.note}</span>
+        <span className="kpi-label truncate">{m.label}</span>
+      </div>
+
+      <div className="flex items-end justify-between gap-3">
+        <div className="min-w-0">
+          <div className="kpi-value tabular-nums">
+            {display}
+            {m.suffix}
+          </div>
+
+          <div className="mt-2 flex flex-col items-start gap-0.5">
+            {m.change && !m.neutral && (
+              <span className="delta-up">
+                <ArrowUpRight className="h-3 w-3 shrink-0" />
+                {m.change}
+              </span>
             )}
-          </span>
+            {m.change && m.neutral && <span className="delta-flat">{m.change}</span>}
+            {m.note && <span className="text-[10px] font-medium text-slate-500">{m.note}</span>}
+          </div>
+        </div>
+
+        {m.spark && (
+          <div className="w-[76px] h-[38px] shrink-0 pb-0.5">
+            <Sparkline data={m.spark} color={m.color} id={m.label.toLowerCase()} />
+          </div>
         )}
       </div>
-      {m.spark && (
-        <div className="w-[78px] h-[42px] shrink-0">
-          <Sparkline data={m.spark} color={m.color} id={m.label.toLowerCase()} />
+    </motion.div>
+  );
+}
+
+/* ── Secondary pulse tiles ──────────────────────────────────────────── */
+
+function PulseTile({ p }) {
+  const Icon = p.icon;
+  return (
+    <motion.div
+      variants={rise}
+      className="glass-card glass-card-hover flex items-center gap-3 px-3.5 py-3"
+    >
+      <span className={`icon-tile icon-tile-${p.tile} h-9 w-9 rounded-[13px]`}>
+        <Icon className="h-4 w-4" />
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="micro-label truncate">{p.label}</div>
+        <div
+          className={`mt-1 flex items-center gap-1 text-sm font-extrabold tabular-nums ${
+            p.good ? "text-[#34D399]" : "text-[#F87171]"
+          }`}
+        >
+          {p.up ? (
+            <ArrowUpRight className="h-3.5 w-3.5 shrink-0" />
+          ) : (
+            <ArrowDownRight className="h-3.5 w-3.5 shrink-0" />
+          )}
+          {p.value}
         </div>
-      )}
+      </div>
     </motion.div>
   );
 }
@@ -306,26 +382,19 @@ function ActivityChart({ timeframe, setTimeframe }) {
   const fmt = (v) => `${v.toFixed(1)}K`;
 
   return (
-    <div className="panel panel-hover relative overflow-hidden p-5 flex flex-col">
+    <div className="panel panel-hover relative flex flex-col overflow-hidden p-5">
       {/* ambient corner glow */}
-      <div className="pointer-events-none absolute -top-24 -right-16 w-72 h-72 rounded-full bg-[#7C5CFF]/[0.06] blur-3xl" />
+      <div className="pointer-events-none absolute -top-24 -right-16 h-72 w-72 rounded-full bg-[#7C5CFF]/[0.08] blur-3xl" />
 
       {/* Header */}
-      <div className="relative flex flex-wrap items-start justify-between gap-3 mb-2">
+      <div className="relative flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h3 className="text-sm font-bold text-white tracking-wide">Activity Overview</h3>
-          <div className="flex items-center gap-4 mt-1.5">
-            {SERIES_META.map((s) => (
-              <span key={s.key} className="inline-flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: s.color }} />
-                <span className="text-[11px] text-slate-400 font-medium">{s.label}</span>
-              </span>
-            ))}
-          </div>
+          <h3 className="card-title">Server Activity</h3>
+          <p className="card-sub mt-1">Members, messages and commands over the last 7 days</p>
         </div>
 
         {/* Segmented control */}
-        <div className="flex items-center gap-0.5 p-0.5 rounded-xl border border-white/[0.06] bg-white/[0.02]">
+        <div className="flex items-center gap-0.5 rounded-xl border border-white/[0.06] bg-white/[0.02] p-0.5">
           {["7D", "30D", "90D"].map((tf) => (
             <button
               key={tf}
@@ -333,7 +402,7 @@ function ActivityChart({ timeframe, setTimeframe }) {
                 setTimeframe(tf);
                 setHover(null);
               }}
-              className="relative px-3 py-1 text-[11px] font-bold rounded-[10px] cursor-pointer transition-colors"
+              className="relative cursor-pointer rounded-[10px] px-3 py-1 text-[11px] font-bold transition-colors"
             >
               {timeframe === tf && (
                 <motion.span
@@ -350,22 +419,35 @@ function ActivityChart({ timeframe, setTimeframe }) {
         </div>
       </div>
 
+      {/* Legend */}
+      <div className="relative mt-3 flex flex-wrap items-center justify-end gap-x-4 gap-y-1.5">
+        {SERIES_META.map((s) => (
+          <span key={s.key} className="inline-flex items-center gap-1.5">
+            <span
+              className="chart-legend-dot"
+              style={{ backgroundColor: s.color, color: s.color }}
+            />
+            <span className="text-[11px] font-medium text-slate-400">{s.label}</span>
+          </span>
+        ))}
+      </div>
+
       {/* Chart */}
       <div className="relative mt-1">
         <svg
           viewBox={`0 0 ${CW} ${CH}`}
-          className="w-full h-auto select-none"
+          className="h-auto w-full select-none"
           onMouseMove={handleMove}
           onMouseLeave={() => setHover(null)}
         >
           <defs>
             <linearGradient id="ao-area-members" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#7C5CFF" stopOpacity="0.20" />
-              <stop offset="100%" stopColor="#7C5CFF" stopOpacity="0" />
+              <stop offset="0%" stopColor="#4C7DFF" stopOpacity="0.45" />
+              <stop offset="100%" stopColor="#4C7DFF" stopOpacity="0.02" />
             </linearGradient>
             <linearGradient id="ao-area-commands" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#5B8CFF" stopOpacity="0.14" />
-              <stop offset="100%" stopColor="#5B8CFF" stopOpacity="0" />
+              <stop offset="0%" stopColor="#7C5CFF" stopOpacity="0.3" />
+              <stop offset="100%" stopColor="#7C5CFF" stopOpacity="0.02" />
             </linearGradient>
           </defs>
 
@@ -374,19 +456,17 @@ function ActivityChart({ timeframe, setTimeframe }) {
             {[0, 20, 40, 60, 80].map((v) => (
               <g key={v}>
                 <line
+                  className="chart-grid-line"
                   x1={PAD.l}
                   y1={yAt(v)}
                   x2={CW - PAD.r}
                   y2={yAt(v)}
-                  stroke="rgba(255,255,255,0.05)"
-                  strokeDasharray={v === 0 ? "0" : "3 5"}
-                  strokeWidth="1"
+                  strokeDasharray={v === 0 ? "0" : "3 6"}
                 />
                 <text
+                  className="chart-axis-label"
                   x={PAD.l - 10}
                   y={yAt(v) + 3.5}
-                  fill="#4A5063"
-                  fontSize="10.5"
                   textAnchor="end"
                   fontFamily="ui-monospace, monospace"
                 >
@@ -394,6 +474,21 @@ function ActivityChart({ timeframe, setTimeframe }) {
                 </text>
               </g>
             ))}
+
+            {/* Soft glow under the area series */}
+            {series
+              .filter((s) => s.area)
+              .map((s) => (
+                <path
+                  key={`glow-${s.key}`}
+                  d={s.line}
+                  fill="none"
+                  stroke={s.color}
+                  strokeWidth="9"
+                  strokeOpacity="0.1"
+                  strokeLinecap="round"
+                />
+              ))}
 
             {/* Areas */}
             {series
@@ -413,11 +508,9 @@ function ActivityChart({ timeframe, setTimeframe }) {
             {series.map((s, si) => (
               <motion.path
                 key={`line-${s.key}`}
+                className={SERIES_CLASS[s.key]}
                 d={s.line}
-                fill="none"
-                stroke={s.color}
-                strokeWidth={si === 0 ? 2.4 : 2}
-                strokeLinecap="round"
+                style={si === 0 ? { strokeWidth: 2.6 } : undefined}
                 initial={{ pathLength: 0 }}
                 animate={{ pathLength: 1 }}
                 transition={{ duration: 1.1, ease: "easeOut", delay: 0.1 + si * 0.12 }}
@@ -473,12 +566,12 @@ function ActivityChart({ timeframe, setTimeframe }) {
         </svg>
 
         {/* X labels */}
-        <div className="relative h-4 mt-1 mx-1">
+        <div className="relative mx-1 mt-1 h-4">
           {data.labels.map((l, i) =>
             dense && i % 2 === 1 && i !== n - 1 ? null : (
               <span
                 key={l}
-                className="absolute -translate-x-1/2 text-[10px] text-slate-600 font-mono whitespace-nowrap"
+                className="absolute -translate-x-1/2 whitespace-nowrap text-[10px] font-semibold text-slate-500"
                 style={{ left: `${(xs[i] / CW) * 100}%` }}
               >
                 {l}
@@ -495,15 +588,18 @@ function ActivityChart({ timeframe, setTimeframe }) {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 2 }}
               transition={{ duration: 0.12 }}
-              className="pointer-events-none absolute top-0 z-20 -translate-x-1/2 rounded-xl border border-white/[0.08] bg-[#12141B]/95 backdrop-blur-md px-3 py-2 shadow-xl shadow-black/50"
+              className="chart-tooltip pointer-events-none absolute top-0 z-20 -translate-x-1/2"
               style={{ left: `${Math.min(86, Math.max(14, (xs[hover] / CW) * 100))}%` }}
             >
-              <div className="text-[10px] font-bold text-slate-400 mb-1">{data.labels[hover]}</div>
+              <div className="mb-1 text-[10px] font-bold text-slate-400">{data.labels[hover]}</div>
               {series.map((s) => (
                 <div key={`tip-${s.key}`} className="flex items-center gap-2 text-[11px] leading-5">
-                  <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: s.color }} />
+                  <span
+                    className="chart-legend-dot"
+                    style={{ backgroundColor: s.color, color: s.color }}
+                  />
                   <span className="text-slate-400">{s.label}</span>
-                  <span className="ml-auto pl-3 font-bold text-white font-mono">
+                  <span className="ml-auto pl-3 font-mono font-bold text-white">
                     {fmt(data[s.key][hover])}
                   </span>
                 </div>
@@ -516,53 +612,69 @@ function ActivityChart({ timeframe, setTimeframe }) {
   );
 }
 
-/* ── Server Health ───────────────────────────────────────────────────── */
+/* ── Server Health (donut) ──────────────────────────────────────────── */
 
 function HealthCard() {
   const score = useCountUp(94, { duration: 1300 });
-  const R = 50;
+  const R = 52;
   const C = 2 * Math.PI * R;
+  const STROKE = 13;
+  const FILLED = 0.94;
+
+  /* Each health row becomes a segment of the ring (94% of it is filled). */
+  let acc = 0;
+  const segments = HEALTH_ROWS.map((row) => {
+    const frac = (row.value / 100) * FILLED;
+    const seg = {
+      ...row,
+      len: Math.max(0, frac * C - 15),
+      offset: -acc * C,
+    };
+    acc += frac;
+    return seg;
+  });
 
   return (
-    <div className="panel panel-hover relative overflow-hidden p-5 flex flex-col">
-      <div className="pointer-events-none absolute -bottom-24 -left-16 w-64 h-64 rounded-full bg-[#39D98A]/[0.05] blur-3xl" />
+    <div className="panel panel-hover relative flex flex-col overflow-hidden p-5">
+      <div className="pointer-events-none absolute -bottom-24 -left-16 h-64 w-64 rounded-full bg-[#22D3EE]/[0.06] blur-3xl" />
 
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-bold text-white tracking-wide">Server Health</h3>
-        <span className="inline-flex items-center gap-1.5 text-[10px] font-bold text-[#39D98A]">
-          <span className="w-1.5 h-1.5 rounded-full bg-[#39D98A] animate-pulse-dot" />
-          HEALTHY
-        </span>
+      <div className="relative mb-1">
+        <h3 className="card-title">Server Health</h3>
+        <p className="card-sub mt-1">Live score across your core modules</p>
       </div>
 
-      <div className="flex items-center gap-5 flex-1">
+      <div className="relative mt-2 flex flex-1 flex-col items-center gap-4 sm:flex-row sm:items-center sm:gap-3">
         {/* Donut */}
-        <div className="relative w-[124px] h-[124px] shrink-0">
-          <svg viewBox="0 0 124 124" className="w-full h-full -rotate-90">
-            <circle cx="62" cy="62" r={R} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="9" />
-            <motion.circle
+        <div className="relative h-[116px] w-[116px] shrink-0">
+          <svg viewBox="0 0 124 124" className="h-full w-full -rotate-90">
+            <circle
               cx="62"
               cy="62"
               r={R}
               fill="none"
-              stroke="url(#health-ring-grad)"
-              strokeWidth="9"
-              strokeLinecap="round"
-              strokeDasharray={C}
-              initial={{ strokeDashoffset: C }}
-              animate={{ strokeDashoffset: C * (1 - 0.94) }}
-              transition={{ duration: 1.5, ease: EASE, delay: 0.25 }}
+              stroke="rgba(255,255,255,0.06)"
+              strokeWidth={STROKE}
             />
-            <defs>
-              <linearGradient id="health-ring-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#7C5CFF" />
-                <stop offset="55%" stopColor="#5B8CFF" />
-                <stop offset="100%" stopColor="#39D98A" />
-              </linearGradient>
-            </defs>
+            {segments.map((s) => (
+              <motion.circle
+                key={s.label}
+                cx="62"
+                cy="62"
+                r={R}
+                fill="none"
+                stroke={s.color}
+                strokeWidth={STROKE}
+                strokeLinecap="round"
+                strokeDasharray={`${s.len} ${C - s.len}`}
+                style={{ filter: `drop-shadow(0 0 6px ${s.color}77)` }}
+                initial={{ strokeDashoffset: s.offset + s.len }}
+                animate={{ strokeDashoffset: s.offset }}
+                transition={{ duration: 1.1, ease: EASE, delay: 0.2 }}
+              />
+            ))}
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className="text-2xl font-extrabold text-white tracking-tight tabular-nums">
+            <span className="text-2xl font-extrabold tracking-tight text-white tabular-nums">
               {Math.round(score)}%
             </span>
             <span className="text-[9px] font-bold uppercase tracking-[0.14em] text-slate-500">
@@ -571,21 +683,24 @@ function HealthCard() {
           </div>
         </div>
 
-        {/* Rows */}
-        <div className="flex-1 space-y-3 min-w-0">
+        {/* Legend */}
+        <div className="w-full min-w-0 flex-1 space-y-1">
           {HEALTH_ROWS.map((row, i) => (
             <motion.div
               key={row.label}
               initial={{ opacity: 0, x: 8 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.35 + i * 0.08, duration: 0.4, ease: EASE }}
-              className="flex items-center justify-between gap-2"
+              className="list-row justify-between gap-2 px-2 py-1.5"
             >
-              <span className="flex items-center gap-2 text-xs text-slate-400 min-w-0">
-                <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: row.color }} />
-                <span className="truncate">{row.label}</span>
+              <span className="flex min-w-0 items-center gap-2">
+                <span
+                  className="chart-legend-dot"
+                  style={{ backgroundColor: row.color, color: row.color }}
+                />
+                <span className="truncate text-xs text-slate-300">{row.label}</span>
               </span>
-              <span className="text-xs font-bold text-white font-mono tabular-nums">{row.value}%</span>
+              <span className="text-xs font-bold text-white tabular-nums">{row.value}%</span>
             </motion.div>
           ))}
         </div>
@@ -594,25 +709,25 @@ function HealthCard() {
   );
 }
 
-/* ── Recent Activity ─────────────────────────────────────────────────── */
+/* ── Recent Activity / Recent Events ────────────────────────────────── */
 
-function RecentActivityCard({ onNavigate }) {
+function RecentEventsCard({ onNavigate }) {
   return (
-    <div className="panel panel-hover relative p-5 flex flex-col h-full">
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="flex items-center gap-2 text-sm font-bold text-white tracking-wide">
-          Recent Activity
-          <span className="w-1.5 h-1.5 rounded-full bg-[#39D98A] animate-pulse-dot" />
+    <div className="panel panel-hover relative flex h-full flex-col p-5">
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <h3 className="card-title flex items-center gap-2">
+          Recent Events
+          <span className="h-1.5 w-1.5 animate-pulse-dot rounded-full bg-[#34D399]" />
         </h3>
         <button
           onClick={() => onNavigate && onNavigate("logs")}
-          className="inline-flex items-center gap-0.5 text-[11px] font-semibold text-slate-500 hover:text-[#7C5CFF] transition-colors cursor-pointer"
+          className="inline-flex cursor-pointer items-center gap-0.5 text-[11px] font-semibold text-slate-500 transition-colors hover:text-[#7C5CFF]"
         >
-          View all <ChevronRight className="w-3 h-3" />
+          View all <ChevronRight className="h-3 w-3" />
         </button>
       </div>
 
-      <div className="space-y-1.5 flex-1">
+      <div className="flex-1 space-y-0.5">
         {EVENTS.map((ev, i) => {
           const Icon = ev.icon;
           return (
@@ -621,19 +736,67 @@ function RecentActivityCard({ onNavigate }) {
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.15 + i * 0.07, duration: 0.35, ease: EASE }}
-              className="flex items-center gap-3 px-2.5 py-2 rounded-xl hover:bg-white/[0.03] transition-colors"
+              className="list-row"
             >
               <span
-                className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
-                style={{ backgroundColor: `${ev.color}1F`, color: ev.color }}
+                className="icon-tile h-8 w-8 rounded-[11px]"
+                style={{
+                  backgroundImage: `linear-gradient(150deg, ${ev.color}59 0%, ${ev.color}14 100%)`,
+                  borderColor: `${ev.color}4D`,
+                  color: ev.color,
+                }}
               >
-                <Icon className="w-4 h-4" />
+                <Icon className="h-4 w-4" />
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block text-xs font-semibold text-slate-200 truncate">{ev.title}</span>
-                <span className="block text-[10px] text-slate-500 truncate">{ev.actor}</span>
+                <span className="block truncate text-xs font-semibold text-slate-100">{ev.title}</span>
+                <span className="block truncate text-[10px] text-slate-500">
+                  {ev.actor} · {ev.time}
+                </span>
               </span>
-              <span className="text-[10px] text-slate-600 font-mono whitespace-nowrap">{ev.time}</span>
+            </motion.div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function RailActivityCard({ onNavigate }) {
+  return (
+    <div className="panel panel-hover relative flex h-full flex-col p-4">
+      <div className="mb-2.5 flex items-center justify-between gap-2">
+        <h3 className="card-title text-[13px]">Recent Activity</h3>
+        <button
+          onClick={() => onNavigate && onNavigate("logs")}
+          className="inline-flex cursor-pointer items-center gap-0.5 text-[10px] font-semibold text-slate-500 transition-colors hover:text-[#7C5CFF]"
+        >
+          View all <ChevronRight className="h-3 w-3" />
+        </button>
+      </div>
+
+      <div className="flex-1 space-y-0.5">
+        {EVENTS.map((ev, i) => {
+          const Icon = ev.icon;
+          return (
+            <motion.div
+              key={ev.title}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.15 + i * 0.07, duration: 0.35, ease: EASE }}
+              className="list-row px-1.5 py-1.5"
+            >
+              <span
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[10px] border"
+                style={{ backgroundColor: `${ev.color}1F`, borderColor: `${ev.color}3D`, color: ev.color }}
+              >
+                <Icon className="h-3.5 w-3.5" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-[11px] font-semibold text-slate-200">{ev.title}</span>
+                <span className="block truncate text-[9.5px] text-slate-500">{ev.actor}</span>
+              </span>
+              <span className="whitespace-nowrap font-mono text-[9.5px] text-slate-600">{ev.time}</span>
             </motion.div>
           );
         })}
@@ -646,18 +809,18 @@ function RecentActivityCard({ onNavigate }) {
 
 function TopCommandsCard({ onNavigate }) {
   return (
-    <div className="panel panel-hover relative p-5 flex flex-col h-full">
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-bold text-white tracking-wide">Top Commands</h3>
+    <div className="panel panel-hover relative flex h-full flex-col p-5">
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <h3 className="card-title">Top Commands</h3>
         <button
           onClick={() => onNavigate && onNavigate("commands")}
-          className="inline-flex items-center gap-0.5 text-[11px] font-semibold text-slate-500 hover:text-[#7C5CFF] transition-colors cursor-pointer"
+          className="inline-flex cursor-pointer items-center gap-0.5 text-[11px] font-semibold text-slate-500 transition-colors hover:text-[#7C5CFF]"
         >
-          View all <ChevronRight className="w-3 h-3" />
+          View all <ChevronRight className="h-3 w-3" />
         </button>
       </div>
 
-      <div className="space-y-1 flex-1">
+      <div className="flex-1 space-y-1.5">
         {COMMANDS.map((cmd, i) => {
           const Icon = cmd.icon;
           return (
@@ -666,29 +829,35 @@ function TopCommandsCard({ onNavigate }) {
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.15 + i * 0.06, duration: 0.35, ease: EASE }}
-              className="relative px-2.5 py-2 rounded-xl hover:bg-white/[0.03] transition-colors group"
+              className="list-row flex-col items-stretch gap-1.5 px-1.5 py-2"
             >
-              <div className="flex items-center gap-3">
-                <span
-                  className="w-7 h-7 rounded-full flex items-center justify-center shrink-0"
-                  style={{ backgroundColor: `${cmd.color}1A`, color: cmd.color }}
-                >
-                  <Icon className="w-3.5 h-3.5" />
+              <div className="flex items-center gap-2.5">
+                <span className="w-3 shrink-0 font-mono text-[10px] font-bold text-slate-600">
+                  {i + 1}
                 </span>
-                <span className="font-mono text-xs font-semibold text-slate-200 flex-1">{cmd.name}</span>
-                <span className="text-xs font-bold text-slate-300 font-mono tabular-nums">{cmd.uses}</span>
+                <span
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[10px] border"
+                  style={{ backgroundColor: `${cmd.color}1A`, borderColor: `${cmd.color}38`, color: cmd.color }}
+                >
+                  <Icon className="h-3.5 w-3.5" />
+                </span>
+                <span className="min-w-0 flex-1 truncate font-mono text-xs font-semibold text-slate-200">
+                  {cmd.name}
+                </span>
+                <span className="shrink-0 font-mono text-xs font-bold tabular-nums text-slate-300">
+                  {cmd.uses}
+                </span>
               </div>
               {/* Relative usage bar */}
-              <motion.span
-                initial={{ scaleX: 0 }}
-                animate={{ scaleX: cmd.pct / 100 }}
-                transition={{ delay: 0.3 + i * 0.07, duration: 0.6, ease: EASE }}
-                style={{
-                  backgroundColor: `${cmd.color}59`,
-                  transformOrigin: "left",
-                }}
-                className="absolute bottom-0.5 left-[46px] right-2 h-[2px] rounded-full"
-              />
+              <div className="progress-track ml-[60px]">
+                <motion.div
+                  className="progress-fill"
+                  style={{ backgroundImage: `linear-gradient(90deg, ${cmd.color} 0%, ${cmd.color}55 100%)` }}
+                  initial={{ width: 0 }}
+                  animate={{ width: `${cmd.pct}%` }}
+                  transition={{ delay: 0.3 + i * 0.07, duration: 0.7, ease: EASE }}
+                />
+              </div>
             </motion.div>
           );
         })}
@@ -697,77 +866,204 @@ function TopCommandsCard({ onNavigate }) {
   );
 }
 
-/* ── Nitro Boost ─────────────────────────────────────────────────────── */
+/* ── Server Growth ───────────────────────────────────────────────────── */
 
-function NitroBoostCard() {
-  const boosters = useCountUp(1248, { duration: 1400 });
-  const boostersDisplay = Math.round(boosters).toLocaleString("en-US");
+const GROW_W = 320;
+const GROW_H = 132;
+const GROW_PAD = { l: 28, r: 8, t: 12, b: 20 };
+
+function ServerGrowthCard() {
+  const data = ACTIVITY["7D"];
+  const series = data.members;
+  const labels = data.labels;
+
+  const max = Math.max(...series);
+  const yMax = Math.max(1, Math.ceil(max / 10) * 10);
+  const pts = series.map((v, i) => [
+    GROW_PAD.l + (i * (GROW_W - GROW_PAD.l - GROW_PAD.r)) / (series.length - 1),
+    GROW_PAD.t + (1 - v / yMax) * (GROW_H - GROW_PAD.t - GROW_PAD.b),
+  ]);
+  const line = smoothPath(pts);
+  const area = `${line} L ${pts[pts.length - 1][0]} ${GROW_H - GROW_PAD.b} L ${pts[0][0]} ${GROW_H - GROW_PAD.b} Z`;
+
+  /* Growth is derived from the very series the card plots — never invented. */
+  const first = series[0];
+  const last = series[series.length - 1];
+  const growth = first ? ((last - first) / first) * 100 : 0;
+  const growthLabel = Number.isFinite(growth) ? `${growth >= 0 ? "+" : "−"}${Math.abs(growth).toFixed(1)}%` : "—";
+  const ticks = [0, 0.5, 1];
 
   return (
-    <div className="panel panel-hover relative overflow-hidden p-5 flex flex-col h-full">
-      <div className="pointer-events-none absolute -top-20 -right-14 w-56 h-56 rounded-full bg-[#7C5CFF]/[0.07] blur-3xl" />
+    <div className="panel panel-hover relative flex h-full flex-col overflow-hidden p-5">
+      <div className="pointer-events-none absolute -bottom-20 -right-12 h-52 w-52 rounded-full bg-[#2DD4BF]/[0.07] blur-3xl" />
 
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-bold text-white tracking-wide">Nitro Boost</h3>
-        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#39D98A]">
-          <ArrowUpRight className="w-3 h-3" />
-          +15.7% this month
+      <div className="relative mb-2 flex items-center justify-between gap-2">
+        <h3 className="card-title">Server Growth</h3>
+        <span
+          className={`rounded-full border px-2 py-0.5 ${
+            growth >= 0
+              ? "delta-up border-[#34D399]/25 bg-[#34D399]/10"
+              : "delta-down border-[#F87171]/25 bg-[#F87171]/10"
+          }`}
+        >
+          {growth >= 0 ? (
+            <ArrowUpRight className="h-3 w-3 shrink-0" />
+          ) : (
+            <ArrowDownRight className="h-3 w-3 shrink-0" />
+          )}
+          {growthLabel}
         </span>
       </div>
+      <p className="card-sub relative">Member growth over the last 7 days</p>
 
-      <div className="flex items-center gap-3.5">
-        <motion.span
-          initial={{ scale: 0.7, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ delay: 0.15, type: "spring", stiffness: 340, damping: 20 }}
-          className="w-11 h-11 rounded-xl bg-[#7C5CFF]/12 border border-[#7C5CFF]/25 flex items-center justify-center shrink-0"
-        >
-          <Gem className="w-5 h-5 text-[#7C5CFF]" />
-        </motion.span>
-        <div>
-          <div className="text-2xl font-extrabold text-white tracking-tight leading-none tabular-nums">
-            {boostersDisplay}
-            <span className="ml-1.5 text-xs font-medium text-slate-500">Boosters</span>
-          </div>
-          <div className="text-[11px] text-slate-500 mt-1.5 font-body">
-            Community tier boosting this month
-          </div>
-        </div>
-      </div>
+      <div className="relative mt-2 flex-1">
+        <svg viewBox={`0 0 ${GROW_W} ${GROW_H}`} className="h-auto w-full select-none">
+          <defs>
+            <linearGradient id="growth-area" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#2DD4BF" stopOpacity="0.5" />
+              <stop offset="100%" stopColor="#2DD4BF" stopOpacity="0.02" />
+            </linearGradient>
+          </defs>
 
-      {/* Level progress */}
-      <div className="mt-5">
-        <div className="flex items-center justify-between text-[11px] font-semibold mb-1.5">
-          <span className="text-white">Level 3</span>
-          <span className="text-slate-500 font-mono">14 Boosts</span>
-        </div>
-        <div className="w-full h-1.5 rounded-full bg-white/[0.05] overflow-hidden">
-          <motion.div
-            initial={{ width: 0 }}
-            animate={{ width: "88%" }}
-            transition={{ duration: 1.2, ease: EASE, delay: 0.3 }}
-            className="h-full rounded-full bg-gradient-to-r from-[#7C5CFF] to-[#5B8CFF]"
+          {ticks.map((t) => {
+            const y = GROW_PAD.t + (1 - t) * (GROW_H - GROW_PAD.t - GROW_PAD.b);
+            const value = t * yMax;
+            return (
+              <g key={t}>
+                <line
+                  className="chart-grid-line"
+                  x1={GROW_PAD.l}
+                  y1={y}
+                  x2={GROW_W - GROW_PAD.r}
+                  y2={y}
+                />
+                <text
+                  className="chart-axis-label"
+                  x={GROW_PAD.l - 7}
+                  y={y + 3.5}
+                  textAnchor="end"
+                  fontFamily="ui-monospace, monospace"
+                  fontSize="9"
+                >
+                  {value === 0 ? "0" : `${Math.round(value)}K`}
+                </text>
+              </g>
+            );
+          })}
+
+          <path d={area} fill="url(#growth-area)" />
+          <path
+            d={line}
+            fill="none"
+            stroke="#2DD4BF"
+            strokeWidth="7"
+            strokeOpacity="0.12"
+            strokeLinecap="round"
           />
+          <path
+            className="chart-line-cyan"
+            d={line}
+            style={{ stroke: "#2DD4BF", strokeWidth: 2.2 }}
+          />
+
+          {pts.map(([x, y], i) => (
+            <circle
+              key={i}
+              cx={x}
+              cy={y}
+              r="2.4"
+              fill="#2DD4BF"
+              stroke="#0B0D12"
+              strokeWidth="1.2"
+            />
+          ))}
+        </svg>
+
+        {/* X labels */}
+        <div className="relative mx-1 mt-1 h-3.5">
+          {labels.map((l, i) =>
+            i % 2 === 1 && i !== labels.length - 1 ? null : (
+              <span
+                key={l}
+                className="absolute -translate-x-1/2 whitespace-nowrap text-[8.5px] font-semibold text-slate-500"
+                style={{ left: `${(pts[i][0] / GROW_W) * 100}%` }}
+              >
+                {l}
+              </span>
+            )
+          )}
         </div>
       </div>
+    </div>
+  );
+}
 
-      {/* Recent boosters */}
-      <div className="mt-auto pt-5 flex items-center justify-between">
-        <span className="text-[11px] text-slate-500 font-body">Recent boosters</span>
-        <div className="flex items-center">
-          {["#7C5CFF", "#5B8CFF", "#58BFC5", "#39D98A", "#FFB547"].map((c, i) => (
-            <motion.span
-              key={c}
-              initial={{ opacity: 0, x: -4 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.4 + i * 0.06 }}
-              style={{ marginLeft: i === 0 ? 0 : -7, zIndex: 5 - i, background: `linear-gradient(135deg, ${c}, ${c}88)` }}
-              className="w-6 h-6 rounded-full ring-2 ring-[#0B0D12] flex items-center justify-center text-[9px] font-bold text-white/90"
-            >
-              {["C", "P", "M", "S", "A"][i]}
-            </motion.span>
-          ))}
-          <span className="ml-2 text-[10px] text-slate-600 font-mono">+9</span>
+/* ── Bot profile card ────────────────────────────────────────────────── */
+
+function BotProfileCard({ metrics }) {
+  const members = metrics.find((m) => m.label === "Members");
+  const servers = metrics.find((m) => m.label === "Servers");
+
+  return (
+    <div className="panel panel-hover relative overflow-hidden">
+      {/* Banner */}
+      <div className="relative h-28 overflow-hidden">
+        <div className="absolute inset-0 bg-[radial-gradient(120%_130%_at_18%_0%,#1B3A6B_0%,#2A1B5E_48%,#0A0F1A_100%)]" />
+        <div className="absolute -top-12 -left-8 h-36 w-36 rounded-full bg-[#4C7DFF]/30 blur-2xl" />
+        <div className="absolute -bottom-14 -right-6 h-36 w-36 rounded-full bg-[#7C5CFF]/30 blur-2xl" />
+        <div className="cyber-grid absolute inset-0 opacity-30" />
+        <div className="aura-noise absolute inset-0" />
+        <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-[#0A0F1A]/80 to-transparent" />
+      </div>
+
+      {/* Body */}
+      <div className="relative -mt-9 px-4 pb-4">
+        <div className="flex items-end gap-3">
+          <span className="inline-flex rounded-full bg-[#0A0F1A] p-1 shadow-[0_12px_30px_rgba(0,0,0,0.6)] ring-1 ring-white/10">
+            <AuraLogo size="lg" showRing={false} />
+          </span>
+          <div className="min-w-0 flex-1 pb-1">
+            <h3 className="font-display flex items-center gap-1.5 text-base font-extrabold tracking-tight text-white">
+              Aura Bot
+              <BadgeCheck className="h-4 w-4 shrink-0 text-[#4C7DFF]" />
+            </h3>
+            <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10.5px] text-slate-400">
+              <span className="inline-flex items-center gap-1">
+                <Users className="h-3 w-3 text-slate-500" />
+                {formatMetricValue(members)} members
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <Server className="h-3 w-3 text-slate-500" />
+                {formatMetricValue(servers)} servers
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <p className="mt-3.5 text-[11px] leading-relaxed text-slate-400">
+          More than just a bot. Powerful tools, moderation, and more — all in one.
+        </p>
+
+        <div className="mt-4 flex items-center gap-2">
+          <a
+            href={AURA_INVITE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn-primary flex-1 rounded-xl"
+            title="Add Aura Bot to your server"
+          >
+            Invite Bot
+          </a>
+          <a
+            href={AURA_INVITE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Open the Aura Bot invite in a new tab"
+            title="Open the Aura Bot invite in a new tab"
+            className="btn-icon h-10 w-10 rounded-xl"
+          >
+            <ExternalLink className="h-4 w-4" />
+          </a>
         </div>
       </div>
     </div>
@@ -779,18 +1075,18 @@ function NitroBoostCard() {
 function QuickActionsCard({ onNavigate, onAction }) {
   const actions = [
     { key: "command", label: "Create Command", icon: Terminal, color: "#7C5CFF", modal: "command" },
-    { key: "ticket", label: "Create Ticket", icon: Ticket, color: "#5B8CFF", modal: "ticket" },
-    { key: "giveaway", label: "Create Giveaway", icon: Gift, color: "#39D98A", modal: "giveaway" },
-    { key: "broadcast", label: "Broadcast Message", icon: Megaphone, color: "#FFB547", modal: "broadcast" },
-    { key: "servers", label: "Manage Server", icon: Settings2, color: "#58BFC5", navigate: "servers" },
-    { key: "logs", label: "View Logs", icon: FileText, color: "#8B92A5", navigate: "logs" },
+    { key: "ticket", label: "Create Ticket", icon: Ticket, color: "#4C7DFF", modal: "ticket" },
+    { key: "giveaway", label: "Create Giveaway", icon: Gift, color: "#34D399", modal: "giveaway" },
+    { key: "broadcast", label: "Broadcast Message", icon: Megaphone, color: "#FBBF24", modal: "broadcast" },
+    { key: "servers", label: "Manage Server", icon: Settings2, color: "#22D3EE", navigate: "servers" },
+    { key: "logs", label: "View Logs", icon: FileText, color: "#94A3B8", navigate: "logs" },
   ];
 
   return (
-    <div className="panel panel-hover relative p-5 flex flex-col h-full">
-      <h3 className="text-sm font-bold text-white tracking-wide mb-3.5">Quick Actions</h3>
+    <div className="panel panel-hover relative flex flex-col p-4">
+      <h3 className="micro-label mb-2.5">Quick Actions</h3>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 flex-1">
+      <div className="flex flex-col gap-1.5">
         {actions.map((a, i) => {
           const Icon = a.icon;
           return (
@@ -799,18 +1095,18 @@ function QuickActionsCard({ onNavigate, onAction }) {
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.12 + i * 0.05, duration: 0.35, ease: EASE }}
-              whileTap={{ scale: 0.97 }}
+              whileTap={{ scale: 0.98 }}
               onClick={() => {
                 if (a.navigate && onNavigate) onNavigate(a.navigate);
                 else if (onAction) onAction(a);
               }}
-              className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl border border-white/[0.05] bg-white/[0.02] hover:bg-white/[0.04] hover:border-[#7C5CFF]/25 text-left text-xs font-semibold text-slate-300 hover:text-white transition-colors cursor-pointer"
+              className="flex cursor-pointer items-center gap-2.5 rounded-xl border border-white/[0.05] bg-white/[0.02] px-2.5 py-2 text-left text-[11px] font-semibold text-slate-300 transition-colors hover:border-[#7C5CFF]/30 hover:bg-white/[0.05] hover:text-white"
             >
               <span
-                className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
-                style={{ backgroundColor: `${a.color}1A`, color: a.color }}
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border"
+                style={{ backgroundColor: `${a.color}1A`, borderColor: `${a.color}33`, color: a.color }}
               >
-                <Icon className="w-3.5 h-3.5" />
+                <Icon className="h-3.5 w-3.5" />
               </span>
               <span className="truncate">{a.label}</span>
             </motion.button>
@@ -821,35 +1117,33 @@ function QuickActionsCard({ onNavigate, onAction }) {
   );
 }
 
-/* ── Server Pulse strip ──────────────────────────────────────────────── */
+/* ── Promo ───────────────────────────────────────────────────────────── */
 
-function PulseStrip() {
+function PromoCard({ onNavigate }) {
   return (
-    <div className="panel px-4 py-3 flex flex-wrap items-center gap-x-6 gap-y-2">
-      <span className="inline-flex items-center gap-2">
-        <span className="w-2 h-2 rounded-full bg-[#39D98A] animate-pulse-dot" />
-        <span className="text-[10px] font-bold tracking-[0.16em] text-slate-500 uppercase">
-          Server Pulse
-        </span>
-      </span>
+    <div className="panel panel-hover relative overflow-hidden p-4">
+      <div className="pointer-events-none absolute -top-16 -right-10 h-40 w-40 rounded-full bg-[#7C5CFF]/25 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-16 -left-10 h-32 w-32 rounded-full bg-[#4C7DFF]/20 blur-3xl" />
 
-      <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5">
-        {PULSE.map((p) => (
-          <span key={p.label} className="inline-flex items-center gap-1.5 text-[11px]">
-            {p.up ? (
-              <ArrowUpRight className="w-3 h-3 text-[#39D98A]" />
-            ) : (
-              <ArrowDownRight className="w-3 h-3 text-[#39D98A]" />
-            )}
-            <span className="text-slate-500 font-body">{p.label}</span>
-            <span className="font-bold text-slate-200 font-mono tabular-nums">{p.value}</span>
-          </span>
-        ))}
+      <div className="relative flex items-start gap-3">
+        <span className="icon-tile icon-tile-violet">
+          <Gem className="h-5 w-5" />
+        </span>
+        <div className="min-w-0">
+          <h3 className="card-title text-[13px]">Level Up Your Server</h3>
+          <p className="card-sub mt-1.5 text-[11px] leading-relaxed">
+            Get access to premium features, custom commands, and more.
+          </p>
+        </div>
       </div>
 
-      <span className="ml-auto text-[11px] text-slate-500 font-body hidden md:block">
-        Everything looks <span className="text-[#39D98A] font-semibold">healthy</span>.
-      </span>
+      <button
+        onClick={() => onNavigate && onNavigate("premium")}
+        className="btn-glass relative mt-4 w-full rounded-xl"
+        title="Open the premium plan settings"
+      >
+        Learn More
+      </button>
     </div>
   );
 }
@@ -861,6 +1155,7 @@ export default function OverviewCanvas({ onNavigate }) {
   const [modalAction, setModalAction] = useState(null);
   const [toast, setToast] = useState(null);
   const [stats, setStats] = useState(null);
+  const { user } = useAuth();
 
   useEffect(() => {
     let cancelled = false;
@@ -899,6 +1194,8 @@ export default function OverviewCanvas({ onNavigate }) {
     setTimeout(() => setToast(null), 3200);
   };
 
+  const displayName = user?.global_name || user?.username || "";
+
   return (
     <motion.div variants={stagger} initial="hidden" animate="show" className="space-y-5 text-white">
       {/* Toast */}
@@ -908,57 +1205,104 @@ export default function OverviewCanvas({ onNavigate }) {
             initial={{ opacity: 0, y: 12, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 8, scale: 0.99 }}
-            className="fixed bottom-6 right-6 z-[90] panel px-4 py-3 flex items-center gap-2.5 text-xs font-semibold shadow-2xl shadow-black/60"
+            className="panel fixed bottom-6 right-6 z-[90] flex items-center gap-2.5 px-4 py-3 text-xs font-semibold shadow-2xl shadow-black/60"
           >
-            <CheckCircle2 className="w-4 h-4 text-[#39D98A]" />
+            <CheckCircle2 className="h-4 w-4 text-[#34D399]" />
             <span>{toast}</span>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Row 1 — Metrics */}
-      <motion.div variants={stagger} className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        {metrics.map((m, i) => (
-          <MetricCard key={m.label} m={m} index={i} />
-        ))}
-      </motion.div>
+      <motion.div variants={rise} className="grid grid-cols-1 gap-5 xl:grid-cols-12">
+        {/* ── Main column ─────────────────────────────────────────── */}
+        <motion.div variants={rise} className="flex min-w-0 flex-col gap-5 xl:col-span-9">
+          {/* Welcome */}
+          <motion.div variants={rise} className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h2 className="font-display flex flex-wrap items-center gap-2.5 text-[24px] font-extrabold tracking-tight text-white md:text-[26px]">
+                <span className="flex h-8 w-8 items-center justify-center rounded-xl border border-[#7C5CFF]/25 bg-[#7C5CFF]/10 text-[#C4B5FD]">
+                  <Hand className="h-4 w-4" />
+                </span>
+                <span>
+                  Welcome back
+                  {displayName ? (
+                    <>
+                      , <span className="text-white">{displayName}</span>
+                    </>
+                  ) : null}
+                </span>
+              </h2>
+              <p className="mt-2 font-body text-xs text-slate-400">
+                {displayName
+                  ? "Here’s what’s happening with your server today."
+                  : "Here’s what’s happening with your server today — you’re viewing demo data."}
+              </p>
+            </div>
+            <span className="chip chip-green">
+              <span className="status-dot status-dot-online animate-pulse-dot h-1.5 w-1.5" />
+              All servers · Last 7 days
+            </span>
+          </motion.div>
 
-      {/* Row 2 — Activity + Health */}
-      <motion.div variants={rise} className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-        <div className="lg:col-span-8">
-          <ActivityChart timeframe={timeframe} setTimeframe={setTimeframe} />
-        </div>
-        <div className="lg:col-span-4">
-          <HealthCard />
-        </div>
-      </motion.div>
+          {/* KPI row */}
+          <motion.div variants={stagger} className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {metrics.map((m, i) => (
+              <KpiTile key={m.label} m={m} index={i} />
+            ))}
+          </motion.div>
 
-      {/* Row 3 — Recent Activity + Top Commands */}
-      <motion.div variants={rise} className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-        <div className="lg:col-span-6">
-          <RecentActivityCard onNavigate={onNavigate} />
-        </div>
-        <div className="lg:col-span-6">
-          <TopCommandsCard onNavigate={onNavigate} />
-        </div>
-      </motion.div>
+          {/* Secondary pulse row */}
+          <motion.div variants={stagger} className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            {PULSE.map((p) => (
+              <PulseTile key={p.label} p={p} />
+            ))}
+          </motion.div>
 
-      {/* Row 4 — Nitro Boost + Quick Actions */}
-      <motion.div variants={rise} className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-        <div className="lg:col-span-6">
-          <NitroBoostCard />
-        </div>
-        <div className="lg:col-span-6">
-          <QuickActionsCard
-            onNavigate={onNavigate}
-            onAction={(a) => setModalAction({ title: a.label, type: a.modal })}
-          />
-        </div>
-      </motion.div>
+          {/* Chart + donut */}
+          <motion.div variants={rise} className="grid grid-cols-1 gap-5 lg:grid-cols-12">
+            <div className="lg:col-span-8">
+              <ActivityChart timeframe={timeframe} setTimeframe={setTimeframe} />
+            </div>
+            <div className="lg:col-span-4">
+              <HealthCard />
+            </div>
+          </motion.div>
 
-      {/* Row 5 — Server Pulse */}
-      <motion.div variants={rise}>
-        <PulseStrip />
+          {/* Bottom row */}
+          <motion.div variants={rise} className="grid grid-cols-1 gap-5 lg:grid-cols-12">
+            <div className="lg:col-span-4">
+              <TopCommandsCard onNavigate={onNavigate} />
+            </div>
+            <div className="lg:col-span-4">
+              <RecentEventsCard onNavigate={onNavigate} />
+            </div>
+            <div className="lg:col-span-4">
+              <ServerGrowthCard />
+            </div>
+          </motion.div>
+        </motion.div>
+
+        {/* ── Right rail ──────────────────────────────────────────── */}
+        <motion.aside variants={rise} className="flex min-w-0 flex-col gap-5 xl:col-span-3">
+          <motion.div variants={rise}>
+            <BotProfileCard metrics={metrics} />
+          </motion.div>
+
+          <motion.div variants={rise}>
+            <QuickActionsCard
+              onNavigate={onNavigate}
+              onAction={(a) => setModalAction({ title: a.label, type: a.modal })}
+            />
+          </motion.div>
+
+          <motion.div variants={rise}>
+            <RailActivityCard onNavigate={onNavigate} />
+          </motion.div>
+
+          <motion.div variants={rise}>
+            <PromoCard onNavigate={onNavigate} />
+          </motion.div>
+        </motion.aside>
       </motion.div>
 
       {/* Quick action modal */}

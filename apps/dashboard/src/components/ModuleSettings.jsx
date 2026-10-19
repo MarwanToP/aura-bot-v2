@@ -36,14 +36,43 @@ const prettifyKey = (k) => k.replace(/([A-Z])/g, " $1").replace(/^./, (c) => c.t
 
 const formatValue = (v) => (typeof v === "boolean" ? (v ? "On" : "Off") : String(v));
 
+/* module accent → icon-tile tone (keeps the colour identity of every module) */
+const TONE_BY_COLOR = {
+  "#F87171": "icon-tile-red",
+  "#FBBF24": "icon-tile-amber",
+  "#7C5CFF": "icon-tile-violet",
+  "#34D399": "icon-tile-green",
+  "#4C7DFF": "icon-tile-blue",
+  "#22D3EE": "icon-tile-cyan",
+  "#F472B6": "icon-tile-pink",
+};
+
+const toneFor = (color) => TONE_BY_COLOR[String(color).toUpperCase()] || "";
+
+/* ────────────────────────────── shared UI atoms ────────────────────────────── */
+
+function Toggle({ enabled, onChange }) {
+  return (
+    <button
+      type="button"
+      onClick={(e) => onChange(!enabled, e)}
+      aria-pressed={enabled}
+      aria-label={enabled ? "Disable" : "Enable"}
+      className={`toggle-track ${enabled ? "toggle-track-on" : ""}`}
+    >
+      <span className="toggle-thumb" />
+    </button>
+  );
+}
+
 /* ────────────────────────────── seed data ────────────────────────────── */
 
 const INITIAL_MODULES = [
-  { id: "mod", name: "Auto Moderation", desc: "Anti-spam, word filter, link detection, and a mass-mention shield for Crystal Realm.", icon: Shield, enabled: true, color: "#FF5C7A", config: { antispam: true, badwords: true, maxMentions: 5 } },
-  { id: "economy", name: "Economy & Credits", desc: "/daily rewards, work jobs, gambling games, and the server coin store.", icon: Coins, enabled: true, color: "#FFB547", config: { dailyReward: 500, jobCooldown: "1h", currencySymbol: "🪙" } },
+  { id: "mod", name: "Auto Moderation", desc: "Anti-spam, word filter, link detection, and a mass-mention shield for Crystal Realm.", icon: Shield, enabled: true, color: "#F87171", config: { antispam: true, badwords: true, maxMentions: 5 } },
+  { id: "economy", name: "Economy & Credits", desc: "/daily rewards, work jobs, gambling games, and the server coin store.", icon: Coins, enabled: true, color: "#FBBF24", config: { dailyReward: 500, jobCooldown: "1h", currencySymbol: "🪙" } },
   { id: "leveling", name: "Leveling & XP", desc: "Custom rank cards, XP multipliers, role rewards, and a web leaderboard.", icon: Sparkles, enabled: true, color: "#7C5CFF", config: { xpRate: "1.5x", announceChannel: "#bot-commands", stackRoles: true } },
-  { id: "welcome", name: "Welcome & Farewell", desc: "Greet new members with custom embed cards, auto-roles, and welcome DMs.", icon: UserCheck, enabled: true, color: "#39D98A", config: { welcomeChannel: "#general", autoRole: "@Member", sendDM: false } },
-  { id: "tickets", name: "Ticket Tool", desc: "Multi-panel ticket builder, claim system, and HTML transcripts for Support Central.", icon: Star, enabled: false, color: "#5B8CFF", config: { category: "Support Central", claimSystem: true, htmlTranscript: true } },
+  { id: "welcome", name: "Welcome & Farewell", desc: "Greet new members with custom embed cards, auto-roles, and welcome DMs.", icon: UserCheck, enabled: true, color: "#34D399", config: { welcomeChannel: "#general", autoRole: "@Member", sendDM: false } },
+  { id: "tickets", name: "Ticket Tool", desc: "Multi-panel ticket builder, claim system, and HTML transcripts for Support Central.", icon: Star, enabled: false, color: "#4C7DFF", config: { category: "Support Central", claimSystem: true, htmlTranscript: true } },
 ];
 
 /* ══════════════════════════════════ main ══════════════════════════════ */
@@ -106,9 +135,9 @@ export default function ModuleSettings({ activeGuild = "default" }) {
               initial={{ opacity: 0, y: 12, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 8, scale: 0.99 }}
-              className="fixed bottom-6 right-6 z-[90] panel px-4 py-3 flex items-center gap-2.5 text-xs font-semibold shadow-2xl shadow-black/60"
+              className="glass-dropdown pointer-events-none fixed bottom-6 right-6 z-[90] flex items-center gap-2.5 px-4 py-3 text-xs font-semibold text-white"
             >
-              <CheckCircle2 className="w-4 h-4 text-[#39D98A]" />
+              <CheckCircle2 className="h-4 w-4 text-[#34D399]" />
               <span>{toast}</span>
             </motion.div>
           )}
@@ -116,18 +145,19 @@ export default function ModuleSettings({ activeGuild = "default" }) {
 
         {/* Header */}
         <motion.div variants={rise} className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <h2 className="flex items-center gap-2.5 text-lg font-extrabold">
-              <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#7C5CFF]/25 bg-[#7C5CFF]/10 text-[#7C5CFF]">
-                <Sliders className="h-4 w-4" />
-              </span>
-              Module Control Hub
-            </h2>
-            <p className="mt-1.5 font-body text-xs text-slate-500">
-              Enable or disable core bot modules with real-time sync across shards.
-            </p>
+          <div className="flex min-w-0 items-center gap-3.5">
+            <span className="icon-tile icon-tile-violet h-9 w-9 rounded-xl">
+              <Sliders className="h-4 w-4" />
+            </span>
+            <div className="min-w-0">
+              <h2 className="card-title">Module Control Hub</h2>
+              <p className="card-sub mt-0.5">
+                Enable or disable core bot modules with real-time sync across shards.
+              </p>
+            </div>
           </div>
-          <span className="bg-[#39D98A]/10 border border-[#39D98A]/25 text-[#39D98A] text-[10px] font-bold px-2.5 py-1 rounded-full font-mono uppercase">
+          <span className="chip chip-green">
+            <span className="status-dot status-dot-online" />
             {enabledCount} / {modules.length} active
           </span>
         </motion.div>
@@ -135,15 +165,15 @@ export default function ModuleSettings({ activeGuild = "default" }) {
         {saveError && (
           <motion.div
             variants={rise}
-            className="flex items-center gap-2.5 px-4 py-3 rounded-xl bg-[#FF5C7A]/10 border border-[#FF5C7A]/25 text-[#FF5C7A] text-xs font-semibold"
+            className="flex items-center gap-2.5 rounded-xl border border-[#F87171]/30 bg-[#F87171]/[0.08] px-4 py-3 text-xs font-semibold text-[#FCA5A5]"
           >
-            <AlertTriangle className="w-4 h-4 shrink-0" />
+            <AlertTriangle className="h-4 w-4 shrink-0" />
             {saveError}
           </motion.div>
         )}
 
         {/* Modules Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           {modules.map((mod) => {
             const Icon = mod.icon;
             return (
@@ -153,62 +183,37 @@ export default function ModuleSettings({ activeGuild = "default" }) {
                 variants={rise}
                 onClick={() => setSelectedModule(mod)}
                 whileTap={{ scale: 0.98 }}
-                className={`panel panel-hover p-5 cursor-pointer relative overflow-hidden ${
-                  mod.enabled ? "" : "opacity-60 hover:opacity-100"
+                className={`glass-card glass-card-hover group relative cursor-pointer overflow-hidden p-5 ${
+                  mod.enabled ? "" : "opacity-70 hover:opacity-100"
                 }`}
               >
-                <div className="flex items-start justify-between gap-3 mb-3">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <span
-                      className="w-10 h-10 rounded-xl border flex items-center justify-center shrink-0"
-                      style={{
-                        backgroundColor: `${mod.color}1A`,
-                        borderColor: `${mod.color}40`,
-                        color: mod.color,
-                      }}
-                    >
-                      <Icon className="w-5 h-5" />
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className={`icon-tile h-10 w-10 rounded-xl ${toneFor(mod.color)}`}>
+                      <Icon className="h-5 w-5" />
                     </span>
                     <div className="min-w-0">
-                      <h3 className="text-sm font-extrabold text-white truncate">{mod.name}</h3>
-                      <span
-                        className={`inline-flex mt-1 text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                          mod.enabled
-                            ? "bg-[#39D98A]/10 border-[#39D98A]/25 text-[#39D98A]"
-                            : "bg-white/[0.03] border-white/[0.08] text-slate-500"
-                        }`}
-                      >
-                        {mod.enabled ? "ENABLED" : "DISABLED"}
+                      <h3 className="card-title truncate text-sm">{mod.name}</h3>
+                      <span className={`chip mt-1.5 ${mod.enabled ? "chip-green" : ""}`}>
+                        {mod.enabled ? "Enabled" : "Disabled"}
                       </span>
                     </div>
                   </div>
 
                   {/* Toggle Switch */}
-                  <button
-                    type="button"
-                    onClick={(e) => toggleModule(mod.id, e)}
-                    className={`relative h-6 w-11 shrink-0 rounded-full border transition-colors cursor-pointer ${
-                      mod.enabled
-                        ? "border-[#7C5CFF]/50 bg-[#7C5CFF]/80"
-                        : "border-white/[0.08] bg-white/[0.05]"
-                    }`}
-                    aria-pressed={mod.enabled}
-                  >
-                    <motion.span
-                      layout
-                      transition={{ type: "spring", stiffness: 500, damping: 32 }}
-                      className={`absolute top-[3px] h-4 w-4 rounded-full bg-white shadow ${
-                        mod.enabled ? "left-[25px]" : "left-[3px]"
-                      }`}
-                    />
-                  </button>
+                  <Toggle
+                    enabled={mod.enabled}
+                    onChange={(_, e) => toggleModule(mod.id, e)}
+                  />
                 </div>
 
-                <p className="text-xs text-slate-400 leading-relaxed mb-4">{mod.desc}</p>
+                <p className="mt-3.5 text-[11px] leading-relaxed text-slate-400">{mod.desc}</p>
 
-                <div className="pt-3 border-t border-white/[0.06] flex items-center justify-between text-[11px] font-semibold text-slate-500 hover:text-[#7C5CFF] transition-colors">
+                <div className="hairline my-4" />
+
+                <div className="flex items-center justify-between text-[11px] font-semibold text-slate-500 transition-colors group-hover:text-[#A9C2FF]">
                   <span>Configure module</span>
-                  <ArrowRight className="w-4 h-4" />
+                  <ArrowRight className="h-3.5 w-3.5" />
                 </div>
               </motion.div>
             );
@@ -218,7 +223,7 @@ export default function ModuleSettings({ activeGuild = "default" }) {
         {/* Modal */}
         <AnimatePresence>
           {selectedModule && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+            <div className="modal-scrim fixed inset-0 z-50 flex items-center justify-center p-4">
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -229,34 +234,27 @@ export default function ModuleSettings({ activeGuild = "default" }) {
 
               <motion.div
                 layoutId={`card-${selectedModule.id}`}
-                className="relative w-full max-w-xl panel p-6 z-10 space-y-5 overflow-hidden"
+                className="modal-surface relative z-10 w-full max-w-xl space-y-5 overflow-hidden p-6"
               >
                 <div className="flex items-center justify-between border-b border-white/[0.06] pb-4">
-                  <div className="flex items-center gap-3.5 min-w-0">
+                  <div className="flex min-w-0 items-center gap-3.5">
                     <span
-                      className="w-11 h-11 rounded-xl border flex items-center justify-center shrink-0"
-                      style={{
-                        backgroundColor: `${selectedModule.color}1A`,
-                        borderColor: `${selectedModule.color}40`,
-                        color: selectedModule.color,
-                      }}
+                      className={`icon-tile h-11 w-11 rounded-xl ${toneFor(selectedModule.color)}`}
                     >
-                      {React.createElement(selectedModule.icon, { className: "w-5 h-5" })}
+                      {React.createElement(selectedModule.icon, { className: "h-5 w-5" })}
                     </span>
                     <div className="min-w-0">
-                      <h3 className="text-base font-extrabold text-white truncate">
-                        {selectedModule.name}
-                      </h3>
-                      <p className="text-xs text-slate-500 mt-0.5">Module configuration</p>
+                      <h3 className="card-title truncate">{selectedModule.name}</h3>
+                      <p className="card-sub mt-0.5">Module configuration</p>
                     </div>
                   </div>
 
                   <button
                     type="button"
                     onClick={() => setSelectedModule(null)}
-                    className="p-1.5 rounded-lg text-slate-500 hover:text-white hover:bg-white/[0.04] transition-colors cursor-pointer shrink-0"
+                    className="btn-icon h-9 w-9 shrink-0 rounded-xl"
                   >
-                    <X className="w-5 h-5" />
+                    <X className="h-4 w-4" />
                   </button>
                 </div>
 
@@ -265,18 +263,18 @@ export default function ModuleSettings({ activeGuild = "default" }) {
                   {Object.entries(selectedModule.config).map(([key, val]) => (
                     <div
                       key={key}
-                      className="flex items-center justify-between gap-3 p-3 rounded-xl border border-white/[0.06] bg-white/[0.02]"
+                      className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3.5 py-2.5"
                     >
-                      <span className="text-xs text-slate-400 font-semibold">
+                      <span className="text-xs font-semibold text-slate-300">
                         {prettifyKey(key)}
                       </span>
                       <span
-                        className={`text-xs font-bold font-mono ${
+                        className={`font-mono text-xs font-bold ${
                           typeof val === "boolean"
                             ? val
-                              ? "text-[#39D98A]"
+                              ? "text-[#6EE7B7]"
                               : "text-slate-500"
-                            : "text-[#B9A6FF]"
+                            : "text-[#C4B5FD]"
                         }`}
                       >
                         {formatValue(val)}
@@ -285,11 +283,11 @@ export default function ModuleSettings({ activeGuild = "default" }) {
                   ))}
                 </div>
 
-                <div className="pt-4 border-t border-white/[0.06] flex items-center justify-end gap-2">
+                <div className="flex items-center justify-end gap-2 border-t border-white/[0.06] pt-4">
                   <button
                     type="button"
                     onClick={() => setSelectedModule(null)}
-                    className="inline-flex items-center gap-2 text-slate-400 hover:text-white hover:bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-xs transition-colors cursor-pointer"
+                    className="btn-glass"
                   >
                     Close
                   </button>
@@ -299,7 +297,7 @@ export default function ModuleSettings({ activeGuild = "default" }) {
                       showToast(`${selectedModule.name} settings saved`);
                       setSelectedModule(null);
                     }}
-                    className="inline-flex items-center gap-2 bg-[#7C5CFF] hover:bg-[#6a4cf0] text-white text-xs font-semibold rounded-lg px-3.5 py-2 transition-colors shadow-[0_0_18px_rgba(124,92,255,0.35)] cursor-pointer"
+                    className="btn-primary"
                   >
                     Save changes
                   </button>

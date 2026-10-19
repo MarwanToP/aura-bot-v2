@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { 
+import {
   Ticket, Plus, Search, Filter, ExternalLink, MessageSquare,
-  Star, FolderPlus, Layers
+  Star, FolderPlus, Layers, Inbox, CheckCircle2, Clock, FileText
 } from 'lucide-react';
 
 const INITIAL_CATEGORIES = [
@@ -41,7 +41,40 @@ const CATEGORY_COLORS = [
 
 /* shared by the demo button and the real <a> transcript link */
 const VIEW_TRANSCRIPT_CLS =
-  'px-3 py-1.5 bg-purple-600/30 hover:bg-purple-600/50 text-purple-200 border border-purple-500/40 rounded-xl text-xs font-bold transition-all cursor-pointer';
+  'btn-glass px-3 py-1.5 text-[10px] font-bold rounded-xl whitespace-nowrap';
+
+/* status → chip. open = cyan, claimed = amber, closed = green, escalated = pink. */
+const STATUS_CHIPS = {
+  open: { cls: 'chip chip-cyan', label: 'Open' },
+  claimed: { cls: 'chip chip-amber', label: 'Claimed' },
+  escalated: {
+    cls: 'chip',
+    label: 'Escalated',
+    style: {
+      color: '#F9A8D4',
+      borderColor: 'rgba(244,114,182,0.34)',
+      backgroundColor: 'rgba(244,114,182,0.12)',
+    },
+  },
+  closed: { cls: 'chip chip-green', label: 'Closed' },
+  archived: {
+    cls: 'chip',
+    label: 'Archived',
+    style: {
+      color: '#94A3B8',
+      borderColor: 'rgba(255,255,255,0.12)',
+      backgroundColor: 'rgba(255,255,255,0.04)',
+    },
+  },
+};
+
+/* priority → coloured dot + label */
+const PRIORITY_TONES = {
+  Low: { color: '#6EE7B7', bg: 'rgba(52,211,153,0.12)', border: 'rgba(52,211,153,0.32)' },
+  Medium: { color: '#FCD34D', bg: 'rgba(251,191,36,0.12)', border: 'rgba(251,191,36,0.32)' },
+  High: { color: '#FDBA74', bg: 'rgba(249,115,22,0.12)', border: 'rgba(249,115,22,0.32)' },
+  Critical: { color: '#FCA5A5', bg: 'rgba(248,113,113,0.12)', border: 'rgba(248,113,113,0.32)' },
+};
 
 function relTime(value) {
   const t = value ? new Date(value).getTime() : NaN;
@@ -153,6 +186,37 @@ function groupCategories(rows) {
   }));
 }
 
+/* ── shared glass atoms ── */
+
+function KpiTile({ icon: Icon, tone, label, value, hint, hintClass = 'text-slate-500' }) {
+  return (
+    <div className="kpi-tile flex flex-col justify-between gap-3">
+      <div className="flex items-start justify-between gap-3">
+        <span className="kpi-label">{label}</span>
+        <span className={`icon-tile icon-tile-${tone}`}>
+          <Icon className="h-4 w-4" />
+        </span>
+      </div>
+      <div>
+        <div className="kpi-value">{value}</div>
+        <div className={`mt-1.5 text-[11px] font-semibold ${hintClass}`}>{hint}</div>
+      </div>
+    </div>
+  );
+}
+
+function EmptyState({ icon: Icon, title, body }) {
+  return (
+    <div className="empty-state">
+      <span className="empty-state-icon">
+        <Icon className="h-5 w-5" />
+      </span>
+      <p className="empty-state-title">{title}</p>
+      {body ? <p className="max-w-md text-[11px] text-slate-500">{body}</p> : null}
+    </div>
+  );
+}
+
 export default function TicketsCanvas({ guildId }) {
   const [categories, setCategories] = useState(INITIAL_CATEGORIES);
   const [tickets, setTickets] = useState(INITIAL_TICKETS);
@@ -236,6 +300,13 @@ export default function TicketsCanvas({ guildId }) {
     ? Math.max(0, stats.total - stats.closed)
     : tickets.filter((t) => t.status !== 'closed').length;
 
+  const openCount = liveTickets && stats
+    ? stats.open
+    : tickets.filter((t) => t.status === 'open').length;
+  const closedCount = liveTickets && stats
+    ? stats.closed
+    : tickets.filter((t) => t.status === 'closed').length;
+
   const avgFirstResponseMins = liveTickets ? stats.avgFirstResponseMins : null;
   const avgResponseValue = liveTickets ? fmtMins(avgFirstResponseMins) : '2.4 mins';
   const avgResponseHint = liveTickets
@@ -313,31 +384,26 @@ export default function TicketsCanvas({ guildId }) {
   };
 
   const statusBadge = (status) => {
-    switch (status) {
-      case 'open':
-        return <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/15 border border-blue-500/30 text-blue-400">Open</span>;
-      case 'claimed':
-        return <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-purple-500/15 border border-purple-500/30 text-purple-300">Claimed</span>;
-      case 'escalated':
-        return <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/15 border border-rose-500/30 text-rose-400 flex items-center gap-1">🚨 Tier Escalated</span>;
-      case 'closed':
-        return <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-zinc-700/30 border border-zinc-600 text-zinc-400">Closed</span>;
-      case 'archived':
-        return <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-zinc-800/40 border border-zinc-700 text-zinc-500">Archived</span>;
-      default:
-        return null;
-    }
+    const cfg = STATUS_CHIPS[status];
+    if (!cfg) return null;
+    return (
+      <span className={cfg.cls} style={cfg.style}>
+        {cfg.label}
+      </span>
+    );
   };
 
   const priorityBadge = (priority) => {
-    const colors = {
-      Low: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
-      Medium: 'text-amber-400 bg-amber-500/10 border-amber-500/20',
-      High: 'text-orange-400 bg-orange-500/10 border-orange-500/20',
-      Critical: 'text-rose-400 bg-rose-500/10 border-rose-500/20',
-    };
+    const tone = PRIORITY_TONES[priority] || PRIORITY_TONES.Medium;
     return (
-      <span className={`px-2 py-0.5 rounded text-[10px] font-semibold border ${colors[priority] || colors.Medium}`}>
+      <span
+        className="chip uppercase tracking-wider"
+        style={{ color: tone.color, backgroundColor: tone.bg, borderColor: tone.border }}
+      >
+        <span
+          className="h-1.5 w-1.5 shrink-0 rounded-full"
+          style={{ backgroundColor: tone.color, boxShadow: `0 0 8px ${tone.color}` }}
+        />
         {priority}
       </span>
     );
@@ -345,26 +411,27 @@ export default function TicketsCanvas({ guildId }) {
 
   return (
     <div className="space-y-6 text-white animate-fadeIn">
-      {/* Top Header & Stats Grid */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      {/* Header */}
+      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
-          <h2 className="text-2xl font-black tracking-tight flex items-center gap-2">
-            <Ticket className="w-6 h-6 text-purple-400" />
-            Support Desk & HTML Transcripts
+          <span className="section-label">Support Desk</span>
+          <h2 className="card-title mt-1.5 flex items-center gap-2.5 text-lg">
+            <span className="icon-tile icon-tile-violet h-9 w-9">
+              <Ticket className="h-4 w-4" />
+            </span>
+            Support Desk &amp; HTML Transcripts
           </h2>
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="card-sub mt-1.5 max-w-2xl">
             Manage live support tickets, custom category panels, and persistent HTML transcript archives.
           </p>
         </div>
 
         <div className="flex items-center gap-2">
-          <button 
+          <button
             onClick={() => setShowCatModal(true)}
             disabled={realMode}
             title={realMode ? readOnlyHint : undefined}
-            className={`flex items-center gap-1.5 px-3.5 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-xs font-extrabold rounded-xl shadow-lg shadow-purple-900/30 transition-all cursor-pointer${
-              realMode ? ' disabled:opacity-40 disabled:cursor-not-allowed' : ''
-            }`}
+            className="btn-primary px-3.5 py-2 text-xs disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <Plus className="w-4 h-4" />
             <span>Create Category</span>
@@ -372,74 +439,75 @@ export default function TicketsCanvas({ guildId }) {
         </div>
       </div>
 
-      {/* Metrics Row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="p-4 rounded-2xl bg-[#0b1021] border border-purple-500/20 flex flex-col justify-between">
-          <span className="text-[11px] font-semibold text-slate-400">Total Active Tickets</span>
-          <div className="text-2xl font-black text-white mt-1">
-            {activeCount}
-          </div>
-          <span className="text-[10px] text-purple-400 font-bold mt-1">
-            {liveTickets
-              ? activeCount === 0
+      {/* KPI row */}
+      <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
+        <KpiTile
+          icon={Inbox}
+          tone="cyan"
+          label="Open Tickets"
+          value={openCount}
+          hint={
+            liveTickets
+              ? openCount === 0
                 ? 'All caught up — nothing waiting'
-                : `Across ${categories.length} categor${categories.length === 1 ? 'y' : 'ies'}`
-              : 'Across 5 departments'}
-          </span>
-        </div>
-
-        <div className="p-4 rounded-2xl bg-[#0b1021] border border-amber-500/20 flex flex-col justify-between">
-          <span className="text-[11px] font-semibold text-slate-400">Avg. Response Time</span>
-          <div className="text-2xl font-black text-amber-300 mt-1">{avgResponseValue}</div>
-          <span className={`text-[10px] font-bold mt-1 ${avgResponseMuted ? 'text-slate-400' : 'text-emerald-400'}`}>
-            {avgResponseHint}
-          </span>
-        </div>
-
-        <div className="p-4 rounded-2xl bg-[#0b1021] border border-emerald-500/20 flex flex-col justify-between">
-          <span className="text-[11px] font-semibold text-slate-400">CSAT Rating</span>
-          <div className="text-2xl font-black text-emerald-400 mt-1 flex items-center gap-1">
-            {csatValue} {csatStarVisible && <Star className="w-4 h-4 fill-emerald-400 text-emerald-400" />}
-          </div>
-          <span className="text-[10px] text-slate-400 font-bold mt-1">{csatHint}</span>
-        </div>
-
-        <div className="p-4 rounded-2xl bg-[#0b1021] border border-cyan-500/20 flex flex-col justify-between">
-          <span className="text-[11px] font-semibold text-slate-400">Transcripts Saved</span>
-          <div className="text-2xl font-black text-cyan-300 mt-1">{transcriptValue}</div>
-          <span className="text-[10px] text-cyan-400 font-bold mt-1">{transcriptHint}</span>
-        </div>
+                : `${activeCount} active across ${categories.length} categor${categories.length === 1 ? 'y' : 'ies'}`
+              : `${activeCount} active across ${categories.length} departments`
+          }
+          hintClass="text-[#67E8F9]"
+        />
+        <KpiTile
+          icon={CheckCircle2}
+          tone="green"
+          label="Closed Tickets"
+          value={closedCount}
+          hint={liveTickets ? 'Resolved by staff' : 'Marked as resolved'}
+          hintClass="text-[#6EE7B7]"
+        />
+        <KpiTile
+          icon={Clock}
+          tone="amber"
+          label="Avg. Response Time"
+          value={avgResponseValue}
+          hint={avgResponseHint}
+          hintClass={avgResponseMuted ? 'text-slate-500' : 'text-[#FCD34D]'}
+        />
+        <KpiTile
+          icon={Star}
+          tone="green"
+          label="CSAT Rating"
+          value={
+            <span className="flex items-center gap-1.5">
+              {csatValue}
+              {csatStarVisible && <Star className="h-4 w-4 fill-emerald-400 text-emerald-400" />}
+            </span>
+          }
+          hint={csatHint}
+        />
       </div>
 
       {/* Tabs Navigation */}
-      <div className="flex items-center gap-2 border-b border-purple-500/20 pb-3">
+      <div className="inline-flex flex-wrap items-center gap-1.5 rounded-2xl border border-white/[0.08] bg-white/[0.03] p-1.5 backdrop-blur-xl">
         <button
           onClick={() => setActiveTab('tickets')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-            activeTab === 'tickets' ? 'bg-purple-600/30 text-purple-300 border border-purple-500/40' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
-          }`}
+          className={`seg-tab ${activeTab === 'tickets' ? 'seg-tab-active' : ''}`}
         >
-          <MessageSquare className="w-4 h-4" />
+          <MessageSquare className="h-3.5 w-3.5" />
           <span>Active Tickets ({tickets.length})</span>
         </button>
 
         <button
           onClick={() => setActiveTab('categories')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-            activeTab === 'categories' ? 'bg-purple-600/30 text-purple-300 border border-purple-500/40' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
-          }`}
+          className={`seg-tab ${activeTab === 'categories' ? 'seg-tab-active' : ''}`}
         >
-          <Layers className="w-4 h-4" />
+          <Layers className="h-3.5 w-3.5" />
           <span>Support Categories ({categories.length})</span>
         </button>
 
         <button
           onClick={() => setActiveTab('transcripts')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-            activeTab === 'transcripts' ? 'bg-purple-600/30 text-purple-300 border border-purple-500/40' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
-          }`}
+          className={`seg-tab ${activeTab === 'transcripts' ? 'seg-tab-active' : ''}`}
         >
-          <ExternalLink className="w-4 h-4" />
+          <ExternalLink className="h-3.5 w-3.5" />
           <span>Transcript Archives ({transcripts.length})</span>
         </button>
       </div>
@@ -448,24 +516,24 @@ export default function TicketsCanvas({ guildId }) {
       {activeTab === 'tickets' && (
         <div className="space-y-4">
           {/* Controls Bar */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-[#0d0b1d] p-3 rounded-2xl border border-purple-500/20">
+          <div className="glass-card flex flex-col gap-3 p-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="relative w-full sm:w-72">
-              <Search className="w-4 h-4 absolute left-3 top-2.5 text-purple-400" />
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
               <input
                 type="text"
                 placeholder="Search ticket ID, user, subject..."
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                className="w-full bg-[#110e24] border border-purple-500/20 rounded-xl pl-9 pr-3 py-1.5 text-xs text-slate-200 placeholder-zinc-500 focus:outline-none focus:border-purple-500/50"
+                className="glass-input py-2 pl-9 pr-3 text-xs"
               />
             </div>
 
             <div className="flex items-center gap-2 w-full sm:w-auto">
-              <Filter className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+              <Filter className="w-3.5 h-3.5 text-slate-500 shrink-0" />
               <select
                 value={statusFilter}
                 onChange={e => setStatusFilter(e.target.value)}
-                className="bg-[#110e24] border border-purple-500/20 rounded-xl px-3 py-1.5 text-xs text-slate-300 focus:outline-none cursor-pointer"
+                className="glass-select w-full py-2 text-xs sm:w-44"
               >
                 <option value="all">All Statuses</option>
                 <option value="open">Open</option>
@@ -479,79 +547,69 @@ export default function TicketsCanvas({ guildId }) {
           </div>
 
           {/* Tickets Table */}
-          <div className="rounded-2xl bg-[#0b1021] border border-purple-500/20 overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-[#110e24] text-slate-400 font-bold uppercase tracking-wider text-[10px] border-b border-purple-500/20">
+          <div className="glass-card overflow-hidden">
+            <div className="overflow-x-auto custom-scrollbar">
+              <table className="data-table">
+                <thead>
                   <tr>
-                    <th className="py-3 px-4">Ticket ID</th>
-                    <th className="py-3 px-4">User</th>
-                    <th className="py-3 px-4">Category</th>
-                    <th className="py-3 px-4">Priority</th>
-                    <th className="py-3 px-4">Status</th>
-                    <th className="py-3 px-4">Claimed By</th>
-                    <th className="py-3 px-4 text-right">Actions</th>
+                    <th>Ticket ID</th>
+                    <th>User</th>
+                    <th>Category</th>
+                    <th>Priority</th>
+                    <th>Status</th>
+                    <th>Claimed By</th>
+                    <th className="text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-purple-500/10">
+                <tbody>
                   {filteredTickets.map(ticket => (
-                    <tr key={ticket.id} className="hover:bg-purple-600/5 transition-colors">
-                      <td className="py-3 px-4 font-mono font-bold text-purple-300">
+                    <tr key={ticket.id} className="data-row">
+                      <td className="font-mono font-bold text-[#A9C2FF] whitespace-nowrap">
                         {ticket.id}
                       </td>
-                      <td className="py-3 px-4 font-semibold text-slate-200">
-                        {ticket.userId ? (
-                          <div className="flex items-center gap-2.5 min-w-0">
+                      <td>
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <span className="avatar-ring inline-flex shrink-0">
                             <span
-                              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white"
+                              className="flex h-7 w-7 items-center justify-center rounded-full text-[10px] font-bold text-white"
                               style={{
-                                background: `linear-gradient(135deg, hsl(${(hashHue(ticket.userId || '?') % 360)} 70% 55%), hsl(${(hashHue(ticket.userId || '?') + 40) % 360} 70% 45%))`,
+                                background: `linear-gradient(135deg, hsl(${(hashHue(ticket.userId || ticket.user || '?') % 360)} 70% 55%), hsl(${(hashHue(ticket.userId || ticket.user || '?') + 40) % 360} 70% 45%))`,
                               }}
                               aria-hidden="true"
                             >
-                              {initialsOf(ticket.userName, ticket.userId)}
+                              {initialsOf(ticket.userName || ticket.user, ticket.userId)}
                             </span>
-                            <div className="min-w-0">
-                              <div
-                                className={`truncate ${
-                                  ticket.user ? '' : 'font-mono text-slate-500'
-                                }`}
-                              >
-                                {ticket.user || shortUserId(ticket.userId)}
-                              </div>
-                              {ticket.subject ? (
-                                <div className="truncate text-[10px] font-normal text-slate-500">
-                                  {ticket.subject}
-                                </div>
-                              ) : null}
+                          </span>
+                          <div className="min-w-0">
+                            <div
+                              className={`truncate font-semibold text-slate-100 ${
+                                ticket.user ? '' : 'font-mono text-slate-500'
+                              }`}
+                            >
+                              {ticket.user || shortUserId(ticket.userId)}
                             </div>
+                            {ticket.subject ? (
+                              <div className="truncate text-[10px] font-normal text-slate-500">
+                                {ticket.subject}
+                              </div>
+                            ) : null}
                           </div>
-                        ) : (
-                          ticket.user || <span className="text-zinc-600 italic">—</span>
-                        )}
+                        </div>
                       </td>
-                      <td className="py-3 px-4 text-slate-400">
-                        {ticket.category}
+                      <td className="text-slate-400">{ticket.category}</td>
+                      <td>{priorityBadge(ticket.priority)}</td>
+                      <td>{statusBadge(ticket.status)}</td>
+                      <td className="text-slate-400">
+                        {ticket.claimedBy || <span className="text-slate-600 italic">Unclaimed</span>}
                       </td>
-                      <td className="py-3 px-4">
-                        {priorityBadge(ticket.priority)}
-                      </td>
-                      <td className="py-3 px-4">
-                        {statusBadge(ticket.status)}
-                      </td>
-                      <td className="py-3 px-4 text-slate-400">
-                        {ticket.claimedBy || <span className="text-zinc-600 italic">Unclaimed</span>}
-                      </td>
-                      <td className="py-3 px-4 text-right">
+                      <td className="text-right">
                         <div className="flex items-center justify-end gap-1.5">
                           {ticket.status === 'open' && (
                             <button
                               onClick={() => handleClaim(ticket.id)}
                               disabled={realMode}
                               title={realMode ? readOnlyHint : undefined}
-                              className={`px-2.5 py-1 bg-purple-600/20 hover:bg-purple-600/40 text-purple-300 border border-purple-500/30 rounded-lg text-[10px] font-bold transition-all cursor-pointer${
-                                realMode ? ' disabled:opacity-40 disabled:cursor-not-allowed' : ''
-                              }`}
+                              className="btn-glass px-2.5 py-1 text-[10px] font-bold rounded-xl text-[#A9C2FF] disabled:opacity-40 disabled:cursor-not-allowed"
                             >
                               Claim
                             </button>
@@ -562,9 +620,7 @@ export default function TicketsCanvas({ guildId }) {
                                 onClick={() => handleEscalate(ticket.id)}
                                 disabled={realMode}
                                 title={realMode ? readOnlyHint : undefined}
-                                className={`px-2.5 py-1 bg-amber-600/20 hover:bg-amber-600/40 text-amber-300 border border-amber-500/30 rounded-lg text-[10px] font-bold transition-all cursor-pointer${
-                                  realMode ? ' disabled:opacity-40 disabled:cursor-not-allowed' : ''
-                                }`}
+                                className="btn-glass px-2.5 py-1 text-[10px] font-bold rounded-xl text-[#FCD34D] disabled:opacity-40 disabled:cursor-not-allowed"
                               >
                                 Escalate
                               </button>
@@ -572,9 +628,7 @@ export default function TicketsCanvas({ guildId }) {
                                 onClick={() => handleClose(ticket.id)}
                                 disabled={realMode}
                                 title={realMode ? readOnlyHint : undefined}
-                                className={`px-2.5 py-1 bg-rose-600/20 hover:bg-rose-600/40 text-rose-300 border border-rose-500/30 rounded-lg text-[10px] font-bold transition-all cursor-pointer${
-                                  realMode ? ' disabled:opacity-40 disabled:cursor-not-allowed' : ''
-                                }`}
+                                className="btn-glass px-2.5 py-1 text-[10px] font-bold rounded-xl text-[#FCA5A5] disabled:opacity-40 disabled:cursor-not-allowed"
                               >
                                 Close
                               </button>
@@ -586,15 +640,16 @@ export default function TicketsCanvas({ guildId }) {
                   ))}
                   {filteredTickets.length === 0 && (
                     <tr>
-                      <td colSpan={7} className="py-10 px-4 text-center">
-                        <p className="text-xs font-semibold text-slate-400">
-                          {tickets.length === 0 ? 'No tickets yet' : 'No tickets match your filters'}
-                        </p>
-                        <p className="text-[10px] text-slate-500 mt-1">
-                          {tickets.length === 0
-                            ? 'New support requests will appear here as members open tickets.'
-                            : 'Try a different search or status filter.'}
-                        </p>
+                      <td colSpan={7} className="px-4 py-4">
+                        <EmptyState
+                          icon={Inbox}
+                          title={tickets.length === 0 ? 'No tickets yet' : 'No tickets match your filters'}
+                          body={
+                            tickets.length === 0
+                              ? 'New support requests will appear here as members open tickets.'
+                              : 'Try a different search or status filter.'
+                          }
+                        />
                       </td>
                     </tr>
                   )}
@@ -608,26 +663,30 @@ export default function TicketsCanvas({ guildId }) {
       {/* TAB 2: CATEGORIES VIEW */}
       {activeTab === 'categories' && (
         categories.length === 0 ? (
-          <div className="p-10 rounded-2xl bg-[#0b1021] border border-purple-500/20 flex flex-col items-center text-center gap-2">
-            <FolderPlus className="w-6 h-6 text-purple-400" />
-            <p className="text-sm font-bold text-slate-300">No ticket categories yet</p>
-            <p className="text-[11px] text-slate-500">Categories build up here as members open tickets.</p>
+          <div className="glass-card">
+            <EmptyState
+              icon={FolderPlus}
+              title="No ticket categories yet"
+              body="Categories build up here as members open tickets."
+            />
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
             {categories.map(cat => (
-              <div key={cat.id} className="p-5 rounded-2xl bg-[#0b1021] border border-purple-500/20 relative overflow-hidden group hover:border-purple-500/40 transition-all">
-                <div className="flex items-center justify-between">
-                  <span className="text-2xl">{cat.emoji}</span>
-                  <span className="text-[10px] font-bold bg-purple-500/10 border border-purple-500/30 text-purple-300 px-2 py-0.5 rounded-full">
+              <div key={cat.id} className="glass-card glass-card-hover p-5">
+                <div className="flex items-start justify-between gap-3">
+                  <span className={`icon-tile bg-gradient-to-br ${cat.color} border-white/10`}>
+                    <span className="text-lg leading-none" aria-hidden="true">{cat.emoji}</span>
+                  </span>
+                  <span className="chip chip-violet">
                     {cat.activeTickets} active tickets
                   </span>
                 </div>
-                <h3 className="font-extrabold text-base text-white mt-3">{cat.name}</h3>
+                <h3 className="card-title mt-4">{cat.name}</h3>
                 {cat.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 mt-3">
+                  <div className="mt-3 flex flex-wrap gap-1.5">
                     {cat.tags.map(t => (
-                      <span key={t} className="text-[9px] font-mono bg-zinc-800/60 text-zinc-400 px-2 py-0.5 rounded">
+                      <span key={t} className="chip chip-cyan font-mono">
                         #{t}
                       </span>
                     ))}
@@ -641,49 +700,58 @@ export default function TicketsCanvas({ guildId }) {
 
       {/* TAB 3: TRANSCRIPTS VIEW */}
       {activeTab === 'transcripts' && (
-        <div className="rounded-2xl bg-[#0b1021] border border-purple-500/20 overflow-hidden">
-          <div className="p-4 bg-[#110e24] border-b border-purple-500/20 flex items-center justify-between">
-            <h3 className="font-bold text-sm">HTML Transcript Archives</h3>
-            <span className="text-[10px] text-zinc-400 font-mono">Stored in S3 / Local Storage</span>
+        <div className="glass-card overflow-hidden">
+          <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3.5">
+            <div>
+              <span className="section-label">Archive</span>
+              <h3 className="card-title mt-1">HTML Transcript Archives</h3>
+              <p className="card-sub mt-1">{transcriptHint}</p>
+            </div>
+            <span className="chip chip-cyan">{transcriptValue} saved</span>
           </div>
           {transcripts.length === 0 ? (
-            <div className="p-10 flex flex-col items-center text-center gap-2">
-              <ExternalLink className="w-6 h-6 text-purple-400" />
-              <p className="text-sm font-bold text-slate-300">No transcript archives yet</p>
-              <p className="text-[11px] text-slate-500">Transcripts appear here once closed tickets include a saved link.</p>
+            <div className="px-4 pb-4">
+              <EmptyState
+                icon={FileText}
+                title="No transcript archives yet"
+                body="Transcripts appear here once closed tickets include a saved link."
+              />
             </div>
           ) : (
-            <div className="divide-y divide-purple-500/10">
-              {transcripts.map(tr => (
-                <div key={tr.id} className="p-4 flex items-center justify-between hover:bg-purple-600/5 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-xl bg-purple-500/10 border border-purple-500/30 text-purple-400">
-                      <ExternalLink className="w-4 h-4" />
+            <div className="px-2 pb-2">
+              {transcripts.map((tr, i) => (
+                <React.Fragment key={tr.id}>
+                  {i > 0 && <div className="hairline" />}
+                  <div className="flex items-center justify-between gap-3 px-2 py-3 transition-colors hover:bg-white/[0.03]">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <span className="icon-tile icon-tile-violet h-9 w-9">
+                        <ExternalLink className="h-4 w-4" />
+                      </span>
+                      <div className="min-w-0">
+                        <h4 className="truncate text-xs font-bold text-white">{tr.title}</h4>
+                        <p className="mt-0.5 truncate text-[10px] text-slate-400">
+                          User: <span className="text-[#A9C2FF] font-semibold">{tr.user}</span> · {tr.category} · {tr.date}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <h4 className="font-bold text-xs text-white">{tr.title}</h4>
-                      <p className="text-[10px] text-slate-400 mt-0.5">
-                        User: <span className="text-purple-300 font-semibold">{tr.user}</span> • {tr.category} • {tr.date}
-                      </p>
-                    </div>
-                  </div>
 
-                  <div className="flex items-center gap-3">
-                    {tr.size ? <span className="text-[10px] font-mono text-zinc-500">{tr.size}</span> : null}
-                    {tr.url ? (
-                      <a
-                        href={tr.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className={VIEW_TRANSCRIPT_CLS}
-                      >
-                        View Transcript
-                      </a>
-                    ) : (
-                      <button className={VIEW_TRANSCRIPT_CLS}>View Transcript</button>
-                    )}
+                    <div className="flex shrink-0 items-center gap-3">
+                      {tr.size ? <span className="text-[10px] font-mono text-slate-500">{tr.size}</span> : null}
+                      {tr.url ? (
+                        <a
+                          href={tr.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={VIEW_TRANSCRIPT_CLS}
+                        >
+                          View Transcript
+                        </a>
+                      ) : (
+                        <button className={VIEW_TRANSCRIPT_CLS}>View Transcript</button>
+                      )}
+                    </div>
                   </div>
-                </div>
+                </React.Fragment>
               ))}
             </div>
           )}
@@ -692,31 +760,32 @@ export default function TicketsCanvas({ guildId }) {
 
       {/* CREATE CATEGORY MODAL */}
       {showCatModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-fadeIn">
-          <div className="w-full max-w-md bg-[#0c1229] border border-purple-500/30 rounded-2xl p-6 shadow-2xl space-y-4">
-            <h3 className="text-lg font-black text-white">Create Ticket Category</h3>
+        <div className="modal-scrim fixed inset-0 z-50 flex items-center justify-center p-4 animate-fadeIn">
+          <div className="modal-surface w-full max-w-md p-6">
+            <span className="section-label">New Category</span>
+            <h3 className="card-title mt-1.5 text-lg">Create Ticket Category</h3>
 
-            <form onSubmit={handleAddCategory} className="space-y-4">
+            <form onSubmit={handleAddCategory} className="mt-5 space-y-4">
               <div>
-                <label className="text-xs font-bold text-slate-400 block mb-1">Category Name</label>
+                <label className="micro-label block">Category Name</label>
                 <input
                   type="text"
                   placeholder="e.g. VIP Support, Ban Appeals"
                   value={newCatName}
                   onChange={e => setNewCatName(e.target.value)}
-                  className="w-full bg-[#110e24] border border-purple-500/20 rounded-xl px-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-purple-500/50"
+                  className="glass-input mt-1.5 text-xs"
                   required
                 />
               </div>
 
               <div>
-                <label className="text-xs font-bold text-slate-400 block mb-1">Emoji</label>
+                <label className="micro-label block">Emoji</label>
                 <input
                   type="text"
                   placeholder="e.g. 🎫, 🔧, 💳"
                   value={newCatEmoji}
                   onChange={e => setNewCatEmoji(e.target.value)}
-                  className="w-full bg-[#110e24] border border-purple-500/20 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-purple-500/50"
+                  className="glass-input mt-1.5 text-xs"
                 />
               </div>
 
@@ -724,13 +793,13 @@ export default function TicketsCanvas({ guildId }) {
                 <button
                   type="button"
                   onClick={() => setShowCatModal(false)}
-                  className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-xs font-bold text-slate-300 rounded-xl transition-all cursor-pointer"
+                  className="btn-glass"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-xs font-bold text-white rounded-xl shadow-md transition-all cursor-pointer"
+                  className="btn-primary"
                 >
                   Create
                 </button>

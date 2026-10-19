@@ -25,18 +25,11 @@ function Toggle({ enabled, onChange }) {
     <button
       type="button"
       onClick={() => onChange(!enabled)}
-      className={`relative h-6 w-11 shrink-0 rounded-full border transition-colors cursor-pointer ${
-        enabled ? "border-[#7C5CFF]/50 bg-[#7C5CFF]/80" : "border-white/[0.08] bg-white/[0.05]"
-      }`}
       aria-pressed={enabled}
+      aria-label={enabled ? "Disable" : "Enable"}
+      className={`toggle-track ${enabled ? "toggle-track-on" : ""}`}
     >
-      <motion.span
-        layout
-        transition={{ type: "spring", stiffness: 500, damping: 32 }}
-        className={`absolute top-[3px] h-4 w-4 rounded-full bg-white shadow ${
-          enabled ? "left-[25px]" : "left-[3px]"
-        }`}
-      />
+      <span className="toggle-thumb" />
     </button>
   );
 }
@@ -97,8 +90,8 @@ export default function CommandSettings({ guildId = "1" }) {
 
   if (loading)
     return (
-      <div className="flex items-center gap-2.5 text-xs font-mono text-slate-500">
-        <span className="w-1.5 h-1.5 rounded-full bg-[#7C5CFF] animate-pulse-dot" />
+      <div className="glass-card flex items-center gap-2.5 px-4 py-3 text-xs font-semibold text-slate-400">
+        <span className="h-1.5 w-1.5 rounded-full bg-[#4C7DFF] animate-pulse-dot" />
         Loading command controls…
       </div>
     );
@@ -112,9 +105,9 @@ export default function CommandSettings({ guildId = "1" }) {
             initial={{ opacity: 0, y: 12, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 8, scale: 0.99 }}
-            className="fixed bottom-6 right-6 z-[90] panel px-4 py-3 flex items-center gap-2.5 text-xs font-semibold shadow-2xl shadow-black/60"
+            className="glass-dropdown pointer-events-none fixed bottom-6 right-6 z-[90] flex items-center gap-2.5 px-4 py-3 text-xs font-semibold text-white"
           >
-            <CheckCircle2 className="w-4 h-4 text-[#39D98A]" />
+            <CheckCircle2 className="h-4 w-4 text-[#34D399]" />
             <span>{toast}</span>
           </motion.div>
         )}
@@ -122,95 +115,90 @@ export default function CommandSettings({ guildId = "1" }) {
 
       {/* Header */}
       <motion.div variants={rise} className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h2 className="flex items-center gap-2.5 text-lg font-extrabold">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#7C5CFF]/25 bg-[#7C5CFF]/10 text-[#7C5CFF]">
-              <Terminal className="h-4 w-4" />
-            </span>
-            Slash Command Restrictions & Control
-          </h2>
-          <p className="mt-1.5 font-body text-xs text-slate-500">
-            Enable or disable individual slash commands and configure granular role access.
-          </p>
+        <div className="flex min-w-0 items-center gap-3.5">
+          <span className="icon-tile icon-tile-blue h-9 w-9 rounded-xl">
+            <Terminal className="h-4 w-4" />
+          </span>
+          <div className="min-w-0">
+            <h2 className="card-title">Slash Command Restrictions</h2>
+            <p className="card-sub mt-0.5">
+              Enable or disable individual slash commands and configure granular role access.
+            </p>
+          </div>
         </div>
-        <span className="bg-[#7C5CFF]/10 border border-[#7C5CFF]/25 text-[#7C5CFF] text-[10px] font-bold px-2.5 py-1 rounded-full font-mono uppercase">
-          {commands.length} commands registered
-        </span>
+        <span className="chip chip-violet">{commands.length} commands registered</span>
       </motion.div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+      {/* Command list */}
+      <motion.div
+        variants={rise}
+        className="glass-card divide-y divide-white/[0.05] overflow-hidden p-1.5"
+      >
         {commands.map((cmd) => {
           const setting = settingsMap[cmd.name] || { enabled: true };
           return (
             <motion.div
               key={cmd.name}
               variants={rise}
-              className={`panel panel-hover relative overflow-hidden p-5 flex flex-col ${
-                setting.enabled ? "" : "opacity-60"
+              className={`list-row flex-wrap gap-3 px-3.5 py-3 ${
+                setting.enabled ? "" : "opacity-70"
               }`}
             >
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0 flex-1">
+              <div className="flex min-w-0 flex-1 items-center gap-3.5">
+                <span className="icon-tile icon-tile-violet h-9 w-9 rounded-xl">
+                  <Terminal className="h-4 w-4" />
+                </span>
+                <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-mono text-xs font-extrabold text-[#B9A6FF]">
+                    <span className="font-mono text-xs font-extrabold text-white">
                       /{cmd.name}
                     </span>
-                    <span
-                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                        setting.enabled
-                          ? "bg-[#39D98A]/10 border-[#39D98A]/25 text-[#39D98A]"
-                          : "bg-white/[0.03] border-white/[0.08] text-slate-500"
-                      }`}
-                    >
-                      {setting.enabled ? "ENABLED" : "DISABLED"}
-                    </span>
+                    {cmd.category && <span className="chip chip-violet">{cmd.category}</span>}
+                    {!setting.enabled && <span className="chip">Paused</span>}
                   </div>
-                  <p className="mt-1.5 text-xs font-bold text-white">{cmd.description || cmd.name}</p>
-                  <p className="text-[10px] text-slate-500 mt-0.5">{cmd.category}</p>
+                  <p className="mt-1 truncate text-[11px] text-slate-400">
+                    {cmd.description || cmd.name}
+                  </p>
                 </div>
-
-                <Toggle
-                  enabled={setting.enabled}
-                  onChange={() => toggleCommand(cmd.name, setting.enabled)}
-                />
               </div>
 
-              <div className="mt-4 pt-3 border-t border-white/[0.06]">
-                <button
-                  type="button"
-                  onClick={() => setSelectedCmd(cmd)}
-                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-500 hover:text-[#7C5CFF] transition-colors cursor-pointer"
-                >
-                  <Shield className="w-3 h-3" />
-                  Edit role restrictions
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedCmd(cmd)}
+                className="btn-ghost shrink-0 text-[11px]"
+              >
+                <Shield className="h-3.5 w-3.5" />
+                Roles
+              </button>
+
+              <Toggle
+                enabled={setting.enabled}
+                onChange={() => toggleCommand(cmd.name, setting.enabled)}
+              />
             </motion.div>
           );
         })}
-      </div>
+      </motion.div>
 
       {/* Role Restrictions Modal */}
       <AnimatePresence>
         {selectedCmd && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="modal-scrim fixed inset-0 z-50 flex items-center justify-center p-4">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
               transition={{ duration: 0.2, ease: EASE }}
-              className="relative w-full max-w-md panel p-6 z-10 space-y-5"
+              className="modal-surface relative z-10 w-full max-w-md space-y-5 p-6"
             >
               <div className="flex items-center justify-between border-b border-white/[0.06] pb-3">
                 <div className="flex items-center gap-3">
-                  <span className="w-9 h-9 rounded-xl bg-[#7C5CFF]/10 border border-[#7C5CFF]/25 flex items-center justify-center text-[#7C5CFF] shrink-0">
-                    <Shield className="w-4 h-4" />
+                  <span className="icon-tile icon-tile-violet h-9 w-9 rounded-xl">
+                    <Shield className="h-4 w-4" />
                   </span>
                   <div>
-                    <h3 className="text-sm font-extrabold text-white">
-                      /{selectedCmd.name} restrictions
-                    </h3>
-                    <p className="text-[11px] text-slate-500 mt-0.5">
+                    <h3 className="card-title">/{selectedCmd.name} restrictions</h3>
+                    <p className="card-sub mt-0.5">
                       Configure role permissions for this command.
                     </p>
                   </div>
@@ -218,9 +206,9 @@ export default function CommandSettings({ guildId = "1" }) {
                 <button
                   type="button"
                   onClick={() => setSelectedCmd(null)}
-                  className="p-1.5 rounded-lg text-slate-500 hover:text-white hover:bg-white/[0.04] transition-colors cursor-pointer"
+                  className="btn-icon h-9 w-9 shrink-0 rounded-xl"
                 >
-                  <X className="w-4 h-4" />
+                  <X className="h-4 w-4" />
                 </button>
               </div>
 
@@ -232,21 +220,21 @@ export default function CommandSettings({ guildId = "1" }) {
                       <div
                         key={role}
                         onClick={() => toggleRole(role)}
-                        className={`flex items-center justify-between p-3 rounded-xl border text-xs font-medium cursor-pointer transition-colors ${
+                        className={`flex cursor-pointer items-center justify-between rounded-xl border px-3.5 py-2.5 text-xs font-medium transition-colors ${
                           isChecked
-                            ? "border-[#7C5CFF]/30 bg-[#7C5CFF]/10 text-white"
-                            : "border-white/[0.06] bg-white/[0.02] text-slate-400 hover:border-white/[0.12]"
+                            ? "border-[#4C7DFF]/40 bg-[#4C7DFF]/[0.12] text-white"
+                            : "border-white/[0.06] bg-white/[0.02] text-slate-400 hover:border-white/[0.14]"
                         }`}
                       >
                         <span>{role}</span>
                         <div
-                          className={`w-5 h-5 rounded-md flex items-center justify-center border ${
+                          className={`flex h-5 w-5 items-center justify-center rounded-md border ${
                             isChecked
-                              ? "bg-[#7C5CFF] border-[#7C5CFF] text-white"
+                              ? "border-[#4C7DFF] bg-[#4C7DFF] text-white"
                               : "border-white/[0.12]"
                           }`}
                         >
-                          {isChecked && <Check className="w-3.5 h-3.5" />}
+                          {isChecked && <Check className="h-3.5 w-3.5" />}
                         </div>
                       </div>
                     );
@@ -254,14 +242,14 @@ export default function CommandSettings({ guildId = "1" }) {
                 )}
               </div>
 
-              <div className="pt-3 border-t border-white/[0.06] flex justify-end">
+              <div className="flex justify-end border-t border-white/[0.06] pt-4">
                 <button
                   type="button"
                   onClick={() => {
                     showToast(`Role restrictions saved for /${selectedCmd.name}`);
                     setSelectedCmd(null);
                   }}
-                  className="bg-[#7C5CFF] hover:bg-[#6a4cf0] text-white text-xs font-semibold rounded-lg px-3.5 py-2 transition-colors shadow-[0_0_18px_rgba(124,92,255,0.35)] cursor-pointer"
+                  className="btn-primary"
                 >
                   Save permissions
                 </button>

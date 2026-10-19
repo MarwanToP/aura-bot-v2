@@ -20,13 +20,9 @@ const rise = {
 
 /* ────────────────────────────── shared styles ────────────────────────────── */
 
-const inputCls =
-  "w-full bg-white/[0.03] border border-white/[0.08] rounded-lg px-3 py-2 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-[#7C5CFF]/50 transition-colors";
+const inputCls = "glass-input";
 
-const selectCls = `${inputCls} cursor-pointer [&>option]:bg-[#12141B]`;
-
-const btnPrimary =
-  "inline-flex items-center gap-2 bg-[#7C5CFF] hover:bg-[#6a4cf0] text-white text-xs font-semibold rounded-lg px-3.5 py-2 transition-colors shadow-[0_0_18px_rgba(124,92,255,0.35)] cursor-pointer";
+const selectCls = "glass-select";
 
 /* ────────────────────────────── world data ────────────────────────────── */
 
@@ -71,9 +67,9 @@ export default function ServerSettings({ guilds = [] }) {
             initial={{ opacity: 0, y: 12, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 8, scale: 0.99 }}
-            className="panel fixed bottom-6 right-6 z-[90] flex items-center gap-2.5 px-4 py-3 text-xs font-semibold shadow-2xl shadow-black/60"
+            className="glass-dropdown pointer-events-none fixed bottom-6 right-6 z-[90] flex items-center gap-2.5 px-4 py-3 text-xs font-semibold text-white"
           >
-            <CheckCircle2 className="h-4 w-4 text-[#39D98A]" />
+            <CheckCircle2 className="h-4 w-4 text-[#34D399]" />
             <span>{toast}</span>
           </motion.div>
         )}
@@ -81,32 +77,36 @@ export default function ServerSettings({ guilds = [] }) {
 
       {/* Header */}
       <motion.div variants={rise} className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h2 className="flex items-center gap-2.5 text-lg font-extrabold">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#7C5CFF]/25 bg-[#7C5CFF]/10 text-[#7C5CFF]">
-              <Settings className="h-4 w-4" />
-            </span>
-            Server Settings
-          </h2>
-          <p className="mt-1.5 font-body text-xs text-slate-500">
-            Global preferences applied across {guilds.length > 0 ? `the ${guilds.length} communities` : "the communities"} Aura manages — prefix, language, and timezone.
-          </p>
+        <div className="flex min-w-0 items-center gap-3.5">
+          <span className="icon-tile icon-tile-violet h-9 w-9 rounded-xl">
+            <Settings className="h-4 w-4" />
+          </span>
+          <div className="min-w-0">
+            <h2 className="card-title">Server Settings</h2>
+            <p className="card-sub mt-0.5">
+              Global preferences applied across{" "}
+              {guilds.length > 0 ? `the ${guilds.length} communities` : "the communities"} Aura
+              manages — prefix, language, and timezone.
+            </p>
+          </div>
         </div>
         <button
           type="button"
           onClick={() => showToast("Settings saved — prefix and locale updated")}
-          className={btnPrimary}
+          className="btn-primary"
         >
           <Save className="h-3.5 w-3.5" /> Save changes
         </button>
       </motion.div>
 
       {/* Panels */}
-      <motion.div variants={rise} className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-        <section className="panel panel-hover p-5">
-          <div className="flex items-center gap-2.5">
-            <Hash className="h-4 w-4 text-[#7C5CFF]" />
-            <h3 className="text-sm font-bold text-white">Bot Configuration</h3>
+      <motion.div variants={rise} className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <section className="glass-card glass-card-hover p-5">
+          <div className="flex items-center gap-3">
+            <span className="icon-tile icon-tile-violet h-8 w-8 rounded-lg">
+              <Hash className="h-4 w-4" />
+            </span>
+            <h3 className="card-title">Bot Configuration</h3>
           </div>
 
           <div className="mt-4 space-y-4">
@@ -132,10 +132,12 @@ export default function ServerSettings({ guilds = [] }) {
           </div>
         </section>
 
-        <section className="panel panel-hover p-5">
-          <div className="flex items-center gap-2.5">
-            <Globe className="h-4 w-4 text-[#7C5CFF]" />
-            <h3 className="text-sm font-bold text-white">Regional</h3>
+        <section className="glass-card glass-card-hover p-5">
+          <div className="flex items-center gap-3">
+            <span className="icon-tile icon-tile-cyan h-8 w-8 rounded-lg">
+              <Globe className="h-4 w-4" />
+            </span>
+            <h3 className="card-title">Regional</h3>
           </div>
 
           <div className="mt-4 space-y-4">
@@ -155,8 +157,10 @@ export default function ServerSettings({ guilds = [] }) {
               </select>
             </Field>
 
-            <div className="flex items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
-              <Clock className="h-4 w-4 shrink-0 text-[#7C5CFF]" />
+            <div className="flex items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3.5 py-3">
+              <span className="icon-tile icon-tile-cyan h-8 w-8 rounded-lg">
+                <Clock className="h-4 w-4" />
+              </span>
               <span className="text-xs text-slate-400">
                 Server local time:{" "}
                 <span className="font-semibold text-white">{new Date().toLocaleString()}</span>
@@ -167,9 +171,12 @@ export default function ServerSettings({ guilds = [] }) {
       </motion.div>
 
       {/* Fleet strip */}
-      <motion.div variants={rise} className="panel flex flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3">
+      <motion.div
+        variants={rise}
+        className="glass-card flex flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3"
+      >
         <span className="inline-flex items-center gap-2">
-          <span className="h-2 w-2 rounded-full bg-[#39D98A] animate-pulse-dot" />
+          <span className="status-dot status-dot-online animate-pulse-dot" />
           <span className="section-label">Aura Fleet</span>
         </span>
         <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5">
@@ -184,12 +191,12 @@ export default function ServerSettings({ guilds = [] }) {
                   className="h-4 w-4 shrink-0 rounded-full"
                 />
               ) : (
-                <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[#7C5CFF]/20 text-[9px] font-bold text-[#7C5CFF]">
+                <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[#7C5CFF]/20 text-[9px] font-bold text-[#C4B5FD]">
                   {(s.name?.[0] || "#").toUpperCase()}
                 </span>
               )}
               <span className="text-slate-400">{s.name}</span>
-              <span className="font-bold text-slate-200 font-mono tabular-nums">
+              <span className="font-mono font-bold tabular-nums text-slate-200">
                 {s.emoji
                   ? s.members
                   : typeof s.memberCount === "number"
@@ -199,11 +206,11 @@ export default function ServerSettings({ guilds = [] }) {
             </span>
           ))}
         </div>
-        <span className="ml-auto hidden text-[11px] text-slate-500 font-body md:block">
+        <span className="ml-auto hidden text-[11px] font-body text-slate-500 md:block">
           {guilds.length > 0
             ? `All ${guilds.length} server${guilds.length === 1 ? "" : "s"} `
             : "All four servers "}
-          <span className="font-semibold text-[#39D98A]">online</span>.
+          <span className="font-semibold text-[#6EE7B7]">online</span>.
         </span>
       </motion.div>
     </motion.div>

@@ -102,9 +102,6 @@ const DURATION_OPTIONS = [
   { value: 168, label: "7 Days" },
 ];
 
-const inputCls =
-  "w-full bg-white/[0.03] border border-white/[0.08] rounded-lg px-3 py-2 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-[#7C5CFF]/50 transition-colors";
-
 /* ────────────────────────────── api mapping ────────────────────────────── */
 
 const shortId = (id) => {
@@ -142,17 +139,17 @@ function mapGiveaway(g) {
 
 /* ────────────────────────────── atoms ────────────────────────────── */
 
-function StatCard({ label, value, icon: Icon, color, index }) {
+function StatCard({ label, value, icon: Icon, tone = "violet", index }) {
   const count = useCountUp(value, { duration: 700 + index * 90 });
   return (
-    <div className="panel panel-hover p-3.5">
-      <div className="flex items-center justify-between gap-2">
-        <span className="section-label">{label}</span>
-        <Icon className="h-3.5 w-3.5 shrink-0" style={{ color }} />
+    <div className="kpi-tile">
+      <div className="flex items-start justify-between gap-3">
+        <span className="kpi-label">{label}</span>
+        <span className={`icon-tile icon-tile-${tone} h-9 w-9 rounded-[12px]`}>
+          <Icon className="h-4 w-4" />
+        </span>
       </div>
-      <div className="mt-2 text-xl font-extrabold text-white tabular-nums">
-        {Math.round(count).toLocaleString("en-US")}
-      </div>
+      <div className="kpi-value mt-3">{Math.round(count).toLocaleString("en-US")}</div>
     </div>
   );
 }
@@ -260,11 +257,25 @@ export default function GiveawaySettings({ guildId }) {
 
   const timeLeft = (endsAt) => {
     const diff = new Date(endsAt).getTime() - Date.now();
+    if (!Number.isFinite(diff)) return "No end date";
     if (diff <= 0) return "Ended";
     const h = Math.floor(diff / 3600000);
     const m = Math.floor((diff % 3600000) / 60000);
     if (h >= 24) return `${Math.floor(h / 24)}d ${h % 24}h remaining`;
     return `${h}h ${m}m remaining`;
+  };
+
+  /* "Oct 21, 14:00" — only when the stored end date is a real date */
+  const endsAtLabel = (endsAt) => {
+    if (!endsAt) return null;
+    const d = new Date(endsAt);
+    if (!Number.isFinite(d.getTime())) return null;
+    return d.toLocaleString("en-US", {
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   };
 
   const activeCount = giveaways.filter((g) => g.active).length;
@@ -287,9 +298,9 @@ export default function GiveawaySettings({ guildId }) {
             initial={{ opacity: 0, y: 12, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 8, scale: 0.99 }}
-            className="fixed bottom-6 right-6 z-[90] panel px-4 py-3 flex items-center gap-2.5 text-xs font-semibold shadow-2xl shadow-black/60"
+            className="glass-dropdown fixed bottom-6 right-6 z-[90] flex items-center gap-2.5 px-4 py-3 text-xs font-semibold"
           >
-            <CheckCircle2 className="w-4 h-4 text-[#39D98A]" />
+            <CheckCircle2 className="h-4 w-4 text-[#34D399]" />
             <span>{toast}</span>
           </motion.div>
         )}
@@ -297,40 +308,36 @@ export default function GiveawaySettings({ guildId }) {
 
       {/* Header */}
       <motion.div variants={rise} className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h2 className="flex items-center gap-2.5 text-lg font-extrabold">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#7C5CFF]/25 bg-[#7C5CFF]/10 text-[#7C5CFF]">
-              <Gift className="h-4 w-4" />
-            </span>
-            Giveaways
-          </h2>
-          <p className="mt-1.5 font-body text-xs text-slate-500">
-            {guildId
-              ? "Live giveaways for this server. They are created and drawn in Discord — this list is read-only here."
-              : "Create, manage, and end giveaways directly from the dashboard — winners are drawn automatically."}
-          </p>
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="icon-tile icon-tile-violet">
+            <Gift className="h-5 w-5" />
+          </span>
+          <div className="min-w-0">
+            <h2 className="card-title text-[15px]">Giveaways</h2>
+            <p className="card-sub mt-0.5">
+              {guildId
+                ? "Live giveaways for this server. They are created and drawn in Discord — this list is read-only here."
+                : "Create, manage, and end giveaways directly from the dashboard — winners are drawn automatically."}
+            </p>
+          </div>
         </div>
         <button
           type="button"
           onClick={() => setShowCreator(!showCreator)}
           disabled={Boolean(guildId)}
           title={guildId ? "Create giveaways with /giveaway in Discord" : undefined}
-          className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-semibold transition-colors cursor-pointer ${
-            showCreator
-              ? "text-slate-400 hover:text-white hover:bg-white/[0.04] border border-white/[0.08]"
-              : "bg-[#7C5CFF] hover:bg-[#6a4cf0] text-white shadow-[0_0_18px_rgba(124,92,255,0.35)]"
-          }${guildId ? " disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none" : ""}`}
+          className={showCreator ? "btn-glass" : "btn-primary"}
         >
-          {showCreator ? <XCircle className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
+          {showCreator ? <XCircle className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
           {showCreator ? "Cancel" : "New giveaway"}
         </button>
       </motion.div>
 
       {/* Stats */}
-      <motion.div variants={rise} className="grid grid-cols-2 gap-3 md:grid-cols-3">
-        <StatCard label="Active giveaways" value={activeCount} icon={Gift} color="#7C5CFF" index={0} />
-        <StatCard label="Total entries" value={totalEntries} icon={Users} color="#5B8CFF" index={1} />
-        <StatCard label="Winners drawn" value={winnersDrawn} icon={Trophy} color="#39D98A" index={2} />
+      <motion.div variants={rise} className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <StatCard label="Active giveaways" value={activeCount} icon={Gift} tone="violet" index={0} />
+        <StatCard label="Total entries" value={totalEntries} icon={Users} tone="blue" index={1} />
+        <StatCard label="Winners drawn" value={winnersDrawn} icon={Trophy} tone="green" index={2} />
       </motion.div>
 
       {/* Creator form */}
@@ -342,21 +349,21 @@ export default function GiveawaySettings({ guildId }) {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.35, ease: EASE }}
-            className="panel p-5 space-y-5"
+            className="glass-card p-5"
           >
-            <div className="flex items-center gap-2.5">
-              <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#7C5CFF]/25 bg-[#7C5CFF]/10 text-[#7C5CFF]">
+            <div className="flex items-center gap-3">
+              <span className="icon-tile icon-tile-pink h-9 w-9 rounded-[12px]">
                 <Sparkles className="h-4 w-4" />
               </span>
-              <div>
-                <h3 className="text-sm font-extrabold text-white">New giveaway</h3>
-                <p className="text-xs text-slate-500 mt-0.5">
+              <div className="min-w-0">
+                <h3 className="card-title">New giveaway</h3>
+                <p className="card-sub mt-0.5">
                   Configure the prize and timer, then launch it in one channel.
                 </p>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
               <label className="block min-w-0">
                 <span className="section-label mb-1.5 block">Prize</span>
                 <input
@@ -364,7 +371,7 @@ export default function GiveawaySettings({ guildId }) {
                   value={prize}
                   onChange={(e) => setPrize(e.target.value)}
                   placeholder="e.g. Discord Nitro, Steam Wallet…"
-                  className={inputCls}
+                  className="glass-input"
                 />
               </label>
 
@@ -375,7 +382,7 @@ export default function GiveawaySettings({ guildId }) {
                   value={channel}
                   onChange={(e) => setChannel(e.target.value)}
                   placeholder="#announcements"
-                  className={inputCls}
+                  className="glass-input"
                 />
               </label>
 
@@ -387,7 +394,7 @@ export default function GiveawaySettings({ guildId }) {
                   max={100}
                   value={winnerCount}
                   onChange={(e) => setWinnerCount(Math.max(1, parseInt(e.target.value) || 1))}
-                  className={inputCls}
+                  className="glass-input tabular-nums"
                 />
               </label>
 
@@ -399,10 +406,8 @@ export default function GiveawaySettings({ guildId }) {
                       key={opt.value}
                       type="button"
                       onClick={() => setDuration(opt.value)}
-                      className={`rounded-lg border px-3 py-1.5 text-[10px] font-bold transition-colors cursor-pointer ${
-                        duration === opt.value
-                          ? "border-[#7C5CFF]/40 bg-[#7C5CFF]/10 text-[#B9A6FF]"
-                          : "border-white/[0.07] bg-white/[0.02] text-slate-500 hover:text-slate-300"
+                      className={`seg-tab ${
+                        duration === opt.value ? "seg-tab-active" : ""
                       }`}
                     >
                       {opt.label}
@@ -418,22 +423,20 @@ export default function GiveawaySettings({ guildId }) {
                   value={requirements}
                   onChange={(e) => setRequirements(e.target.value)}
                   placeholder="e.g. Must have been in the server for 7 days"
-                  className={inputCls}
+                  className="glass-input"
                 />
               </label>
             </div>
 
-            <div className="flex justify-end">
+            <div className="mt-5 flex justify-end">
               <button
                 type="button"
                 onClick={createGiveaway}
                 disabled={!prize.trim() || Boolean(guildId)}
                 title={guildId ? "Create giveaways with /giveaway in Discord" : undefined}
-                className={`inline-flex items-center gap-1.5 bg-[#7C5CFF] hover:bg-[#6a4cf0] text-white text-xs font-semibold rounded-lg px-3.5 py-2 transition-colors shadow-[0_0_18px_rgba(124,92,255,0.35)] cursor-pointer ${
-                  !prize.trim() || guildId ? "opacity-50" : ""
-                }`}
+                className="btn-primary"
               >
-                <Gift className="w-3.5 h-3.5" />
+                <Gift className="h-3.5 w-3.5" />
                 Launch giveaway
               </button>
             </div>
@@ -443,109 +446,108 @@ export default function GiveawaySettings({ guildId }) {
 
       {/* Giveaways list */}
       {giveaways.length === 0 ? (
-        <motion.div
-          variants={rise}
-          className="panel flex flex-col items-center justify-center gap-2 py-14 text-center"
-        >
-          <Gift className="h-8 w-8 text-slate-700" />
-          <p className="text-sm font-bold text-slate-400">No giveaways yet</p>
-          <p className="text-[11px] text-slate-600">
+        <motion.div variants={rise} className="empty-state">
+          <span className="empty-state-icon">
+            <Gift className="h-4 w-4" />
+          </span>
+          <span className="empty-state-title">No giveaways yet</span>
+          <span>
             {guildId
               ? "Run /giveaway start in Discord to launch the first one."
               : "Launch your first one to start collecting entries."}
-          </p>
+          </span>
         </motion.div>
       ) : (
-        <motion.div variants={rise} className="panel divide-y divide-white/[0.04] overflow-hidden">
-          {giveaways.map((gw) => (
-            <div
-              key={gw.id}
-              className="flex flex-wrap items-center gap-3 px-4 py-3.5 transition-colors hover:bg-white/[0.02]"
-            >
-              <span
-                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border ${
-                  gw.active
-                    ? "border-[#7C5CFF]/25 bg-[#7C5CFF]/10 text-[#7C5CFF]"
-                    : "border-white/[0.06] bg-white/[0.02] text-slate-600"
-                }`}
-              >
-                <Gift className="h-4 w-4" />
-              </span>
-
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="truncate text-xs font-bold text-white">{gw.prize}</span>
+        <motion.div
+          variants={rise}
+          className="grid grid-cols-1 gap-4 lg:grid-cols-2"
+        >
+          {giveaways.map((gw) => {
+            const endsLabel = endsAtLabel(gw.endsAt);
+            return (
+              <div key={gw.id} className="glass-card glass-card-hover p-4">
+                <div className="flex items-start gap-3">
                   <span
-                    className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                      gw.active
-                        ? "bg-[#39D98A]/10 border-[#39D98A]/25 text-[#39D98A]"
-                        : "bg-white/[0.04] border-white/[0.08] text-slate-500"
+                    className={`icon-tile h-9 w-9 rounded-[12px] ${
+                      gw.active ? "icon-tile-violet" : "icon-tile-blue"
                     }`}
                   >
-                    {gw.active ? "ACTIVE" : "ENDED"}
+                    <Gift className="h-4 w-4" />
                   </span>
-                </div>
-                <div className="mt-1 flex flex-wrap items-center gap-x-3.5 gap-y-1 text-[10px] text-slate-500">
-                  <span className="inline-flex items-center gap-1">
-                    <Users className="h-3 w-3" />
-                    {gw.entries} entries
-                  </span>
-                  <span className="inline-flex items-center gap-1">
-                    <Trophy className="h-3 w-3" />
-                    {gw.winnerCount} winner{gw.winnerCount > 1 ? "s" : ""}
-                  </span>
-                  <span className="inline-flex items-center gap-1">
-                    <Clock className="h-3 w-3" />
-                    {gw.active
-                      ? gw.endsAt
-                        ? timeLeft(gw.endsAt)
-                        : "No end date"
-                      : gw.winners?.length
-                        ? `${gw.winners.length} winner${gw.winners.length > 1 ? "s" : ""} drawn`
-                        : gw.winner
-                          ? `Won by ${gw.winner}`
-                          : "Ended"}
-                  </span>
-                  {gw.channelId && (
-                    <span className="font-mono text-slate-600">{gw.channelId}</span>
-                  )}
-                  {(gw.host || gw.hostId) && (
-                    <span className="text-slate-600">
-                      hosted by {gw.host || <span className="font-mono">{shortId(gw.hostId)}</span>}
-                    </span>
-                  )}
-                </div>
-              </div>
 
-              <div className="flex items-center gap-2 shrink-0">
-                {gw.active && (
-                  <button
-                    type="button"
-                    onClick={() => endGiveaway(gw.id)}
-                    disabled={Boolean(guildId)}
-                    title={guildId ? "End giveaways with /giveaway end in Discord" : undefined}
-                    className={`inline-flex items-center gap-1.5 rounded-lg border border-white/[0.08] px-2.5 py-1.5 text-[10px] font-bold text-slate-400 transition-colors hover:text-white hover:bg-white/[0.04] cursor-pointer${
-                      guildId ? " disabled:opacity-50 disabled:cursor-not-allowed" : ""
-                    }`}
-                  >
-                    <CheckCircle2 className="h-3.5 w-3.5" />
-                    End early
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => deleteGiveaway(gw.id)}
-                  disabled={Boolean(guildId)}
-                  title={guildId ? "Delete giveaways with /giveaway in Discord" : "Delete giveaway"}
-                  className={`p-2 rounded-lg text-slate-500 hover:text-[#FF5C7A] hover:bg-[#FF5C7A]/10 transition-colors cursor-pointer${
-                    guildId ? " disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:text-slate-500 disabled:hover:bg-transparent" : ""
-                  }`}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h4 className="truncate text-xs font-bold text-white">{gw.prize}</h4>
+                      <span
+                        className={`chip ${
+                          gw.active ? "chip-green" : "chip-cyan"
+                        }`}
+                      >
+                        {gw.active ? "Active" : "Ended"}
+                      </span>
+                    </div>
+
+                    <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                      <span className="chip chip-blue">
+                        <Users className="h-3 w-3" />
+                        {gw.entries} entries
+                      </span>
+                      <span className="chip chip-amber">
+                        <Trophy className="h-3 w-3" />
+                        {gw.winnerCount} winner{gw.winnerCount > 1 ? "s" : ""}
+                      </span>
+                      {gw.channelId ? <span className="chip">{gw.channelId}</span> : null}
+                    </div>
+
+                    <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] text-slate-500">
+                      <span className="inline-flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        {gw.active
+                          ? gw.endsAt
+                            ? timeLeft(gw.endsAt)
+                            : "No end date"
+                          : gw.winners?.length
+                            ? `${gw.winners.length} winner${gw.winners.length > 1 ? "s" : ""} drawn`
+                            : gw.winner
+                              ? `Won by ${gw.winner}`
+                              : "Ended"}
+                      </span>
+                      {endsLabel ? <span className="text-slate-600">· ends {endsLabel}</span> : null}
+                      {(gw.host || gw.hostId) ? (
+                        <span className="text-slate-600">
+                          · hosted by {gw.host || <span className="font-mono">{shortId(gw.hostId)}</span>}
+                        </span>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    {gw.active && (
+                      <button
+                        type="button"
+                        onClick={() => endGiveaway(gw.id)}
+                        disabled={Boolean(guildId)}
+                        title={guildId ? "End giveaways with /giveaway end in Discord" : undefined}
+                        className="btn-glass h-8 px-2.5 text-[10px]"
+                      >
+                        <CheckCircle2 className="h-3.5 w-3.5" />
+                        End early
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => deleteGiveaway(gw.id)}
+                      disabled={Boolean(guildId)}
+                      title={guildId ? "Delete giveaways with /giveaway in Discord" : "Delete giveaway"}
+                      className="btn-icon h-8 w-8 rounded-[10px] hover:text-[#F87171] hover:border-[#F87171]/40 hover:bg-[#F87171]/10 hover:shadow-none"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </motion.div>
       )}
     </motion.div>
