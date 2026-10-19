@@ -144,9 +144,9 @@ function mapSubmission(s) {
 }
 
 const STATUS_META = {
-  pending: { label: "Pending", color: "#FFB547", icon: Clock },
-  approved: { label: "Approved", color: "#39D98A", icon: CheckCircle2 },
-  rejected: { label: "Rejected", color: "#FF5C7A", icon: XCircle },
+  pending: { label: "Pending", color: "#FBBF24", icon: Clock },
+  approved: { label: "Approved", color: "#34D399", icon: CheckCircle2 },
+  rejected: { label: "Rejected", color: "#F87171", icon: XCircle },
 };
 
 const ROLE_PRESETS = [
@@ -626,7 +626,7 @@ function BuilderView({
                     type="button"
                     onClick={() => removeQuestion(q.id)}
                     title="Remove question"
-                    className="shrink-0 rounded-lg p-2 text-slate-600 transition-colors hover:bg-[#FF5C7A]/10 hover:text-[#FF5C7A]"
+                    className="shrink-0 rounded-lg p-2 text-slate-600 transition-colors hover:bg-[#F87171]/10 hover:text-[#F87171]"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
@@ -887,10 +887,10 @@ function BuilderView({
                 ))}
               </div>
               <div className="mt-2.5 flex gap-2">
-                <span className="flex-1 rounded-md border border-[#39D98A]/25 bg-[#39D98A]/15 py-1.5 text-center text-[10px] font-bold text-[#39D98A]">
+                <span className="flex-1 rounded-md border border-[#34D399]/25 bg-[#34D399]/15 py-1.5 text-center text-[10px] font-bold text-[#6EE7B7]">
                   ✓ Approve
                 </span>
-                <span className="flex-1 rounded-md border border-[#FF5C7A]/25 bg-[#FF5C7A]/15 py-1.5 text-center text-[10px] font-bold text-[#FF5C7A]">
+                <span className="flex-1 rounded-md border border-[#F87171]/25 bg-[#F87171]/15 py-1.5 text-center text-[10px] font-bold text-[#FCA5A5]">
                   ✕ Reject
                 </span>
               </div>
