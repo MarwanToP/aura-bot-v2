@@ -38,7 +38,8 @@ export function AuthProvider({ children }) {
       .finally(() => {
         setUser(null);
         setIsAuthenticated(false);
-        window.location.reload();
+        // Signed-out visitors belong on the public landing page, not the dashboard.
+        window.location.assign("/");
       });
   };
 

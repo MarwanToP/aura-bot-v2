@@ -15,12 +15,13 @@ const DISCORD_REDIRECT_URI =
     ? 'http://localhost:3000/api/auth/callback'
     : env.DISCORD_REDIRECT_URI;
 
-// Where the browser lands after a successful login. In dev, honor a localhost
-// DOMAIN, otherwise pin to the local dashboard; production honors DOMAIN.
+// Where the browser lands after a successful login: the dashboard route (the
+// public landing page lives at "/"). In dev, honor a localhost DOMAIN,
+// otherwise pin to the local dashboard; production honors DOMAIN.
 const POST_LOGIN_URL =
   env.NODE_ENV !== 'production' && !env.DOMAIN.includes('localhost')
-    ? 'http://localhost:3000/'
-    : `${env.DOMAIN}/`;
+    ? 'http://localhost:3000/dashboard'
+    : `${env.DOMAIN}/dashboard`;
 
 // 1. Redirect to Discord OAuth2 Authorization Page with CSRF State Token
 router.get('/login', (req, res) => {

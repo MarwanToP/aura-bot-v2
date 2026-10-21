@@ -34,6 +34,7 @@ import {
   Youtube,
   Zap,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "../context/AuthContext";
 import AuraLogo from "./AuraLogo";
 
@@ -519,6 +520,10 @@ function DashboardMock() {
    ──────────────────────────────────────────────────────────────── */
 export default function LandingPage({ onLaunchDashboard }) {
   const { login } = useAuth();
+  const router = useRouter();
+  // The dashboard is its own route (/dashboard); an explicit handler still wins
+  // so the component stays reusable in tests and previews.
+  const launchDashboard = onLaunchDashboard ?? (() => router.push("/dashboard"));
 
   const navLinks = [
     { label: "Home", href: "#home" },
@@ -701,7 +706,7 @@ export default function LandingPage({ onLaunchDashboard }) {
 
             <button
               type="button"
-              onClick={onLaunchDashboard}
+              onClick={launchDashboard}
               className="btn-primary h-9 px-4 text-[12.5px]"
             >
               <span>Launch Dashboard</span>
@@ -762,7 +767,7 @@ export default function LandingPage({ onLaunchDashboard }) {
 
               <button
                 type="button"
-                onClick={onLaunchDashboard}
+                onClick={launchDashboard}
                 className="btn-glass h-12 px-6 text-[13.5px]"
               >
                 <span>Explore Features</span>
@@ -831,7 +836,7 @@ export default function LandingPage({ onLaunchDashboard }) {
 
             <button
               type="button"
-              onClick={onLaunchDashboard}
+              onClick={launchDashboard}
               className="btn-glass shrink-0"
             >
               <span>View all features</span>
@@ -846,7 +851,7 @@ export default function LandingPage({ onLaunchDashboard }) {
                 <motion.button
                   key={c.title}
                   type="button"
-                  onClick={onLaunchDashboard}
+                  onClick={launchDashboard}
                   initial={{ opacity: 0, y: 18 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true, amount: 0.15 }}
@@ -880,7 +885,7 @@ export default function LandingPage({ onLaunchDashboard }) {
               </div>
               <button
                 type="button"
-                onClick={onLaunchDashboard}
+                onClick={launchDashboard}
                 className="btn-glass h-9 shrink-0 text-[12px]"
               >
                 <span>Explore all modules</span>
@@ -895,7 +900,7 @@ export default function LandingPage({ onLaunchDashboard }) {
                   <button
                     key={m.name}
                     type="button"
-                    onClick={onLaunchDashboard}
+                    onClick={launchDashboard}
                     className="chip cursor-pointer transition-all duration-300 hover:-translate-y-0.5 hover:border-[#4C7DFF]/40 hover:text-white"
                   >
                     <Icon className="h-3 w-3 shrink-0 text-[#7FB2FF]" />
@@ -939,7 +944,7 @@ export default function LandingPage({ onLaunchDashboard }) {
               <div className="pt-2">
                 <button
                   type="button"
-                  onClick={onLaunchDashboard}
+                  onClick={launchDashboard}
                   className="btn-primary h-11 px-5 text-[13px]"
                 >
                   <span>Explore Dashboard</span>
