@@ -40,13 +40,18 @@ const LIVE_ROOMS = [
 
 /* ────────────────────────────── shared atoms ────────────────────────────── */
 
-function Toggle({ enabled, onChange, title }) {
+function Toggle({ enabled, onChange, title, ariaLabel }) {
   return (
     <button
       type="button"
-      onClick={() => onChange(!enabled)}
+      role="switch"
+      aria-checked={enabled}
+      onClick={(e) => {
+        if (typeof onChange === 'function') onChange(!enabled, e);
+      }}
       title={title}
       aria-pressed={enabled}
+      aria-label={ariaLabel ? (enabled ? `Disable ${ariaLabel}` : `Enable ${ariaLabel}`) : title || (enabled ? "Disable" : "Enable")}
       className={`toggle-track ${enabled ? "toggle-track-on" : ""}`}
     >
       <span className="toggle-thumb" />
