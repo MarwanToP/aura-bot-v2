@@ -20,13 +20,18 @@ const rise = {
 
 /* ────────────────────────────── shared UI atoms ────────────────────────────── */
 
-function Toggle({ enabled, onChange }) {
+function Toggle({ enabled, onChange, ariaLabel, title }) {
   return (
     <button
       type="button"
-      onClick={() => onChange(!enabled)}
+      role="switch"
+      aria-checked={enabled}
+      onClick={(e) => {
+        if (typeof onChange === 'function') onChange(!enabled, e);
+      }}
+      title={title}
       aria-pressed={enabled}
-      aria-label={enabled ? "Disable" : "Enable"}
+      aria-label={ariaLabel ? (enabled ? `Disable ${ariaLabel}` : `Enable ${ariaLabel}`) : title || (enabled ? "Disable" : "Enable")}
       className={`toggle-track ${enabled ? "toggle-track-on" : ""}`}
     >
       <span className="toggle-thumb" />
