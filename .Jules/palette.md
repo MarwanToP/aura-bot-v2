@@ -1,0 +1,3 @@
+## 2026-10-24 - Added focus styles and ARIA roles to custom Toggles
+**Learning:** Custom switch components often lack explicit focus indicators in CSS frameworks, which breaks keyboard navigation accessibility as users tab through settings. Furthermore, standard button elements acting as switches should have `role="switch"` to properly semantically communicate their purpose to screen readers.
+**Action:** When implementing generic reusable components like `ToggleSwitch` or `.toggle-track`, always explicitly define `:focus-visible` styles and ensure `role="switch"` is included on the underlying element.
