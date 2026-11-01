@@ -43,14 +43,17 @@ const fieldCls = "glass-input text-xs";
 
 const selectCls = "glass-select text-xs";
 
-function Toggle({ enabled, onChange }) {
+function Toggle({ enabled, onChange, title, ariaLabel }) {
+  const label = ariaLabel || title || (enabled ? "Disable" : "Enable");
   return (
     <button
       type="button"
-      onClick={() => onChange(!enabled)}
-      aria-pressed={enabled}
-      aria-label={enabled ? "Disable" : "Enable"}
-      className={`toggle-track ${enabled ? "toggle-track-on" : ""}`}
+      role="switch"
+      aria-checked={enabled}
+      aria-label={label}
+      title={title}
+      onClick={(e) => onChange(!enabled, e)}
+      className={`toggle-track focus-ring ${enabled ? "toggle-track-on" : ""}`}
     >
       <span className="toggle-thumb" />
     </button>
