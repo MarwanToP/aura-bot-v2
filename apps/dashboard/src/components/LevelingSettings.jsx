@@ -106,14 +106,16 @@ function mapRewards(rows) {
 /* ────────────────────────────── shared atoms ────────────────────────────── */
 
 function Toggle({ enabled, onChange, title, ariaLabel }) {
+  const label = ariaLabel || title || (enabled ? "Disable" : "Enable");
   return (
     <button
       type="button"
-      onClick={() => onChange(!enabled)}
+      role="switch"
+      aria-checked={enabled}
+      aria-label={label}
       title={title}
-      aria-label={ariaLabel ? (enabled ? `Disable ${ariaLabel}` : `Enable ${ariaLabel}`) : title}
-      aria-pressed={enabled}
-      className={`toggle-track ${enabled ? "toggle-track-on" : ""}`}
+      onClick={(e) => onChange(!enabled, e)}
+      className={`toggle-track focus-ring ${enabled ? "toggle-track-on" : ""}`}
     >
       <span className="toggle-thumb" />
     </button>

@@ -199,14 +199,17 @@ function StatCard({ label, value, icon: Icon, tone = "violet", index }) {
   );
 }
 
-function Toggle({ enabled, onChange, title }) {
+function Toggle({ enabled, onChange, title, ariaLabel }) {
+  const label = ariaLabel || title || (enabled ? "Disable" : "Enable");
   return (
     <button
       type="button"
-      onClick={() => onChange(!enabled)}
+      role="switch"
+      aria-checked={enabled}
+      aria-label={label}
       title={title}
-      aria-pressed={enabled}
-      className={`toggle-track ${enabled ? "toggle-track-on" : ""}`}
+      onClick={(e) => onChange(!enabled, e)}
+      className={`toggle-track focus-ring ${enabled ? "toggle-track-on" : ""}`}
     >
       <span className="toggle-thumb" />
     </button>

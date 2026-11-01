@@ -51,14 +51,17 @@ const toneFor = (color) => TONE_BY_COLOR[String(color).toUpperCase()] || "";
 
 /* ────────────────────────────── shared UI atoms ────────────────────────────── */
 
-function Toggle({ enabled, onChange }) {
+function Toggle({ enabled, onChange, title, ariaLabel }) {
+  const label = ariaLabel || title || (enabled ? "Disable" : "Enable");
   return (
     <button
       type="button"
+      role="switch"
+      aria-checked={enabled}
+      aria-label={label}
+      title={title}
       onClick={(e) => onChange(!enabled, e)}
-      aria-pressed={enabled}
-      aria-label={enabled ? "Disable" : "Enable"}
-      className={`toggle-track ${enabled ? "toggle-track-on" : ""}`}
+      className={`toggle-track focus-ring ${enabled ? "toggle-track-on" : ""}`}
     >
       <span className="toggle-thumb" />
     </button>
