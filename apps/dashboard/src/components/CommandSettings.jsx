@@ -25,9 +25,10 @@ function Toggle({ enabled, onChange }) {
     <button
       type="button"
       onClick={() => onChange(!enabled)}
-      aria-pressed={enabled}
+      role="switch"
+      aria-checked={enabled}
       aria-label={enabled ? "Disable" : "Enable"}
-      className={`toggle-track ${enabled ? "toggle-track-on" : ""}`}
+      className={`toggle-track ${enabled ? "toggle-track-on" : ""} focus-ring`}
     >
       <span className="toggle-thumb" />
     </button>
